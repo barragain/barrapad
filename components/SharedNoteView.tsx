@@ -92,9 +92,8 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
   // Keep a ref of initialTitle for use inside the editor update handler
   const titleRef = useRef(initialTitle)
 
-  // Keep refs in sync
+  // Keep canEdit ref in sync (editor ref synced after useEditor below)
   useEffect(() => { canEditRef.current = canEdit }, [canEdit])
-  useEffect(() => { editorRef.current = editor }, [editor])
 
   const editor = useEditor({
     extensions: EXTENSIONS,
@@ -148,6 +147,9 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
       }, 50)
     },
   })
+
+  // Keep editor ref in sync
+  useEffect(() => { editorRef.current = editor }, [editor])
 
   // Flip editable when sign-in state resolves
   useEffect(() => {
