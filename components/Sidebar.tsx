@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { useUser, UserButton } from '@clerk/nextjs'
 import {
@@ -38,6 +38,12 @@ export default function Sidebar({
   const [hoveredNote, setHoveredNote] = useState<string | null>(null)
   const [showAbout, setShowAbout] = useState(false)
   const aboutAudioRef = useRef<HTMLAudioElement | null>(null)
+
+  // Preload the about GIF as soon as the sidebar mounts so it's cached by the time the user clicks ?
+  useEffect(() => {
+    const img = new window.Image()
+    img.src = 'https://forum.playhive.com/uploads/default/original/3X/9/f/9fbb4321b65bdf33a08df00b50a6e34c3d1e98df.gif'
+  }, [])
 
   const filtered = notes.filter((n) => {
     const q = search.toLowerCase()

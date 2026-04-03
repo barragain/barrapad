@@ -62,9 +62,8 @@ export async function downloadPdf(title: string, html: string) {
 export async function downloadDocx(title: string, html: string) {
   // html-docx-js expects a full HTML document string
   const fullHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body>${html}</body></html>`
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const htmlDocx = await import('html-docx-js') as any
-  const convert = htmlDocx.default ?? htmlDocx
-  const blob: Blob = convert.asBlob(fullHtml)
+  // Use the pre-built browser bundle — the main entry uses Node's 'fs' module
+  const { default: htmlDocx } = await import('html-docx-js/dist/html-docx')
+  const blob: Blob = htmlDocx.asBlob(fullHtml)
   triggerDownload(blob, `${title}.docx`)
 }
