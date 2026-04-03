@@ -26,14 +26,37 @@ const lowlight = createLowlight(common)
 
 interface EditorProps {
   note: Note
-  onSave: (title: string, content: string) => void
+  /** Called immediately on every change — updates localStorage only, no API */
+  onLocalChange: (title: string, content: string) => void
+  /** Called after 30s idle, blur, or tab switch — syncs to API */
+  onAutoSave: (title: string, content: string) => void
+  /** Called when the user explicitly presses Save */
+  onManualSave: (title: string, content: string) => void
   onWordCountChange: (words: number, chars: number) => void
 }
 
-export default function EditorComponent({ note, onSave, onWordCountChange }: EditorProps) {
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  // Ref so editorProps callbacks can access the latest editor instance
+export default function EditorComponent({
+  note,
+  onLocalChange,
+  onAutoSave,
+  onManualSave,
+  onWordCountChange,
+}: EditorProps) {
   const editorRef = useRef<Editor | null>(null)
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Snapshot of content pending API sync
+  const pendingRef = useRef<{ title: string; html: string } | null>(null)
+
+  const flushAutoSave = useCallback(() => {
+    if (!pendingRef.current) return
+    const { title, html } = pendingRef.current
+    pendingRef.current = null
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current)
+      autoSaveTimerRef.current = null
+    }
+    onAutoSave(title, html)
+  }, [onAutoSave])
 
   const editor = useEditor({
     extensions: [
@@ -58,22 +81,18 @@ export default function EditorComponent({ note, onSave, onWordCountChange }: Edi
     ],
     editorProps: {
       handleDrop(view, event, _slice, moved) {
-        // Let ProseMirror handle internal node moves
         if (moved) return false
         const files = event.dataTransfer?.files
         if (!files || files.length === 0) return false
-
         event.preventDefault()
         const ed = editorRef.current
         if (!ed) return false
-
         for (const file of Array.from(files)) {
           const reader = new FileReader()
           if (file.type.startsWith('image/')) {
             reader.onload = (e) => {
               const result = e.target?.result as string
-              if (!result) return
-              ed.chain().focus().setImage({ src: result }).run()
+              if (result) ed.chain().focus().setImage({ src: result }).run()
             }
           } else {
             reader.onload = (e) => {
@@ -95,7 +114,6 @@ export default function EditorComponent({ note, onSave, onWordCountChange }: Edi
       handlePaste(view, event) {
         const ed = editorRef.current
         if (!ed) return false
-
         const items = event.clipboardData?.items
         if (items) {
           for (const item of Array.from(items)) {
@@ -105,15 +123,13 @@ export default function EditorComponent({ note, onSave, onWordCountChange }: Edi
               const reader = new FileReader()
               reader.onload = (e) => {
                 const result = e.target?.result as string
-                if (!result) return
-                ed.chain().focus().setImage({ src: result }).run()
+                if (result) ed.chain().focus().setImage({ src: result }).run()
               }
               reader.readAsDataURL(file)
-              return true // handled
+              return true
             }
           }
         }
-
         const files = event.clipboardData?.files
         if (files && files.length > 0) {
           for (const file of Array.from(files)) {
@@ -134,7 +150,6 @@ export default function EditorComponent({ note, onSave, onWordCountChange }: Edi
             }
           }
         }
-
         return false
       },
     },
@@ -144,23 +159,31 @@ export default function EditorComponent({ note, onSave, onWordCountChange }: Edi
       const text = editor.getText()
 
       const words = text.trim() ? text.trim().split(/\s+/).length : 0
-      const chars = text.length
-      onWordCountChange(words, chars)
+      onWordCountChange(words, text.length)
 
       const firstLine = text.split('\n')[0]?.trim() ?? ''
       const title = firstLine.slice(0, 100) || 'Untitled'
 
-      if (debounceRef.current) clearTimeout(debounceRef.current)
-      debounceRef.current = setTimeout(() => {
-        onSave(title, html)
-      }, 2000)
+      // Immediate: update localStorage, no network
+      onLocalChange(title, html)
+
+      // Track what needs to be synced
+      pendingRef.current = { title, html }
+
+      // Reset the 30s idle timer
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
+      autoSaveTimerRef.current = setTimeout(() => {
+        flushAutoSave()
+      }, 30_000)
+    },
+    onBlur: () => {
+      // Sync to API when editor loses focus (e.g. user clicks sidebar)
+      flushAutoSave()
     },
   })
 
-  // Keep ref in sync with editor instance
-  useEffect(() => {
-    editorRef.current = editor
-  }, [editor])
+  // Keep ref in sync
+  useEffect(() => { editorRef.current = editor }, [editor])
 
   // Sync content when switching notes
   useEffect(() => {
@@ -169,18 +192,33 @@ export default function EditorComponent({ note, onSave, onWordCountChange }: Edi
     if (currentHtml !== note.content) {
       editor.commands.setContent(note.content || '')
     }
+    // Reset pending state when switching notes
+    pendingRef.current = null
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [note.id])
 
+  // Sync to API when tab is hidden (user switches tabs/minimizes)
+  useEffect(() => {
+    const handler = () => {
+      if (document.hidden) flushAutoSave()
+    }
+    document.addEventListener('visibilitychange', handler)
+    return () => document.removeEventListener('visibilitychange', handler)
+  }, [flushAutoSave])
+
+  // Manual save — triggered by the Save button
   const handleManualSave = useCallback(() => {
     if (!editor) return
     const html = editor.getHTML()
     const text = editor.getText()
     const firstLine = text.split('\n')[0]?.trim() ?? ''
     const title = firstLine.slice(0, 100) || 'Untitled'
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    onSave(title, html)
-  }, [editor, onSave])
+    // Cancel pending auto-save (manual supersedes it)
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
+    pendingRef.current = null
+    onManualSave(title, html)
+  }, [editor, onManualSave])
 
   useEffect(() => {
     const handler = () => handleManualSave()

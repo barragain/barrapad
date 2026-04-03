@@ -7,7 +7,9 @@ const Editor = dynamic(() => import('./Editor'), { ssr: false })
 
 interface EditorWrapperProps {
   note: Note
-  onSave: (title: string, content: string) => void
+  onLocalChange: (title: string, content: string) => void
+  onAutoSave: (title: string, content: string) => void
+  onManualSave: (title: string, content: string) => void
   onWordCountChange: (words: number, chars: number) => void
 }
 

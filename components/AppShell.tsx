@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Save, Share2, X, Info } from 'lucide-react'
+import { Save, Share2, X, Info, CloudUpload } from 'lucide-react'
+import { AnimatePresence, motion } from 'framer-motion'
 import Sidebar from './Sidebar'
 import EditorWrapper from './EditorWrapper'
 import ShareModal from './ShareModal'
@@ -68,7 +69,8 @@ export default function AppShell() {
   const [appearance, setAppearance] = useState<AppearanceSettings>(DEFAULT_APPEARANCE)
   const [wordCount, setWordCount] = useState(0)
   const [charCount, setCharCount] = useState(0)
-  const [saving, setSaving] = useState(false)
+  const [manualSaving, setManualSaving] = useState(false)
+  const [autoSaving, setAutoSaving] = useState(false)
   const infoButtonRef = useRef<HTMLButtonElement>(null)
 
   const activeNote = notes.find((n) => n.id === activeNoteId) ?? null
@@ -107,6 +109,46 @@ export default function AppShell() {
     })
   }, [])
 
+  /** Immediate: update localStorage only, no API call */
+  const handleLocalChange = useCallback((title: string, content: string) => {
+    if (!activeNoteId || activeNoteId.startsWith('temp-')) return
+    updateNotes((prev) =>
+      prev.map((n) =>
+        n.id === activeNoteId
+          ? { ...n, title, content, updatedAt: new Date().toISOString() }
+          : n
+      )
+    )
+  }, [activeNoteId, updateNotes])
+
+  /** Background sync to API — triggered by blur / tab switch / 30s idle */
+  const handleAutoSave = useCallback(async (title: string, content: string) => {
+    if (!activeNoteId || activeNoteId.startsWith('temp-')) return
+    setAutoSaving(true)
+    try {
+      await fetch(`/api/notes/${activeNoteId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, content }),
+      })
+    } catch {}
+    setAutoSaving(false)
+  }, [activeNoteId])
+
+  /** Manual save — triggered by the Save button */
+  const handleManualSaveContent = useCallback(async (title: string, content: string) => {
+    if (!activeNoteId || activeNoteId.startsWith('temp-')) return
+    setManualSaving(true)
+    try {
+      await fetch(`/api/notes/${activeNoteId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, content }),
+      })
+    } catch {}
+    setManualSaving(false)
+  }, [activeNoteId])
+
   const handleNewNote = async () => {
     const tempId = `temp-${Date.now()}`
     const tempNote: Note = {
@@ -134,29 +176,6 @@ export default function AppShell() {
     }
   }
 
-  const handleSave = useCallback(async (title: string, content: string) => {
-    if (!activeNoteId || activeNoteId.startsWith('temp-')) return
-
-    updateNotes((prev) =>
-      prev.map((n) =>
-        n.id === activeNoteId
-          ? { ...n, title, content, updatedAt: new Date().toISOString() }
-          : n
-      )
-    )
-    setSaving(true)
-
-    try {
-      await fetch(`/api/notes/${activeNoteId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, content }),
-      })
-    } catch {}
-
-    setSaving(false)
-  }, [activeNoteId, updateNotes])
-
   const handleDeleteNote = async (id: string) => {
     const prev = notes
     updateNotes((n) => n.filter((note) => note.id !== id))
@@ -172,7 +191,7 @@ export default function AppShell() {
     }
   }
 
-  const handleManualSave = () => {
+  const triggerManualSave = () => {
     window.dispatchEvent(new Event('barrapad:save'))
   }
 
@@ -197,6 +216,24 @@ export default function AppShell() {
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         {/* Top action bar */}
         <div className="flex items-center justify-end gap-2 px-4 py-2 border-b" style={{ background: 'var(--editor-bg)', borderColor: 'var(--border)' }}>
+          {/* Auto-save indicator — appears only during background sync */}
+          <AnimatePresence>
+            {autoSaving && (
+              <motion.span
+                key="autosave-indicator"
+                initial={{ opacity: 0, x: 8 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 8 }}
+                transition={{ duration: 0.18 }}
+                className="flex items-center gap-1"
+                style={{ color: 'var(--muted)' }}
+                title="Syncing to server…"
+              >
+                <CloudUpload size={13} className="animate-pulse" />
+              </motion.span>
+            )}
+          </AnimatePresence>
+
           {activeNote && (
             <button
               onClick={() => setShowShare(true)}
@@ -208,12 +245,12 @@ export default function AppShell() {
             </button>
           )}
           <button
-            onClick={handleManualSave}
+            onClick={triggerManualSave}
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg hover:opacity-80 transition-opacity"
             style={{ background: 'var(--ink)', color: 'var(--editor-bg)' }}
           >
             <Save size={13} />
-            {saving ? 'Saving...' : 'Save'}
+            {manualSaving ? 'Saving...' : 'Save'}
           </button>
         </div>
 
@@ -223,7 +260,9 @@ export default function AppShell() {
             <EditorWrapper
               key={activeNote.id}
               note={activeNote}
-              onSave={handleSave}
+              onLocalChange={handleLocalChange}
+              onAutoSave={handleAutoSave}
+              onManualSave={handleManualSaveContent}
               onWordCountChange={(w, c) => { setWordCount(w); setCharCount(c) }}
             />
           ) : (
