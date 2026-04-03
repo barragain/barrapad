@@ -53,7 +53,7 @@ interface Props {
   updatedAt: string
 }
 
-const PARTYKIT_HOST = process.env.NEXT_PUBLIC_PARTYKIT_HOST ?? '127.0.0.1:1999'
+const PARTYKIT_HOST = process.env.NEXT_PUBLIC_PARTYKIT_HOST ?? 'barrapad.barragain.partykit.dev'
 
 export default function SharedNoteView({ token, noteId, initialTitle, initialContent, permission, updatedAt }: Props) {
   const { isSignedIn, isLoaded } = useUser()

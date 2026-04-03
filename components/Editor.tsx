@@ -52,7 +52,7 @@ import type { Note } from '@/types'
 
 const lowlight = createLowlight(common)
 
-const PARTYKIT_HOST = process.env.NEXT_PUBLIC_PARTYKIT_HOST ?? '127.0.0.1:1999'
+const PARTYKIT_HOST = process.env.NEXT_PUBLIC_PARTYKIT_HOST ?? 'barrapad.barragain.partykit.dev'
 
 interface EditorProps {
   note: Note
