@@ -144,7 +144,8 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
         // the local editor is not actively focused (to avoid cursor jumps).
         // Guard against an empty sync from a fresh PartyKit room overwriting
         // the DB content that was loaded server-side.
-        if (msg.content !== '' && editor && !editor.isFocused) {
+        // For READ viewers always apply updates; for EDIT viewers skip if focused to avoid cursor jumps
+        if (msg.content !== '' && editor && (!canEdit || !editor.isFocused)) {
           const current = editor.getHTML()
           if (current !== msg.content) {
             editor.commands.setContent(msg.content, { emitUpdate: false })
