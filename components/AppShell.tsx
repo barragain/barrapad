@@ -336,28 +336,28 @@ export default function AppShell() {
                     style={{ background: 'var(--editor-bg)', border: '1px solid var(--border)', minWidth: 190 }}
                   >
                     {([
-                      { fmt: 'pdf',  label: '.pdf',  note: 'Visual · searchable' },
-                      { fmt: 'md',   label: '.md',   note: 'Markdown' },
-                      { fmt: 'txt',  label: '.txt',  note: 'Plain text' },
-                      { fmt: 'docx', label: '.docx', note: 'Word · basic styles' },
-                    ] as const).map(({ fmt, label, note }) => (
+                      { fmt: 'pdf',  label: '.pdf'  },
+                      { fmt: 'md',   label: '.md'   },
+                      { fmt: 'txt',  label: '.txt'  },
+                      { fmt: 'docx', label: '.docx' },
+                    ] as const).map(({ fmt, label }) => (
                       <button
                         key={fmt}
                         onClick={() => handleExport(fmt)}
-                        className="w-full text-left flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors"
+                        className="w-full text-left px-3 py-2 rounded-lg transition-colors"
                         style={{ color: 'var(--ink)' }}
                         onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--border)')}
                         onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                       >
-                        <span className="text-sm font-semibold w-10 flex-shrink-0">{label}</span>
-                        <span
-                          className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                          style={{ background: '#D4550A22', color: '#D4550A' }}
-                        >
-                          {note}
-                        </span>
+                        <span className="text-sm font-semibold">{label}</span>
                       </button>
                     ))}
+                    <div
+                      className="mx-1 mt-1 mb-0.5 px-3 py-2 rounded-xl text-center text-[11px] font-medium leading-snug"
+                      style={{ background: '#D4550A1A', color: '#D4550A' }}
+                    >
+                      PDF preserves your design.<br />Others export basic or no styles.
+                    </div>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -388,7 +388,6 @@ export default function AppShell() {
         <div className="flex-1 overflow-hidden">
           {activeNote ? (
             <EditorWrapper
-              key={activeNote.id}
               note={activeNote}
               onLocalChange={handleLocalChange}
               onAutoSave={handleAutoSave}
