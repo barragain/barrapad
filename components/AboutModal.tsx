@@ -39,7 +39,7 @@ export default function AboutModal({ onClose }: AboutModalProps) {
           <div style={{ position: 'relative', lineHeight: 0 }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="https://forum.playhive.com/uploads/default/original/3X/9/f/9fbb4321b65bdf33a08df00b50a6e34c3d1e98df.gif"
+              src="/about-gif.gif"
               alt="about"
               style={{ width: '100%', display: 'block', maxHeight: 260, objectFit: 'cover' }}
             />

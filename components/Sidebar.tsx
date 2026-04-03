@@ -42,7 +42,7 @@ export default function Sidebar({
   // Preload the about GIF as soon as the sidebar mounts so it's cached by the time the user clicks ?
   useEffect(() => {
     const img = new window.Image()
-    img.src = 'https://forum.playhive.com/uploads/default/original/3X/9/f/9fbb4321b65bdf33a08df00b50a6e34c3d1e98df.gif'
+    img.src = '/about-gif.gif'
   }, [])
 
   const filtered = notes.filter((n) => {
@@ -137,7 +137,7 @@ export default function Sidebar({
           <button
             onClick={() => {
               // Play audio synchronously inside the user gesture — browser allows this
-              const audio = new Audio('/about.mp3')
+              const audio = new Audio('/about.mp3.mp3')
               audio.volume = 0.5
               audio.loop = true
               audio.play().catch(() => {})
