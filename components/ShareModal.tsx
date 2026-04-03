@@ -23,7 +23,7 @@ export default function ShareModal({ note, onClose }: ShareModalProps) {
   const [revoking, setRevoking] = useState<string | null>(null)
   const [copied, setCopied] = useState<'READ' | 'EDIT' | null>(null)
   const [qrDataUrl, setQrDataUrl] = useState('')
-  const [activeQr, setActiveQr] = useState<'READ' | 'EDIT'>('READ')
+  const [activeQr, setActiveQr] = useState<'READ' | 'EDIT' | null>(null)
 
   const origin = typeof window !== 'undefined' ? window.location.origin : ''
 
@@ -38,9 +38,6 @@ export default function ShareModal({ note, onClose }: ShareModalProps) {
       const read = data.find((l) => l.permission === 'READ') ?? null
       const edit = data.find((l) => l.permission === 'EDIT') ?? null
       setLinks({ READ: read, EDIT: edit })
-      // Default QR to whichever exists
-      if (read) setActiveQr('READ')
-      else if (edit) setActiveQr('EDIT')
     } finally {
       setLoading(false)
     }
@@ -50,13 +47,14 @@ export default function ShareModal({ note, onClose }: ShareModalProps) {
 
   // Regenerate QR when active link changes
   useEffect(() => {
+    if (!activeQr) { setQrDataUrl(''); return }
     const token = links[activeQr]?.token
     if (!token) { setQrDataUrl(''); return }
     const url = shareUrl(token)
     const generate = async () => {
       try {
         const QRCode = (await import('qrcode')).default
-        const dataUrl = await QRCode.toDataURL(url, { width: 180, margin: 1 })
+        const dataUrl = await QRCode.toDataURL(url, { width: 260, margin: 2 })
         setQrDataUrl(dataUrl)
       } catch {}
     }
@@ -75,7 +73,6 @@ export default function ShareModal({ note, onClose }: ShareModalProps) {
       if (!res.ok) return
       const link = (await res.json()) as ShareLink
       setLinks((prev) => ({ ...prev, [permission]: link }))
-      setActiveQr(permission)
     } finally {
       setGenerating(null)
     }
@@ -88,7 +85,7 @@ export default function ShareModal({ note, onClose }: ShareModalProps) {
     try {
       await fetch(`/api/share/${link.token}`, { method: 'DELETE' })
       setLinks((prev) => ({ ...prev, [permission]: null }))
-      if (activeQr === permission) setQrDataUrl('')
+      if (activeQr === permission) setActiveQr(null)
     } finally {
       setRevoking(null)
     }
@@ -155,12 +152,12 @@ export default function ShareModal({ note, onClose }: ShareModalProps) {
                 generating={generating === 'READ'}
                 revoking={revoking === links.READ?.token}
                 copied={copied === 'READ'}
-                isActiveQr={activeQr === 'READ' && !!links.READ}
+                isActiveQr={activeQr === 'READ'}
                 onGenerate={() => handleGenerate('READ')}
                 onRevoke={() => handleRevoke('READ')}
                 onCopy={() => handleCopy('READ')}
                 onShare={() => handleNativeShare('READ')}
-                onSelectQr={() => { if (links.READ) setActiveQr('READ') }}
+                onSelectQr={() => { if (links.READ) setActiveQr((p) => p === 'READ' ? null : 'READ') }}
                 shareUrl={links.READ ? shareUrl(links.READ.token) : ''}
               />
 
@@ -175,26 +172,30 @@ export default function ShareModal({ note, onClose }: ShareModalProps) {
                 generating={generating === 'EDIT'}
                 revoking={revoking === links.EDIT?.token}
                 copied={copied === 'EDIT'}
-                isActiveQr={activeQr === 'EDIT' && !!links.EDIT}
+                isActiveQr={activeQr === 'EDIT'}
                 onGenerate={() => handleGenerate('EDIT')}
                 onRevoke={() => handleRevoke('EDIT')}
                 onCopy={() => handleCopy('EDIT')}
                 onShare={() => handleNativeShare('EDIT')}
-                onSelectQr={() => { if (links.EDIT) setActiveQr('EDIT') }}
+                onSelectQr={() => { if (links.EDIT) setActiveQr((p) => p === 'EDIT' ? null : 'EDIT') }}
                 shareUrl={links.EDIT ? shareUrl(links.EDIT.token) : ''}
               />
 
-              {/* QR code */}
-              {(links.READ || links.EDIT) && (
+              {/* QR code — only shown when a link's URL bar is clicked */}
+              {activeQr && links[activeQr] && (
                 <>
                   <div className="border-t border-[#E5E0D8]" />
                   <div className="flex flex-col items-center gap-3">
-                    <p className="text-xs text-[#C4BFB6] self-start">QR Code — {activeQr === 'READ' ? 'View only' : 'Can edit'}</p>
-                    {qrDataUrl ? (
-                      <img src={qrDataUrl} alt="QR code" className="rounded-lg border border-[#E5E0D8]" />
-                    ) : (
-                      <div className="w-[180px] h-[180px] bg-[#F5F2ED] rounded-lg animate-pulse" />
-                    )}
+                    <p className="text-xs text-[#C4BFB6] self-start">
+                      QR Code — {activeQr === 'READ' ? 'View only' : 'Can edit'}
+                    </p>
+                    <div className="bg-white border border-[#E5E0D8] rounded-xl p-4 flex items-center justify-center" style={{ width: 268, height: 268 }}>
+                      {qrDataUrl ? (
+                        <img src={qrDataUrl} alt="QR code" style={{ width: 236, height: 236 }} />
+                      ) : (
+                        <div className="w-full h-full bg-[#F5F2ED] rounded-lg animate-pulse" />
+                      )}
+                    </div>
                     <button
                       onClick={handleDownloadQR}
                       disabled={!qrDataUrl}
@@ -284,7 +285,7 @@ function LinkRow({
           <div
             className="flex items-center gap-2 bg-[#F5F2ED] border border-[#E5E0D8] rounded-lg px-3 py-2 cursor-pointer"
             onClick={onSelectQr}
-            title="Click to show QR"
+            title={isActiveQr ? 'Click to hide QR' : 'Click to show QR'}
           >
             <input
               ref={urlRef}
