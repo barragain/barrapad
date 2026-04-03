@@ -48,7 +48,7 @@ interface Props {
 
 export default function SharedNoteView({ token, initialTitle, initialContent, permission, updatedAt }: Props) {
   const { isSignedIn, isLoaded } = useUser()
-  const canEdit = permission === 'EDIT' && isSignedIn
+  const canEdit = permission === 'EDIT' && !!isSignedIn
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
   const [lastUpdated, setLastUpdated] = useState(updatedAt)
