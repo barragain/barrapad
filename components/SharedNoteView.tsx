@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useRef, useCallback, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import { useUser, SignInButton } from '@clerk/nextjs'
+import PartySocket from 'partysocket'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
 import Link from '@tiptap/extension-link'
@@ -38,6 +39,11 @@ const EXTENSIONS = [
   GradientText,
 ]
 
+type ServerMessage =
+  | { type: 'sync'; content: string; title: string; updatedAt: string; connections: number }
+  | { type: 'update'; content: string; title: string; updatedAt: string }
+  | { type: 'presence'; connections: number }
+
 interface Props {
   token: string
   initialTitle: string
@@ -46,28 +52,45 @@ interface Props {
   updatedAt: string
 }
 
+const PARTYKIT_HOST = process.env.NEXT_PUBLIC_PARTYKIT_HOST ?? '127.0.0.1:1999'
+
 export default function SharedNoteView({ token, initialTitle, initialContent, permission, updatedAt }: Props) {
   const { isSignedIn, isLoaded } = useUser()
   const canEdit = permission === 'EDIT' && !!isSignedIn
+
+  const socketRef = useRef<PartySocket | null>(null)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const sendTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
   const [lastUpdated, setLastUpdated] = useState(updatedAt)
+  const [connections, setConnections] = useState(1)
+  const [connected, setConnected] = useState(false)
+
+  // Keep a ref of initialTitle for use inside the editor update handler
+  const titleRef = useRef(initialTitle)
 
   const editor = useEditor({
     extensions: EXTENSIONS,
     content: initialContent,
     editable: canEdit,
     editorProps: {
-      attributes: {
-        style: 'padding: 2rem; min-height: 70vh; outline: none;',
-      },
+      attributes: { style: 'padding: 2rem; min-height: 70vh; outline: none;' },
     },
     onUpdate: ({ editor }) => {
       if (!canEdit) return
       const html = editor.getHTML()
       const text = editor.getText()
       const title = text.split('\n')[0]?.trim().slice(0, 100) || 'Untitled'
+      titleRef.current = title
 
+      // 1. Send to PartyKit immediately for real-time sync
+      if (sendTimerRef.current) clearTimeout(sendTimerRef.current)
+      sendTimerRef.current = setTimeout(() => {
+        socketRef.current?.send(JSON.stringify({ type: 'update', content: html, title }))
+      }, 50) // tiny debounce to avoid per-keystroke sends
+
+      // 2. Persist to DB with a longer debounce
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
       setSaveStatus('saving')
       saveTimerRef.current = setTimeout(async () => {
@@ -88,31 +111,52 @@ export default function SharedNoteView({ token, initialTitle, initialContent, pe
     },
   })
 
-  // Make editor editable/read-only when sign-in state changes
+  // Flip editable when sign-in state resolves
   useEffect(() => {
     if (!editor) return
     editor.setEditable(canEdit)
   }, [editor, canEdit])
 
-  // Polling: if read-only, poll every 5s to pick up owner's changes
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const poll = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/share/${token}`)
-      if (!res.ok) return
-      const data = await res.json() as { content: string; updatedAt: string }
-      if (data.updatedAt !== lastUpdated && editor && !editor.isFocused) {
-        editor.commands.setContent(data.content, { emitUpdate: false })
-        setLastUpdated(data.updatedAt)
-      }
-    } catch {}
-  }, [token, lastUpdated, editor])
-
+  // PartyKit connection
   useEffect(() => {
-    // Poll for updates when in read-only mode OR when edit user is not actively typing
-    pollRef.current = setInterval(poll, 5000)
-    return () => { if (pollRef.current) clearInterval(pollRef.current) }
-  }, [poll])
+    const socket = new PartySocket({
+      host: PARTYKIT_HOST,
+      room: token,
+    })
+
+    socketRef.current = socket
+
+    socket.addEventListener('open', () => setConnected(true))
+    socket.addEventListener('close', () => setConnected(false))
+
+    socket.addEventListener('message', (evt) => {
+      const msg = JSON.parse(evt.data as string) as ServerMessage
+
+      if (msg.type === 'presence') {
+        setConnections(msg.connections)
+        return
+      }
+
+      if (msg.type === 'sync' || msg.type === 'update') {
+        setConnections(msg.connections ?? connections)
+        setLastUpdated(msg.updatedAt)
+        // Only update the editor if someone else changed the content and
+        // the local editor is not actively focused (to avoid cursor jumps)
+        if (editor && !editor.isFocused) {
+          const current = editor.getHTML()
+          if (current !== msg.content) {
+            editor.commands.setContent(msg.content, { emitUpdate: false })
+          }
+        }
+      }
+    })
+
+    return () => {
+      socket.close()
+      socketRef.current = null
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, editor])
 
   const formattedDate = new Date(lastUpdated).toLocaleString(undefined, {
     dateStyle: 'medium',
@@ -120,7 +164,7 @@ export default function SharedNoteView({ token, initialTitle, initialContent, pe
   })
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--editor-bg, #F9F7F4)', fontFamily: 'sans-serif' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--editor-bg, #F9F7F4)' }}>
       {/* Top bar */}
       <div style={{
         display: 'flex',
@@ -138,14 +182,26 @@ export default function SharedNoteView({ token, initialTitle, initialContent, pe
         </a>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {/* Save status */}
+          {/* Live connection dot */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <div style={{
+              width: 7,
+              height: 7,
+              borderRadius: '50%',
+              background: connected ? '#22c55e' : '#C4BFB6',
+              transition: 'background 0.3s',
+            }} />
+            <span style={{ fontSize: 12, color: '#8A8178' }}>
+              {connected ? `${connections} online` : 'Connecting…'}
+            </span>
+          </div>
+
           {canEdit && saveStatus !== 'idle' && (
             <span style={{ fontSize: 12, color: '#8A8178' }}>
               {saveStatus === 'saving' ? 'Saving…' : 'Saved'}
             </span>
           )}
 
-          {/* Last updated */}
           <span style={{ fontSize: 12, color: '#C4BFB6' }}>
             Updated {formattedDate}
           </span>
@@ -164,7 +220,6 @@ export default function SharedNoteView({ token, initialTitle, initialContent, pe
             {permission === 'EDIT' ? 'Can edit' : 'View only'}
           </span>
 
-          {/* Sign in prompt for edit links */}
           {permission === 'EDIT' && isLoaded && !isSignedIn && (
             <SignInButton mode="modal">
               <button style={{
@@ -184,10 +239,8 @@ export default function SharedNoteView({ token, initialTitle, initialContent, pe
         </div>
       </div>
 
-      {/* Toolbar — only for signed-in editors */}
       {canEdit && editor && <Toolbar editor={editor} />}
 
-      {/* Content */}
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '0 1rem 4rem' }}>
         <EditorContent editor={editor} />
       </div>
