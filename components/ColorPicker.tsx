@@ -397,7 +397,9 @@ export default function ColorPicker({ value, onChange, mode = 'color', onModeCha
   return (
     <div
       style={{
-        width: 280,
+        width: '100%',
+        maxWidth: 320,
+        margin: '0 auto',
         background: '#fff',
         borderRadius: 12,
         padding: 14,

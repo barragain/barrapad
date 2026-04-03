@@ -237,7 +237,7 @@ export default function AppShell() {
         {sidebarOpen && (
           <motion.div
             key="sidebar-backdrop"
-            className="fixed inset-0 z-40 md:hidden"
+            className="fixed inset-0 z-[60] md:hidden"
             style={{ background: 'rgba(0,0,0,0.45)' }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -264,7 +264,7 @@ export default function AppShell() {
         {sidebarOpen && (
           <motion.div
             key="mobile-sidebar"
-            className="fixed inset-y-0 left-0 z-50 md:hidden"
+            className="fixed inset-y-0 left-0 z-[61] md:hidden"
             initial={{ x: '-100%' }}
             animate={{ x: 0 }}
             exit={{ x: '-100%' }}

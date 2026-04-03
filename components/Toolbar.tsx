@@ -92,9 +92,22 @@ function MobileSheet({
           animation: 'slideUp 0.22s cubic-bezier(0.34, 1.56, 0.64, 1)',
         }}
       >
-        <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--muted)', margin: '12px auto 0' }} />
+        <button
+          onClick={onClose}
+          aria-label="Close"
+          style={{
+            display: 'block',
+            width: '100%',
+            padding: '12px 0 4px',
+            background: 'transparent',
+            border: 'none',
+            cursor: 'pointer',
+          }}
+        >
+          <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--muted)', margin: '0 auto' }} />
+        </button>
         {title && (
-          <p style={{ textAlign: 'center', fontSize: 13, fontWeight: 600, color: 'var(--ink)', padding: '10px 0 4px' }}>
+          <p style={{ textAlign: 'center', fontSize: 13, fontWeight: 600, color: 'var(--ink)', padding: '4px 0 4px' }}>
             {title}
           </p>
         )}
