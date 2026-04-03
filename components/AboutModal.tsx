@@ -50,7 +50,7 @@ export default function AboutModal({ onClose }: AboutModalProps) {
 
           {/* X button — at card level so tooltip can float above card edge */}
           <div
-            style={{ position: 'absolute', top: 10, right: 10, zIndex: 10 }}
+            style={{ position: 'absolute', top: 10, right: 10, zIndex: 10, userSelect: 'none' }}
             onMouseEnter={() => setXHovered(true)}
             onMouseLeave={() => setXHovered(false)}
           >
