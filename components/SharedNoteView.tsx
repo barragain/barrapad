@@ -4,9 +4,16 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import { useUser } from '@clerk/nextjs'
 import PartySocket from 'partysocket'
-import { Info, HelpCircle, Settings } from 'lucide-react'
+import {
+  Info, HelpCircle, Settings,
+  Clipboard, MousePointer2, Table as TableIconLucide, Type,
+  Bold as BoldIcon, Italic as ItalicIcon, Underline as UnderlineIcon,
+  Strikethrough, Link2, Copy, Scissors, ExternalLink, Pencil, Trash2,
+} from 'lucide-react'
 import AppearanceModal from './AppearanceModal'
 import AboutModal from './AboutModal'
+import ContextMenu from './ContextMenu'
+import type { ContextMenuItem } from './ContextMenu'
 import type { AppearanceSettings } from '@/types'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
@@ -122,7 +129,10 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
   const [wordCount, setWordCount] = useState(0)
   const [charCount, setCharCount] = useState(0)
   const infoRef = useRef<HTMLButtonElement>(null)
+  const aboutAudioRef = useRef<HTMLAudioElement | null>(null)
   const sendPointerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; items: ContextMenuItem[] } | null>(null)
+  const contextClickRef = useRef<{ x: number; y: number; editorPos?: number }>({ x: 0, y: 0 })
 
   // Keep a ref of initialTitle for use inside the editor update handler
   const titleRef = useRef(initialTitle)
@@ -293,6 +303,62 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, editor])
 
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    if (!editor || !canEditRef.current) return
+    e.preventDefault()
+
+    const x = e.clientX
+    const y = e.clientY
+    const target = e.target as HTMLElement
+
+    const coords = editor.view.posAtCoords({ left: x, top: y })
+    contextClickRef.current = { x, y, editorPos: coords?.inside ?? coords?.pos }
+
+    // Link context menu
+    const linkEl = (target.tagName === 'A' ? target : target.closest('a')) as HTMLAnchorElement | null
+    if (linkEl) {
+      const href = linkEl.href
+      setContextMenu({ x, y, items: [
+        { type: 'item', label: 'Open link', icon: <ExternalLink size={13} />, onClick: () => { window.open(href, '_blank'); setContextMenu(null) }},
+        { type: 'item', label: 'Copy link URL', icon: <Copy size={13} />, onClick: () => { navigator.clipboard.writeText(href); setContextMenu(null) }},
+        { type: 'separator' },
+        { type: 'item', label: 'Remove link', icon: <Trash2 size={13} />, danger: true, onClick: () => {
+          editor.chain().focus().extendMarkRange('link').unsetLink().run(); setContextMenu(null)
+        }},
+      ]})
+      return
+    }
+
+    // Text selection context menu
+    if (!editor.state.selection.empty) {
+      const { from, to } = editor.state.selection
+      const selectedText = editor.state.doc.textBetween(from, to, ' ')
+      setContextMenu({ x, y, items: [
+        { type: 'item', label: 'Bold', icon: <BoldIcon size={13} />, onClick: () => { editor.chain().focus().toggleBold().run(); setContextMenu(null) }},
+        { type: 'item', label: 'Italic', icon: <ItalicIcon size={13} />, onClick: () => { editor.chain().focus().toggleItalic().run(); setContextMenu(null) }},
+        { type: 'item', label: 'Underline', icon: <UnderlineIcon size={13} />, onClick: () => { editor.chain().focus().toggleUnderline().run(); setContextMenu(null) }},
+        { type: 'item', label: 'Strikethrough', icon: <Strikethrough size={13} />, onClick: () => { editor.chain().focus().toggleStrike().run(); setContextMenu(null) }},
+        { type: 'separator' },
+        { type: 'item', label: 'Copy', icon: <Copy size={13} />, onClick: () => { navigator.clipboard.writeText(selectedText); setContextMenu(null) }},
+        { type: 'item', label: 'Cut', icon: <Scissors size={13} />, onClick: () => { navigator.clipboard.writeText(selectedText); editor.chain().focus().deleteSelection().run(); setContextMenu(null) }},
+      ]})
+      return
+    }
+
+    // Empty cursor context menu
+    setContextMenu({ x, y, items: [
+      { type: 'item', label: 'Paste', icon: <Clipboard size={13} />, onClick: () => {
+        navigator.clipboard.readText().then(text => { if (text) editor.chain().focus().insertContent(text).run() }); setContextMenu(null)
+      }},
+      { type: 'item', label: 'Select All', icon: <MousePointer2 size={13} />, onClick: () => { editor.commands.selectAll(); setContextMenu(null) }},
+      { type: 'separator' },
+      { type: 'item', label: 'Insert table', icon: <TableIconLucide size={13} />, onClick: () => { editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(); setContextMenu(null) }},
+      { type: 'item', label: 'Insert lorem ipsum', icon: <Type size={13} />, onClick: () => {
+        editor.chain().focus().insertContent('Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.').run(); setContextMenu(null)
+      }},
+    ]})
+  }, [editor])
+
   const formattedDate = new Date(lastUpdated).toLocaleString(undefined, {
     dateStyle: 'medium',
     timeStyle: 'short',
@@ -417,6 +483,7 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
               audio.volume = 0.5
               audio.loop = true
               audio.play().catch(() => {})
+              aboutAudioRef.current = audio
               setShowAbout(true)
             }}
             className="p-2 rounded-xl transition-all"
@@ -443,7 +510,12 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
       </div>
 
       {showAbout && (
-        <AboutModal onClose={() => setShowAbout(false)} />
+        <AboutModal onClose={() => {
+          aboutAudioRef.current?.pause()
+          if (aboutAudioRef.current) aboutAudioRef.current.currentTime = 0
+          aboutAudioRef.current = null
+          setShowAbout(false)
+        }} />
       )}
 
       {showAppearance && (
@@ -467,7 +539,7 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
             onMouseMove={(e) => sendPointerRef(e.clientX, e.clientY)}
           >
             {/* ⓘ Info button — top-left of editor, same as main editor */}
-            <div style={{ position: 'absolute', top: 8, left: 8, zIndex: 20 }}>
+            <div style={{ position: 'absolute', top: 4, left: 4, zIndex: 20 }}>
               <button
                 ref={infoRef}
                 onClick={() => setShowInfo((v) => !v)}
@@ -501,10 +573,21 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
               )}
             </div>
 
-            <EditorContent editor={editor} />
+            <div onContextMenu={handleContextMenu}>
+              <EditorContent editor={editor} />
+            </div>
           </div>
         </div>
       </div>
+
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          items={contextMenu.items}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
 
       {/* Floating pill CTA for unauthenticated read-only viewers */}
       {permission === 'READ' && isLoaded && !isSignedIn && (

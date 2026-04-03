@@ -571,7 +571,7 @@ export default function EditorComponent({
       >
         <div className="editor-anim-border" style={{ maxWidth: 900, margin: '0 auto', position: 'relative' }}>
           {/* Info button — top-left of the writing area */}
-          <div style={{ position: 'absolute', top: 8, left: 8, zIndex: 20 }}>
+          <div style={{ position: 'absolute', top: 4, left: 4, zIndex: 20 }}>
             <button
               ref={infoButtonRef}
               onClick={() => setShowInfo((v) => !v)}
