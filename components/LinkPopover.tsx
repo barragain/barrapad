@@ -6,9 +6,11 @@ import type { Editor } from '@tiptap/react'
 interface LinkPopoverProps {
   editor: Editor
   onClose: () => void
+  /** Screen coordinates to anchor the popover (fixed positioning). */
+  pos?: { left: number; top: number } | null
 }
 
-export default function LinkPopover({ editor, onClose }: LinkPopoverProps) {
+export default function LinkPopover({ editor, onClose, pos }: LinkPopoverProps) {
   const existingHref = (editor.getAttributes('link').href as string) ?? ''
   const [url, setUrl] = useState(existingHref)
   const [openNewTab, setOpenNewTab] = useState(
@@ -19,7 +21,6 @@ export default function LinkPopover({ editor, onClose }: LinkPopoverProps) {
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    // Focus input on mount
     setTimeout(() => inputRef.current?.focus(), 50)
   }, [])
 
@@ -60,15 +61,26 @@ export default function LinkPopover({ editor, onClose }: LinkPopoverProps) {
     if (e.key === 'Enter') handleApply()
   }
 
+  // Use fixed positioning when coordinates are provided (floating near selection)
+  const positionStyle = pos
+    ? {
+        position: 'fixed' as const,
+        top: Math.min(pos.top, window.innerHeight - 160),
+        left: Math.min(pos.left, window.innerWidth - 296),
+      }
+    : {
+        position: 'absolute' as const,
+        top: '100%',
+        left: 0,
+        marginTop: 4,
+      }
+
   return (
     <div
       ref={containerRef}
       style={{
-        position: 'absolute',
-        top: '100%',
-        left: 0,
-        marginTop: 4,
-        zIndex: 50,
+        ...positionStyle,
+        zIndex: 9999,
         background: '#fff',
         border: '1px solid #E5E0D8',
         borderRadius: 12,
@@ -80,7 +92,10 @@ export default function LinkPopover({ editor, onClose }: LinkPopoverProps) {
         width: 280,
       }}
     >
-      {/* URL input */}
+      <div style={{ fontSize: 11, fontWeight: 600, color: '#C4BFB6', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+        {hasLink ? 'Edit link' : 'Add link'}
+      </div>
+
       <input
         ref={inputRef}
         type="url"
@@ -101,7 +116,6 @@ export default function LinkPopover({ editor, onClose }: LinkPopoverProps) {
         }}
       />
 
-      {/* Open in new tab */}
       <label
         style={{
           display: 'flex',
@@ -122,7 +136,6 @@ export default function LinkPopover({ editor, onClose }: LinkPopoverProps) {
         Open in new tab
       </label>
 
-      {/* Buttons */}
       <div style={{ display: 'flex', gap: 6 }}>
         <button
           onClick={handleApply}
@@ -136,7 +149,6 @@ export default function LinkPopover({ editor, onClose }: LinkPopoverProps) {
             border: 'none',
             borderRadius: 8,
             cursor: 'pointer',
-            transition: 'background 150ms ease',
           }}
           onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = '#B84208' }}
           onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = '#D4550A' }}
@@ -156,7 +168,6 @@ export default function LinkPopover({ editor, onClose }: LinkPopoverProps) {
               border: '1px solid #E5E0D8',
               borderRadius: 8,
               cursor: 'pointer',
-              transition: 'background 150ms ease',
             }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = '#EDE8DF' }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = '#F5F0E8' }}

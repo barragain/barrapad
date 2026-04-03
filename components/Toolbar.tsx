@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { useEditorState } from '@tiptap/react'
 import type { Editor } from '@tiptap/react'
 import {
@@ -24,6 +24,7 @@ import {
 import TablePicker from './TablePicker'
 import ColorPicker from './ColorPicker'
 import LinkPopover from './LinkPopover'
+import { useRef } from 'react'
 
 interface ToolbarProps {
   editor: Editor | null
@@ -36,7 +37,6 @@ const TEXT_STYLES = [
   { label: 'Heading 3', action: (e: Editor) => e.chain().focus().toggleHeading({ level: 3 }).run() },
 ]
 
-// Animated toolbar button
 function TBtn({
   onClick,
   active,
@@ -86,8 +86,8 @@ export default function Toolbar({ editor }: ToolbarProps) {
   const [showGradient, setShowGradient] = useState(false)
   const [showTable, setShowTable] = useState(false)
   const [showLink, setShowLink] = useState(false)
+  const [linkPos, setLinkPos] = useState<{ left: number; top: number } | null>(null)
 
-  // Reactive editor state — re-renders toolbar when selection/marks change
   const editorState = useEditorState({
     editor,
     selector: (ctx) => {
@@ -128,6 +128,7 @@ export default function Toolbar({ editor }: ToolbarProps) {
     setShowGradient(false)
     setShowTable(false)
     setShowLink(false)
+    setLinkPos(null)
   }
 
   const handleImage = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -143,6 +144,22 @@ export default function Toolbar({ editor }: ToolbarProps) {
     e.target.value = ''
   }
 
+  const openLink = () => {
+    try {
+      const { from } = editor.state.selection
+      const coords = editor.view.coordsAtPos(from)
+      setLinkPos({ left: coords.left, top: coords.bottom + 8 })
+    } catch {
+      setLinkPos(null)
+    }
+    setShowLink(true)
+    setShowTextStyle(false)
+    setShowColor(false)
+    setShowHighlight(false)
+    setShowGradient(false)
+    setShowTable(false)
+  }
+
   const hasAnyDropdown = showTextStyle || showColor || showHighlight || showGradient || showTable || showLink
 
   return (
@@ -151,7 +168,11 @@ export default function Toolbar({ editor }: ToolbarProps) {
         <div className="fixed inset-0 z-40" onClick={closeAll} />
       )}
 
-      <div className="toolbar flex items-center gap-0.5 px-3 py-2 flex-wrap relative z-30">
+      {/* onMouseDown preventDefault stops toolbar clicks from stealing editor focus/selection */}
+      <div
+        className="toolbar flex items-center gap-0.5 px-3 py-2 flex-wrap relative"
+        onMouseDown={(e) => e.preventDefault()}
+      >
 
         {/* Undo / Redo */}
         <TBtn onClick={() => editor.chain().focus().undo().run()} disabled={!editorState.canUndo} title="Undo">
@@ -166,7 +187,14 @@ export default function Toolbar({ editor }: ToolbarProps) {
         {/* Text style dropdown */}
         <div className="relative z-50">
           <button
-            onClick={() => { setShowTextStyle((v) => !v); setShowColor(false); setShowHighlight(false); setShowGradient(false); setShowLink(false) }}
+            onClick={() => {
+              setShowTextStyle((v) => !v)
+              setShowColor(false)
+              setShowHighlight(false)
+              setShowGradient(false)
+              setShowLink(false)
+              setShowTable(false)
+            }}
             className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs text-[#6b6b6b] hover:bg-[#F5F2ED] hover:text-[#1A1A1A] hover:scale-105 transition-all duration-150 active:scale-95"
             style={{ transition: 'transform 150ms cubic-bezier(0.34, 1.56, 0.64, 1), background 150ms ease' }}
           >
@@ -180,7 +208,7 @@ export default function Toolbar({ editor }: ToolbarProps) {
                   key={s.label}
                   onClick={() => {
                     setShowTextStyle(false)
-                    setTimeout(() => s.action(editor), 10)
+                    s.action(editor)
                   }}
                   className="w-full text-left px-3 py-2 text-sm hover:bg-[#F5F2ED] transition-colors text-[#1A1A1A] font-medium first:pt-2.5 last:pb-2.5"
                 >
@@ -204,26 +232,28 @@ export default function Toolbar({ editor }: ToolbarProps) {
           <Underline size={15} />
         </TBtn>
 
-        {/* Link button with popover */}
-        <div className="relative z-50">
-          <TBtn
-            onClick={() => { setShowLink((v) => !v); setShowTextStyle(false); setShowColor(false); setShowHighlight(false); setShowGradient(false); setShowTable(false) }}
-            active={editorState.isLink}
-            title="Link (⌘K)"
-          >
-            <Link2 size={15} />
-          </TBtn>
-          {showLink && (
-            <LinkPopover editor={editor} onClose={() => setShowLink(false)} />
-          )}
-        </div>
+        {/* Link button — popover floats near the selection */}
+        <TBtn
+          onClick={openLink}
+          active={editorState.isLink}
+          title="Link (⌘K)"
+        >
+          <Link2 size={15} />
+        </TBtn>
 
         <div className="w-px h-4 bg-[#E5E0D8] mx-1" />
 
         {/* Text color */}
         <div className="relative z-50">
           <TBtn
-            onClick={() => { setShowColor((v) => !v); setShowTextStyle(false); setShowHighlight(false); setShowGradient(false); setShowLink(false) }}
+            onClick={() => {
+              setShowColor((v) => !v)
+              setShowTextStyle(false)
+              setShowHighlight(false)
+              setShowGradient(false)
+              setShowLink(false)
+              setShowTable(false)
+            }}
             title="Text color"
           >
             <Palette size={15} />
@@ -262,7 +292,14 @@ export default function Toolbar({ editor }: ToolbarProps) {
         {/* Highlight */}
         <div className="relative z-50">
           <TBtn
-            onClick={() => { setShowHighlight((v) => !v); setShowTextStyle(false); setShowColor(false); setShowGradient(false); setShowLink(false) }}
+            onClick={() => {
+              setShowHighlight((v) => !v)
+              setShowTextStyle(false)
+              setShowColor(false)
+              setShowGradient(false)
+              setShowLink(false)
+              setShowTable(false)
+            }}
             active={editorState.isHighlight}
             title="Highlight"
           >
@@ -302,7 +339,14 @@ export default function Toolbar({ editor }: ToolbarProps) {
         {/* Gradient text */}
         <div className="relative z-50">
           <TBtn
-            onClick={() => { setShowGradient((v) => !v); setShowTextStyle(false); setShowColor(false); setShowHighlight(false); setShowLink(false) }}
+            onClick={() => {
+              setShowGradient((v) => !v)
+              setShowTextStyle(false)
+              setShowColor(false)
+              setShowHighlight(false)
+              setShowLink(false)
+              setShowTable(false)
+            }}
             active={editorState.isGradient}
             title="Gradient text"
           >
@@ -363,7 +407,14 @@ export default function Toolbar({ editor }: ToolbarProps) {
         {/* Table */}
         <div className="relative z-50">
           <TBtn
-            onClick={() => { setShowTable((v) => !v); setShowTextStyle(false); setShowColor(false); setShowHighlight(false); setShowGradient(false); setShowLink(false) }}
+            onClick={() => {
+              setShowTable((v) => !v)
+              setShowTextStyle(false)
+              setShowColor(false)
+              setShowHighlight(false)
+              setShowGradient(false)
+              setShowLink(false)
+            }}
             title="Insert table"
           >
             <Table size={15} />
@@ -392,6 +443,15 @@ export default function Toolbar({ editor }: ToolbarProps) {
           <Code2 size={15} />
         </TBtn>
       </div>
+
+      {/* Floating link popover — rendered outside toolbar so it can position freely */}
+      {showLink && (
+        <LinkPopover
+          editor={editor}
+          pos={linkPos}
+          onClose={() => { setShowLink(false); setLinkPos(null) }}
+        />
+      )}
     </>
   )
 }

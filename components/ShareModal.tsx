@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { X, Copy, Share2, Mail, Download } from 'lucide-react'
+import { X, Copy, Share2, Download } from 'lucide-react'
 import type { Note } from '@/types'
 
 interface ShareModalProps {
@@ -14,42 +14,45 @@ export default function ShareModal({ note, onClose }: ShareModalProps) {
   const [copied, setCopied] = useState(false)
   const [qrDataUrl, setQrDataUrl] = useState('')
   const urlRef = useRef<HTMLInputElement>(null)
-  const url = typeof window !== 'undefined' ? window.location.href : ''
+
+  // Generate a note-specific share URL
+  const shareUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}/?note=${note.id}`
+    : ''
 
   useEffect(() => {
+    if (!shareUrl) return
     const generateQR = async () => {
       try {
         const QRCode = (await import('qrcode')).default
-        const dataUrl = await QRCode.toDataURL(url, { width: 200, margin: 1 })
+        const dataUrl = await QRCode.toDataURL(shareUrl, { width: 200, margin: 1 })
         setQrDataUrl(dataUrl)
       } catch (e) {
         console.error(e)
       }
     }
     generateQR()
-  }, [url])
+  }, [shareUrl])
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(url)
+    await navigator.clipboard.writeText(shareUrl)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
 
   const handleShare = async () => {
     if (navigator.share) {
-      await navigator.share({ title: note.title, url })
+      await navigator.share({ title: note.title, url: shareUrl })
+    } else {
+      handleCopy()
     }
-  }
-
-  const handleEmail = () => {
-    window.open(`mailto:?subject=${encodeURIComponent(note.title)}&body=${encodeURIComponent(url)}`)
   }
 
   const handleDownloadQR = () => {
     if (!qrDataUrl) return
     const a = document.createElement('a')
     a.href = qrDataUrl
-    a.download = 'barrapad-qr.png'
+    a.download = `barrapad-${note.id}.png`
     a.click()
   }
 
@@ -61,7 +64,10 @@ export default function ShareModal({ note, onClose }: ShareModalProps) {
       >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#E5E0D8]">
-          <h2 className="font-semibold text-[#1A1A1A]">Share Note</h2>
+          <div>
+            <h2 className="font-semibold text-[#1A1A1A]">Share Note</h2>
+            <p className="text-xs text-[#C4BFB6] mt-0.5 truncate max-w-[280px]">{note.title || 'Untitled'}</p>
+          </div>
           <button onClick={onClose} className="p-1 rounded hover:bg-black/5 transition-colors">
             <X size={16} />
           </button>
@@ -70,7 +76,10 @@ export default function ShareModal({ note, onClose }: ShareModalProps) {
         <div className="p-5 space-y-4">
           {/* Allow editing toggle */}
           <div className="flex items-center justify-between">
-            <span className="text-sm text-[#1A1A1A]">Allow Editing</span>
+            <div>
+              <span className="text-sm text-[#1A1A1A]">Allow Editing</span>
+              <p className="text-xs text-[#C4BFB6]">Coming soon</p>
+            </div>
             <button
               onClick={() => setAllowEditing(!allowEditing)}
               className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
@@ -91,7 +100,7 @@ export default function ShareModal({ note, onClose }: ShareModalProps) {
               ref={urlRef}
               type="text"
               readOnly
-              value={url}
+              value={shareUrl}
               onClick={() => urlRef.current?.select()}
               className="flex-1 text-xs bg-[#F5F2ED] border border-[#E5E0D8] rounded-lg px-3 py-2 text-[#1A1A1A] cursor-pointer"
             />
@@ -113,26 +122,13 @@ export default function ShareModal({ note, onClose }: ShareModalProps) {
               <Share2 size={14} />
               Share
             </button>
-            <button
-              onClick={handleEmail}
-              className="flex-1 flex items-center justify-center gap-1.5 text-sm py-2 border border-[#E5E0D8] rounded-lg hover:bg-[#F5F2ED] transition-colors"
-            >
-              <Mail size={14} />
-              Email
-            </button>
           </div>
-
-          {/* Caption */}
-          <p className="text-xs text-[#C4BFB6]">
-            {allowEditing
-              ? 'Anyone with this link can view and edit this note.'
-              : 'Anyone you share this link with can view only.'}
-          </p>
 
           <hr className="border-[#E5E0D8]" />
 
           {/* QR code */}
           <div className="flex flex-col items-center gap-3">
+            <p className="text-xs text-[#C4BFB6] self-start">QR Code</p>
             {qrDataUrl ? (
               <img src={qrDataUrl} alt="QR code" className="rounded-lg border border-[#E5E0D8]" />
             ) : (
@@ -140,7 +136,8 @@ export default function ShareModal({ note, onClose }: ShareModalProps) {
             )}
             <button
               onClick={handleDownloadQR}
-              className="flex items-center gap-1.5 text-sm px-4 py-2 border border-[#E5E0D8] rounded-lg hover:bg-[#F5F2ED] transition-colors"
+              disabled={!qrDataUrl}
+              className="flex items-center gap-1.5 text-sm px-4 py-2 border border-[#E5E0D8] rounded-lg hover:bg-[#F5F2ED] transition-colors disabled:opacity-40"
             >
               <Download size={14} />
               Download QR

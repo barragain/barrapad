@@ -2,6 +2,7 @@
 
 import { useEffect, useCallback, useRef } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
+import type { Editor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
 import Link from '@tiptap/extension-link'
@@ -30,6 +31,8 @@ interface EditorProps {
 
 export default function EditorComponent({ note, onSave, onWordCountChange }: EditorProps) {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Ref so editorProps callbacks can access the latest editor instance
+  const editorRef = useRef<Editor | null>(null)
 
   const editor = useEditor({
     extensions: [
@@ -51,6 +54,88 @@ export default function EditorComponent({ note, onSave, onWordCountChange }: Edi
       GradientText,
       FileAttachment,
     ],
+    editorProps: {
+      handleDrop(view, event, _slice, moved) {
+        // Let ProseMirror handle internal node moves
+        if (moved) return false
+        const files = event.dataTransfer?.files
+        if (!files || files.length === 0) return false
+
+        event.preventDefault()
+        const ed = editorRef.current
+        if (!ed) return false
+
+        for (const file of Array.from(files)) {
+          const reader = new FileReader()
+          if (file.type.startsWith('image/')) {
+            reader.onload = (e) => {
+              const result = e.target?.result as string
+              if (!result) return
+              ed.chain().focus().setImage({ src: result }).run()
+            }
+          } else {
+            reader.onload = (e) => {
+              const result = e.target?.result as string
+              if (!result) return
+              ed.chain().focus().insertFileAttachment({
+                name: file.name,
+                size: file.size,
+                mimeType: file.type || 'application/octet-stream',
+                dataUrl: result,
+              }).run()
+            }
+          }
+          reader.readAsDataURL(file)
+        }
+        return true
+      },
+
+      handlePaste(view, event) {
+        const ed = editorRef.current
+        if (!ed) return false
+
+        const items = event.clipboardData?.items
+        if (items) {
+          for (const item of Array.from(items)) {
+            if (item.type.startsWith('image/')) {
+              const file = item.getAsFile()
+              if (!file) continue
+              const reader = new FileReader()
+              reader.onload = (e) => {
+                const result = e.target?.result as string
+                if (!result) return
+                ed.chain().focus().setImage({ src: result }).run()
+              }
+              reader.readAsDataURL(file)
+              return true // handled
+            }
+          }
+        }
+
+        const files = event.clipboardData?.files
+        if (files && files.length > 0) {
+          for (const file of Array.from(files)) {
+            if (!file.type.startsWith('image/')) {
+              const reader = new FileReader()
+              reader.onload = (e) => {
+                const result = e.target?.result as string
+                if (!result) return
+                ed.chain().focus().insertFileAttachment({
+                  name: file.name,
+                  size: file.size,
+                  mimeType: file.type || 'application/octet-stream',
+                  dataUrl: result,
+                }).run()
+              }
+              reader.readAsDataURL(file)
+              return true
+            }
+          }
+        }
+
+        return false
+      },
+    },
     content: note.content || '',
     onUpdate: ({ editor }) => {
       const html = editor.getHTML()
@@ -70,6 +155,11 @@ export default function EditorComponent({ note, onSave, onWordCountChange }: Edi
     },
   })
 
+  // Keep ref in sync with editor instance
+  useEffect(() => {
+    editorRef.current = editor
+  }, [editor])
+
   // Sync content when switching notes
   useEffect(() => {
     if (!editor) return
@@ -79,96 +169,6 @@ export default function EditorComponent({ note, onSave, onWordCountChange }: Edi
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [note.id])
-
-  // Paste & drop support
-  useEffect(() => {
-    if (!editor) return
-
-    const handlePaste = (event: ClipboardEvent) => {
-      const items = event.clipboardData?.items
-      if (!items) return
-
-      for (const item of Array.from(items)) {
-        if (item.type.startsWith('image/')) {
-          const file = item.getAsFile()
-          if (!file) return
-          const reader = new FileReader()
-          reader.onload = (e) => {
-            if (e.target?.result) {
-              editor.chain().focus().setImage({ src: e.target.result as string }).run()
-            }
-          }
-          reader.readAsDataURL(file)
-          event.preventDefault()
-          return
-        }
-      }
-
-      // Non-image files from clipboard (files list)
-      const files = event.clipboardData?.files
-      if (files && files.length > 0) {
-        for (const file of Array.from(files)) {
-          if (!file.type.startsWith('image/')) {
-            const reader = new FileReader()
-            reader.onload = (e) => {
-              if (e.target?.result) {
-                editor.chain().focus().insertFileAttachment({
-                  name: file.name,
-                  size: file.size,
-                  mimeType: file.type || 'application/octet-stream',
-                  dataUrl: e.target.result as string,
-                }).run()
-              }
-            }
-            reader.readAsDataURL(file)
-            event.preventDefault()
-          }
-        }
-      }
-    }
-
-    const handleDrop = (event: DragEvent) => {
-      const files = event.dataTransfer?.files
-      if (!files || files.length === 0) return
-
-      event.preventDefault()
-
-      for (const file of Array.from(files)) {
-        if (file.type.startsWith('image/')) {
-          const reader = new FileReader()
-          reader.onload = (e) => {
-            if (e.target?.result) {
-              editor.chain().focus().setImage({ src: e.target.result as string }).run()
-            }
-          }
-          reader.readAsDataURL(file)
-        } else {
-          // Non-image file → file attachment node
-          const reader = new FileReader()
-          reader.onload = (e) => {
-            if (e.target?.result) {
-              editor.chain().focus().insertFileAttachment({
-                name: file.name,
-                size: file.size,
-                mimeType: file.type || 'application/octet-stream',
-                dataUrl: e.target.result as string,
-              }).run()
-            }
-          }
-          reader.readAsDataURL(file)
-        }
-      }
-    }
-
-    const dom = editor.view.dom
-    dom.addEventListener('paste', handlePaste as EventListener)
-    dom.addEventListener('drop', handleDrop as EventListener)
-
-    return () => {
-      dom.removeEventListener('paste', handlePaste as EventListener)
-      dom.removeEventListener('drop', handleDrop as EventListener)
-    }
-  }, [editor])
 
   const handleManualSave = useCallback(() => {
     if (!editor) return
