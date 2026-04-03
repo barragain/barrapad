@@ -3,6 +3,7 @@ import { ClerkProvider } from '@clerk/nextjs'
 import '@/app/globals.css'
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://barrapad.barragan.com.py'),
   title: 'barraPAD',
 }
 

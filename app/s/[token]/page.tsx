@@ -38,11 +38,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description: snippet,
       type: 'article',
       siteName: 'barraPAD',
+      images: [{ url: '/og-image.png', width: 1200, height: 630 }],
     },
     twitter: {
-      card: 'summary',
+      card: 'summary_large_image',
       title: fullTitle,
       description: snippet,
+      images: ['/og-image.png'],
     },
   }
 }

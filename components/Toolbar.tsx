@@ -336,7 +336,7 @@ export default function Toolbar({ editor }: ToolbarProps) {
       )}
 
       <div
-        className="toolbar flex items-center gap-0.5 px-3 py-1.5 flex-wrap md:flex-nowrap md:py-2 relative"
+        className="toolbar flex items-center justify-center gap-0.5 px-3 py-1.5 flex-wrap md:flex-nowrap md:py-2 relative"
         onMouseDown={(e) => e.preventDefault()}
       >
 

@@ -51,6 +51,9 @@ export const LoremIpsum = Extension.create({
               return DecorationSet.empty
             }
 
+            // Don't show hint on a completely empty doc — the placeholder is showing there
+            if (state.doc.textContent === '') return DecorationSet.empty
+
             const widget = Decoration.widget(
               selection.from,
               () => {

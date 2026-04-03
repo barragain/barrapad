@@ -82,6 +82,14 @@ export default function AppShell() {
     applyAppearance(settings)
   }, [])
 
+  // Update document title whenever the active note changes
+  useEffect(() => {
+    const noteName = activeNote?.title
+    document.title = noteName
+      ? `${noteName} | barraPAD - A notepad for whatever`
+      : 'barraPAD - A notepad for whatever'
+  }, [activeNote?.title])
+
   // Background sync — re-runs when Clerk finishes loading or auth state changes
   // This fixes the case where the session isn't ready on first mount (e.g. just after login)
   useEffect(() => {
