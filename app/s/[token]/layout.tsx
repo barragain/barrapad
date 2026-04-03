@@ -3,7 +3,7 @@ import { ClerkProvider } from '@clerk/nextjs'
 import '@/app/globals.css'
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://barrapad.barragan.com.py'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL ?? 'https://www.bpad.cc'),
   title: 'barraPAD',
 }
 
