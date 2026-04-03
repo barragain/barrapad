@@ -49,7 +49,7 @@ type ServerMessage =
   | { type: 'sync'; content: string; title: string; updatedAt: string; connections: number }
   | { type: 'update'; content: string; title: string; updatedAt: string }
   | { type: 'presence'; connections: number }
-  | { type: 'cursor'; id: string; from: number; to: number; name: string; color: string }
+  | { type: 'cursor'; id: string; from: number; to: number; name: string; color: string; imageUrl?: string }
   | { type: 'cursor-leave'; id: string }
 
 interface Props {
@@ -237,7 +237,7 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
     socket.addEventListener('message', (evt) => {
       type AnyMsg = ServerMessage & {
         cursors?: RemoteCursor[]
-        id?: string; from?: number; to?: number; name?: string; color?: string
+        id?: string; from?: number; to?: number; name?: string; color?: string; imageUrl?: string
       }
       const msg = JSON.parse(evt.data as string) as AnyMsg
       const ed = editorRef.current
