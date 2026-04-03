@@ -277,8 +277,8 @@ export default function AppShell() {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -4, scale: 0.97 }}
                     transition={{ duration: 0.12 }}
-                    className="absolute top-full right-0 mt-1 z-50 rounded-2xl shadow-2xl p-2"
-                    style={{ background: '#1a1a1a', minWidth: 220 }}
+                    className="absolute top-full right-0 mt-1 z-50 rounded-xl shadow-xl p-1.5"
+                    style={{ background: 'var(--editor-bg)', border: '1px solid var(--border)', minWidth: 190 }}
                   >
                     {([
                       { fmt: 'pdf',  label: '.pdf',  note: 'Visual · searchable' },
@@ -289,15 +289,15 @@ export default function AppShell() {
                       <button
                         key={fmt}
                         onClick={() => handleExport(fmt)}
-                        className="w-full text-left flex items-center justify-between gap-3 px-3 py-2 rounded-xl transition-colors"
-                        style={{ color: '#fff' }}
-                        onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.07)')}
+                        className="w-full text-left flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors"
+                        style={{ color: 'var(--ink)' }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--border)')}
                         onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                       >
-                        <span className="text-sm font-semibold">{label}</span>
+                        <span className="text-sm font-semibold w-10 flex-shrink-0">{label}</span>
                         <span
-                          className="text-[11px] font-medium px-2 py-0.5 rounded-full"
-                          style={{ background: '#D4550A', color: '#fff' }}
+                          className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                          style={{ background: '#D4550A22', color: '#D4550A' }}
                         >
                           {note}
                         </span>

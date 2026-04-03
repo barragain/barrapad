@@ -3,6 +3,7 @@
 import { useEffect, useCallback, useRef, useState } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import type { Editor } from '@tiptap/react'
+import { motion, AnimatePresence } from 'framer-motion'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
 import Link from '@tiptap/extension-link'
@@ -262,7 +263,20 @@ export default function EditorComponent({
 
   return (
     <div className="flex flex-col h-full overflow-hidden" style={{ background: 'var(--editor-bg)' }}>
-      <Toolbar editor={editor} />
+      <AnimatePresence>
+        {editor && (
+          <motion.div
+            key="toolbar"
+            initial={{ opacity: 0, y: -10, scaleY: 0.92 }}
+            animate={{ opacity: 1, y: 0, scaleY: 1 }}
+            exit={{ opacity: 0, y: -10, scaleY: 0.92 }}
+            transition={{ type: 'spring', stiffness: 420, damping: 30, mass: 0.8 }}
+            style={{ transformOrigin: 'top' }}
+          >
+            <Toolbar editor={editor} />
+          </motion.div>
+        )}
+      </AnimatePresence>
       <div
         className="flex-1 overflow-y-auto"
         style={{ padding: '2rem 2rem 4rem' }}
