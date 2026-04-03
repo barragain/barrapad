@@ -408,7 +408,7 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
                     alt={p.name}
                     style={{
                       width: 26, height: 26, borderRadius: '50%',
-                      border: `2px solid ${p.color}`,
+                      border: '2px solid #D4550A',
                       objectFit: 'cover',
                     }}
                   />
@@ -418,7 +418,7 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
                     background: p.color, color: '#fff',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: 10, fontWeight: 700,
-                    border: '2px solid #F9F7F4',
+                    border: '2px solid rgba(212,85,10,0.3)',
                   }}>
                     {p.name.charAt(0).toUpperCase()}
                   </div>
