@@ -23,6 +23,9 @@ import {
   AlignLeft,
   AlignCenter,
   AlignRight,
+  Paperclip,
+  Mic,
+  MicOff,
 } from 'lucide-react'
 import TablePicker from './TablePicker'
 import ColorPicker from './ColorPicker'
@@ -183,6 +186,10 @@ export default function Toolbar({ editor }: ToolbarProps) {
   const iconSize = isMobile ? 18 : 15
   const mod = isMac ? '⌘' : 'CTRL'
   const imageRef = useRef<HTMLInputElement>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [isRecording, setIsRecording] = useState(false)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const chunksRef = useRef<BlobPart[]>([])
   const [showTextStyle, setShowTextStyle] = useState(false)
   const [showColor, setShowColor] = useState(false)
   const [showHighlight, setShowHighlight] = useState(false)
@@ -249,6 +256,58 @@ export default function Toolbar({ editor }: ToolbarProps) {
     }
     reader.readAsDataURL(file)
     e.target.value = ''
+  }
+
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      const result = ev.target?.result as string
+      if (!result) return
+      editor.chain().focus().insertFileAttachment({
+        name: file.name,
+        size: file.size,
+        mimeType: file.type || 'application/octet-stream',
+        dataUrl: result,
+      }).run()
+    }
+    reader.readAsDataURL(file)
+    e.target.value = ''
+  }
+
+  const toggleRecording = async () => {
+    if (isRecording) {
+      mediaRecorderRef.current?.stop()
+      setIsRecording(false)
+      return
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const recorder = new MediaRecorder(stream)
+      chunksRef.current = []
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data) }
+      recorder.onstop = () => {
+        stream.getTracks().forEach(t => t.stop())
+        const blob = new Blob(chunksRef.current, { type: recorder.mimeType })
+        const ext = recorder.mimeType.split('/')[1]?.split(';')[0] || 'webm'
+        const name = `Voice memo ${new Date().toLocaleString()}.${ext}`
+        const fr = new FileReader()
+        fr.onload = (ev) => {
+          const dataUrl = ev.target?.result as string
+          if (!dataUrl) return
+          editor.chain().focus().insertFileAttachment({
+            name, size: blob.size, mimeType: recorder.mimeType, dataUrl,
+          }).run()
+        }
+        fr.readAsDataURL(blob)
+      }
+      mediaRecorderRef.current = recorder
+      recorder.start()
+      setIsRecording(true)
+    } catch {
+      // microphone permission denied or not available
+    }
   }
 
   const openLink = () => {
@@ -486,6 +545,22 @@ export default function Toolbar({ editor }: ToolbarProps) {
           <ImageIcon size={iconSize} />
         </TBtn>
         <input ref={imageRef} type="file" accept="image/*" className="hidden" onChange={handleImage} />
+
+        {/* File upload */}
+        <TBtn onClick={() => fileRef.current?.click()} label="Upload file">
+          <Paperclip size={iconSize} />
+        </TBtn>
+        <input ref={fileRef} type="file" className="hidden" onChange={handleFile} />
+
+        {/* Voice memo */}
+        <TBtn
+          onClick={toggleRecording}
+          active={isRecording}
+          label={isRecording ? 'Stop recording' : 'Voice memo'}
+          className={isRecording ? 'animate-pulse' : ''}
+        >
+          {isRecording ? <MicOff size={iconSize} /> : <Mic size={iconSize} />}
+        </TBtn>
 
         {/* Code block */}
         <TBtn onClick={() => editor.chain().focus().toggleCodeBlock().run()} active={editorState.isCodeBlock} label="Code block">

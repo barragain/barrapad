@@ -26,7 +26,27 @@ import InfoPopover from './InfoPopover'
 import LinkPopover from './LinkPopover'
 import ContextMenu from './ContextMenu'
 import type { ContextMenuItem } from './ContextMenu'
-import { Info } from 'lucide-react'
+import {
+  Info,
+  Clipboard,
+  MousePointer2,
+  ImageIcon as ImageIconLucide,
+  Paperclip,
+  Mic,
+  Table as TableIconLucide,
+  Type,
+  Bold as BoldIcon,
+  Italic as ItalicIcon,
+  Underline as UnderlineIcon,
+  Strikethrough,
+  Link2,
+  Copy,
+  Scissors,
+  ExternalLink,
+  Pencil,
+  Trash2,
+  Download,
+} from 'lucide-react'
 import type { Note } from '@/types'
 
 const lowlight = createLowlight(common)
@@ -58,6 +78,10 @@ export default function EditorComponent({
   const [linkPopover, setLinkPopover] = useState<{ x: number; y: number } | null>(null)
   const contextClickRef = useRef<{ x: number; y: number; editorPos?: number }>({ x: 0, y: 0 })
   const ctxImageRef = useRef<HTMLInputElement>(null)
+  const ctxFileRef = useRef<HTMLInputElement>(null)
+  const [ctxIsRecording, setCtxIsRecording] = useState(false)
+  const ctxMediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const ctxChunksRef = useRef<BlobPart[]>([])
 
   const flushAutoSave = useCallback(() => {
     if (!pendingRef.current) return
@@ -256,13 +280,13 @@ export default function EditorComponent({
     const imgEl = target.tagName === 'IMG' ? target as HTMLImageElement : target.closest('img') as HTMLImageElement | null
     if (imgEl) {
       setContextMenu({ x, y, items: [
-        { type: 'item', label: 'Copy image URL', onClick: () => { navigator.clipboard.writeText(imgEl.src); setContextMenu(null) } },
-        { type: 'item', label: 'Download image', onClick: () => {
+        { type: 'item', label: 'Copy image URL', icon: <Copy size={13} />, onClick: () => { navigator.clipboard.writeText(imgEl.src); setContextMenu(null) } },
+        { type: 'item', label: 'Download image', icon: <Download size={13} />, onClick: () => {
           const a = document.createElement('a'); a.href = imgEl.src; a.download = 'image'; a.click(); setContextMenu(null)
         }},
-        { type: 'item', label: 'Replace image', onClick: () => { ctxImageRef.current?.click(); setContextMenu(null) }},
+        { type: 'item', label: 'Replace image', icon: <ImageIconLucide size={13} />, onClick: () => { ctxImageRef.current?.click(); setContextMenu(null) }},
         { type: 'separator' },
-        { type: 'item', label: 'Remove image', danger: true, onClick: () => {
+        { type: 'item', label: 'Remove image', icon: <Trash2 size={13} />, danger: true, onClick: () => {
           const pos = contextClickRef.current.editorPos
           if (pos !== undefined) editor.chain().focus().setNodeSelection(pos).deleteSelection().run()
           setContextMenu(null)
@@ -276,11 +300,11 @@ export default function EditorComponent({
     if (linkEl) {
       const href = linkEl.href
       setContextMenu({ x, y, items: [
-        { type: 'item', label: 'Open link', onClick: () => { window.open(href, '_blank'); setContextMenu(null) }},
-        { type: 'item', label: 'Copy link URL', onClick: () => { navigator.clipboard.writeText(href); setContextMenu(null) }},
-        { type: 'item', label: 'Edit link…', onClick: () => { setContextMenu(null); setLinkPopover({ x, y }) }},
+        { type: 'item', label: 'Open link', icon: <ExternalLink size={13} />, onClick: () => { window.open(href, '_blank'); setContextMenu(null) }},
+        { type: 'item', label: 'Copy link URL', icon: <Copy size={13} />, onClick: () => { navigator.clipboard.writeText(href); setContextMenu(null) }},
+        { type: 'item', label: 'Edit link…', icon: <Pencil size={13} />, onClick: () => { setContextMenu(null); setLinkPopover({ x, y }) }},
         { type: 'separator' },
-        { type: 'item', label: 'Remove link', danger: true, onClick: () => {
+        { type: 'item', label: 'Remove link', icon: <Trash2 size={13} />, danger: true, onClick: () => {
           editor.chain().focus().extendMarkRange('link').unsetLink().run(); setContextMenu(null)
         }},
       ]})
@@ -292,33 +316,69 @@ export default function EditorComponent({
       const { from, to } = editor.state.selection
       const selectedText = editor.state.doc.textBetween(from, to, ' ')
       setContextMenu({ x, y, items: [
-        { type: 'item', label: 'Bold', onClick: () => { editor.chain().focus().toggleBold().run(); setContextMenu(null) }},
-        { type: 'item', label: 'Italic', onClick: () => { editor.chain().focus().toggleItalic().run(); setContextMenu(null) }},
-        { type: 'item', label: 'Underline', onClick: () => { editor.chain().focus().toggleUnderline().run(); setContextMenu(null) }},
-        { type: 'item', label: 'Strikethrough', onClick: () => { editor.chain().focus().toggleStrike().run(); setContextMenu(null) }},
+        { type: 'item', label: 'Bold', icon: <BoldIcon size={13} />, onClick: () => { editor.chain().focus().toggleBold().run(); setContextMenu(null) }},
+        { type: 'item', label: 'Italic', icon: <ItalicIcon size={13} />, onClick: () => { editor.chain().focus().toggleItalic().run(); setContextMenu(null) }},
+        { type: 'item', label: 'Underline', icon: <UnderlineIcon size={13} />, onClick: () => { editor.chain().focus().toggleUnderline().run(); setContextMenu(null) }},
+        { type: 'item', label: 'Strikethrough', icon: <Strikethrough size={13} />, onClick: () => { editor.chain().focus().toggleStrike().run(); setContextMenu(null) }},
         { type: 'separator' },
-        { type: 'item', label: 'Link…', onClick: () => { setContextMenu(null); setLinkPopover({ x, y }) }},
+        { type: 'item', label: 'Link…', icon: <Link2 size={13} />, onClick: () => { setContextMenu(null); setLinkPopover({ x, y }) }},
         { type: 'separator' },
-        { type: 'item', label: 'Copy', onClick: () => { navigator.clipboard.writeText(selectedText); setContextMenu(null) }},
-        { type: 'item', label: 'Cut', onClick: () => { navigator.clipboard.writeText(selectedText); editor.chain().focus().deleteSelection().run(); setContextMenu(null) }},
+        { type: 'item', label: 'Copy', icon: <Copy size={13} />, onClick: () => { navigator.clipboard.writeText(selectedText); setContextMenu(null) }},
+        { type: 'item', label: 'Cut', icon: <Scissors size={13} />, onClick: () => { navigator.clipboard.writeText(selectedText); editor.chain().focus().deleteSelection().run(); setContextMenu(null) }},
       ]})
       return
     }
 
     // Context 3: empty cursor / no selection
     setContextMenu({ x, y, items: [
-      { type: 'item', label: 'Paste', onClick: () => {
+      { type: 'item', label: 'Paste', icon: <Clipboard size={13} />, onClick: () => {
         navigator.clipboard.readText().then(text => { if (text) editor.chain().focus().insertContent(text).run() }); setContextMenu(null)
       }},
-      { type: 'item', label: 'Select All', onClick: () => { editor.commands.selectAll(); setContextMenu(null) }},
+      { type: 'item', label: 'Select All', icon: <MousePointer2 size={13} />, onClick: () => { editor.commands.selectAll(); setContextMenu(null) }},
       { type: 'separator' },
-      { type: 'item', label: 'Insert image', onClick: () => { ctxImageRef.current?.click(); setContextMenu(null) }},
-      { type: 'item', label: 'Insert table', onClick: () => { editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(); setContextMenu(null) }},
-      { type: 'item', label: 'Insert lorem ipsum', onClick: () => {
+      { type: 'item', label: 'Insert image', icon: <ImageIconLucide size={13} />, onClick: () => { ctxImageRef.current?.click(); setContextMenu(null) }},
+      { type: 'item', label: 'Upload file', icon: <Paperclip size={13} />, onClick: () => { ctxFileRef.current?.click(); setContextMenu(null) }},
+      { type: 'item', label: 'Insert voice memo', icon: <Mic size={13} />, onClick: () => { setContextMenu(null); startCtxVoiceMemo() }},
+      { type: 'item', label: 'Insert table', icon: <TableIconLucide size={13} />, onClick: () => { editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(); setContextMenu(null) }},
+      { type: 'item', label: 'Insert lorem ipsum', icon: <Type size={13} />, onClick: () => {
         editor.chain().focus().insertContent('Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.').run(); setContextMenu(null)
       }},
     ]})
   }, [editor])
+
+  const startCtxVoiceMemo = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const recorder = new MediaRecorder(stream)
+      ctxChunksRef.current = []
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) ctxChunksRef.current.push(e.data) }
+      recorder.onstop = () => {
+        stream.getTracks().forEach(t => t.stop())
+        const blob = new Blob(ctxChunksRef.current, { type: recorder.mimeType })
+        const ext = recorder.mimeType.split('/')[1]?.split(';')[0] || 'webm'
+        const name = `Voice memo ${new Date().toLocaleString()}.${ext}`
+        const fr = new FileReader()
+        fr.onload = (ev) => {
+          const dataUrl = ev.target?.result as string
+          if (!dataUrl || !editor) return
+          editor.chain().focus().insertFileAttachment({
+            name, size: blob.size, mimeType: recorder.mimeType, dataUrl,
+          }).run()
+        }
+        fr.readAsDataURL(blob)
+      }
+      ctxMediaRecorderRef.current = recorder
+      recorder.start()
+      setCtxIsRecording(true)
+    } catch {
+      // microphone permission denied
+    }
+  }, [editor])
+
+  const stopCtxVoiceMemo = useCallback(() => {
+    ctxMediaRecorderRef.current?.stop()
+    setCtxIsRecording(false)
+  }, [])
 
   const handleOuterDrop = useCallback((e: React.DragEvent) => {
     if (e.defaultPrevented) return
@@ -366,6 +426,32 @@ export default function EditorComponent({
           </motion.div>
         )}
       </AnimatePresence>
+      {ctxIsRecording && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          background: 'rgba(239, 68, 68, 0.07)',
+          borderBottom: '1px solid rgba(239, 68, 68, 0.25)',
+          padding: '7px 16px', fontSize: 12, color: '#ef4444',
+        }}>
+          <span style={{
+            width: 8, height: 8, borderRadius: '50%', background: '#ef4444',
+            display: 'inline-block', flexShrink: 0,
+            animation: 'pulse 1s ease-in-out infinite',
+          }} />
+          <span>Recording voice memo…</span>
+          <button
+            onClick={stopCtxVoiceMemo}
+            style={{
+              marginLeft: 'auto', fontSize: 11, fontWeight: 600,
+              padding: '3px 10px', borderRadius: 6, cursor: 'pointer',
+              background: '#ef4444', color: 'white', border: 'none',
+            }}
+          >
+            Stop & Insert
+          </button>
+        </div>
+      )}
+
       <div
         className="flex-1 overflow-y-auto"
         style={{ padding: '2rem 2rem 4rem' }}
@@ -424,6 +510,28 @@ export default function EditorComponent({
                     editor.chain().focus().setNodeSelection(pos).run()
                   }
                   editor.chain().focus().setImage({ src: result }).run()
+                }
+                reader.readAsDataURL(file)
+                e.target.value = ''
+              }}
+            />
+            <input
+              ref={ctxFileRef}
+              type="file"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (!file || !editor) return
+                const reader = new FileReader()
+                reader.onload = (ev) => {
+                  const result = ev.target?.result as string
+                  if (!result) return
+                  editor.chain().focus().insertFileAttachment({
+                    name: file.name,
+                    size: file.size,
+                    mimeType: file.type || 'application/octet-stream',
+                    dataUrl: result,
+                  }).run()
                 }
                 reader.readAsDataURL(file)
                 e.target.value = ''
