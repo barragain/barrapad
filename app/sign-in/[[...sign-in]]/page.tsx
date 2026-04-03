@@ -1,11 +1,11 @@
-import { SignIn } from '@clerk/nextjs'
+'use client'
 
-export default async function SignInPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ redirect_url?: string }>
-}) {
-  const { redirect_url: redirectUrl } = await searchParams
+import { SignIn } from '@clerk/nextjs'
+import { useSearchParams } from 'next/navigation'
+
+export default function SignInPage() {
+  const searchParams = useSearchParams()
+  const redirectUrl = searchParams.get('redirect_url') ?? '/'
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-8 bg-[#F5F2ED]">
@@ -16,8 +16,8 @@ export default async function SignInPage({
         </p>
       </div>
       <SignIn
-        fallbackRedirectUrl={redirectUrl ?? '/'}
-        signUpFallbackRedirectUrl={redirectUrl ?? '/'}
+        fallbackRedirectUrl={redirectUrl}
+        signUpFallbackRedirectUrl={redirectUrl}
       />
     </div>
   )
