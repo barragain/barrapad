@@ -58,13 +58,13 @@ export default function Sidebar({
   }
 
   return (
-    <div className="sidebar flex flex-col h-full w-[200px] flex-shrink-0 relative">
+    <div className="sidebar flex flex-col h-full w-[230px] flex-shrink-0 relative">
       {/* Header */}
       <div className="flex items-center justify-between px-3 pt-4 pb-2">
         <img src="/logo.svg" alt="barraPAD" className="h-5 w-auto" />
         <button
           onClick={onNewNote}
-          className="p-1.5 rounded hover:bg-black/5 transition-colors text-[#C4BFB6]"
+          className="p-1.5 rounded hover:bg-black/5 transition-colors text-[#8A8178]"
           title="New note"
         >
           <PenSquare size={16} />
@@ -74,7 +74,7 @@ export default function Sidebar({
       {/* Search */}
       <div className="px-3 pb-2">
         <div className="flex items-center gap-1.5 bg-white/60 border border-[#E5E0D8] rounded-lg px-2 py-1.5">
-          <Search size={12} className="text-[#C4BFB6] flex-shrink-0" />
+          <Search size={12} className="text-[#8A8178] flex-shrink-0" />
           <input
             type="text"
             value={search}
@@ -82,19 +82,19 @@ export default function Sidebar({
             placeholder="Search..."
             className="flex-1 text-xs bg-transparent outline-none text-[#1A1A1A] placeholder-[#C4BFB6] min-w-0"
           />
-          <Filter size={12} className="text-[#C4BFB6] flex-shrink-0" />
+          <Filter size={12} className="text-[#8A8178] flex-shrink-0" />
         </div>
       </div>
 
       {/* Notes section label */}
       <div className="px-3 py-1">
-        <span className="text-[10px] font-semibold text-[#C4BFB6] uppercase tracking-widest">Notes</span>
+        <span className="text-[10px] font-semibold text-[#8A8178] uppercase tracking-widest">Notes</span>
       </div>
 
       {/* Notes list */}
       <div className="flex-1 overflow-y-auto px-2 pb-2 space-y-0.5">
         {filtered.length === 0 && (
-          <p className="text-xs text-[#C4BFB6] text-center mt-4 px-2">
+          <p className="text-xs text-[#8A8178] text-center mt-4 px-2">
             {search ? 'No results' : 'No notes yet'}
           </p>
         )}
@@ -112,7 +112,7 @@ export default function Sidebar({
               <p className="text-xs font-medium text-[#1A1A1A] truncate leading-tight">
                 {note.title || 'Untitled'}
               </p>
-              <p className="text-[10px] text-[#C4BFB6] truncate leading-tight mt-0.5">
+              <p className="text-[10px] text-[#8A8178] truncate leading-tight mt-0.5">
                 {stripHtml(note.content).slice(0, 50) || 'No content'}
               </p>
             </div>
@@ -122,7 +122,7 @@ export default function Sidebar({
                   e.stopPropagation()
                   onDeleteNote(note.id)
                 }}
-                className="flex-shrink-0 p-1.5 rounded-lg hover:bg-red-100 text-[#C4BFB6] hover:text-red-500 transition-colors"
+                className="flex-shrink-0 p-1.5 rounded-lg hover:bg-red-100 text-[#8A8178] hover:text-red-500 transition-colors"
               >
                 <Trash2 size={14} />
               </button>
@@ -144,7 +144,7 @@ export default function Sidebar({
               aboutAudioRef.current = audio
               setShowAbout(true)
             }}
-            className="p-1.5 rounded hover:bg-black/5 transition-colors text-[#C4BFB6]"
+            className="p-1.5 rounded hover:bg-black/5 transition-colors text-[#8A8178]"
             title="About"
           >
             <HelpCircle size={16} />
@@ -161,7 +161,7 @@ export default function Sidebar({
           )}
           <button
             onClick={onOpenSettings}
-            className="p-1.5 rounded hover:bg-black/5 transition-colors text-[#C4BFB6]"
+            className="p-1.5 rounded hover:bg-black/5 transition-colors text-[#8A8178]"
             title="Settings"
           >
             <Settings size={16} />

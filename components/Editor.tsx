@@ -294,7 +294,7 @@ export default function EditorComponent({
             )}
           </div>
 
-          <div style={{ background: 'var(--editor-bg)', borderRadius: 11 }}>
+          <div id="barrapad-editor-content" style={{ background: 'var(--editor-bg)', borderRadius: 11 }}>
             <EditorContent
               editor={editor}
               style={{ padding: '2rem', minHeight: '70vh' }}

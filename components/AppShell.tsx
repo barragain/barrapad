@@ -200,7 +200,10 @@ export default function AppShell() {
     const html = activeNote.content || ''
     if (fmt === 'txt') downloadTxt(title, html)
     else if (fmt === 'md') await downloadMd(title, html)
-    else if (fmt === 'pdf') await downloadPdf(title, html)
+    else if (fmt === 'pdf') {
+      const editorEl = document.getElementById('barrapad-editor-content')
+      await downloadPdf(title, html, editorEl)
+    }
     else if (fmt === 'docx') await downloadDocx(title, html)
   }
 
@@ -275,16 +278,22 @@ export default function AppShell() {
                     exit={{ opacity: 0, y: -4, scale: 0.97 }}
                     transition={{ duration: 0.12 }}
                     className="absolute top-full right-0 mt-1 z-50 rounded-xl shadow-xl overflow-hidden"
-                    style={{ background: 'var(--editor-bg)', border: '1px solid var(--border)', minWidth: 120 }}
+                    style={{ background: 'var(--editor-bg)', border: '1px solid var(--border)', minWidth: 200 }}
                   >
-                    {(['txt', 'md', 'pdf', 'docx'] as const).map((fmt) => (
+                    {([
+                      { fmt: 'pdf', label: '.pdf', note: 'Visual · searchable' },
+                      { fmt: 'md',  label: '.md',  note: 'Markdown · plain text' },
+                      { fmt: 'txt', label: '.txt', note: 'Plain text only' },
+                      { fmt: 'docx',label: '.docx',note: 'Word · basic styles' },
+                    ] as const).map(({ fmt, label, note }) => (
                       <button
                         key={fmt}
                         onClick={() => handleExport(fmt)}
-                        className="w-full text-left px-4 py-2 text-sm hover:bg-black/5 transition-colors"
+                        className="w-full text-left px-4 py-2.5 hover:bg-black/5 transition-colors flex items-baseline justify-between gap-4"
                         style={{ color: 'var(--ink)' }}
                       >
-                        .{fmt}
+                        <span className="text-sm font-medium">{label}</span>
+                        <span className="text-[11px]" style={{ color: 'var(--muted)' }}>{note}</span>
                       </button>
                     ))}
                   </motion.div>
