@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Save, Share2, X, CloudUpload, Download, ChevronDown } from 'lucide-react'
+import { Save, Share2, X, CloudUpload, Download, ChevronDown, Menu } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { downloadTxt, downloadMd, downloadPdf, downloadDocx } from '@/lib/export'
 import Sidebar from './Sidebar'
@@ -66,6 +66,7 @@ export default function AppShell() {
   const [showShare, setShowShare] = useState(false)
   const [showAppearance, setShowAppearance] = useState(false)
   const [showExport, setShowExport] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const [appearance, setAppearance] = useState<AppearanceSettings>(DEFAULT_APPEARANCE)
   const [manualSaving, setManualSaving] = useState(false)
   const [autoSaving, setAutoSaving] = useState(false)
@@ -227,19 +228,73 @@ export default function AppShell() {
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: 'var(--editor-bg)' }}>
-      <Sidebar
-        notes={notes}
-        activeNoteId={activeNoteId}
-        onSelectNote={setActiveNoteId}
-        onNewNote={handleNewNote}
-        onDeleteNote={handleDeleteNote}
-        onOpenSettings={() => setShowAppearance(true)}
-      />
+
+      {/* Mobile backdrop */}
+      <AnimatePresence>
+        {sidebarOpen && (
+          <motion.div
+            key="sidebar-backdrop"
+            className="fixed inset-0 z-40 md:hidden"
+            style={{ background: 'rgba(0,0,0,0.45)' }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Sidebar — fixed overlay on mobile, normal flex child on desktop */}
+      <div className="hidden md:flex md:flex-shrink-0">
+        <Sidebar
+          notes={notes}
+          activeNoteId={activeNoteId}
+          onSelectNote={setActiveNoteId}
+          onNewNote={handleNewNote}
+          onDeleteNote={handleDeleteNote}
+          onOpenSettings={() => setShowAppearance(true)}
+        />
+      </div>
+
+      <AnimatePresence>
+        {sidebarOpen && (
+          <motion.div
+            key="mobile-sidebar"
+            className="fixed inset-y-0 left-0 z-50 md:hidden"
+            initial={{ x: '-100%' }}
+            animate={{ x: 0 }}
+            exit={{ x: '-100%' }}
+            transition={{ type: 'spring', stiffness: 380, damping: 36, mass: 0.8 }}
+          >
+            <Sidebar
+              notes={notes}
+              activeNoteId={activeNoteId}
+              onSelectNote={(id) => { setActiveNoteId(id); setSidebarOpen(false) }}
+              onNewNote={() => { handleNewNote(); setSidebarOpen(false) }}
+              onDeleteNote={handleDeleteNote}
+              onOpenSettings={() => { setShowAppearance(true); setSidebarOpen(false) }}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Main area */}
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         {/* Top action bar */}
-        <div className="flex items-center justify-end gap-2 px-4 py-2 border-b" style={{ background: 'var(--editor-bg)', borderColor: 'var(--border)' }}>
+        <div className="flex items-center gap-2 px-4 py-2 border-b" style={{ background: 'var(--editor-bg)', borderColor: 'var(--border)' }}>
+          {/* Hamburger — mobile only */}
+          <button
+            className="md:hidden p-1.5 rounded-lg hover:bg-black/5 transition-colors flex-shrink-0"
+            style={{ color: 'var(--ink)' }}
+            onClick={() => setSidebarOpen(true)}
+          >
+            <Menu size={18} />
+          </button>
+
+          {/* Push everything else to the right */}
+          <div className="flex-1" />
+
           {/* Auto-save indicator — appears only during background sync */}
           <AnimatePresence>
             {autoSaving && (
