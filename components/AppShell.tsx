@@ -40,10 +40,28 @@ function applyAppearance(settings: AppearanceSettings) {
   root.style.setProperty('--editor-size', `${settings.zoom}px`)
 }
 
+// Cache helpers — used as the primary data source, API is secondary
+function loadCachedNotes(): Note[] {
+  if (typeof window === 'undefined') return []
+  try {
+    const raw = localStorage.getItem('barrapad_notes')
+    if (raw) return JSON.parse(raw) as Note[]
+  } catch {}
+  return []
+}
+
+function saveCachedNotes(notes: Note[]) {
+  try {
+    // Don't cache temp notes
+    const real = notes.filter((n) => !n.id.startsWith('temp-'))
+    localStorage.setItem('barrapad_notes', JSON.stringify(real))
+  } catch {}
+}
+
 export default function AppShell() {
-  const [notes, setNotes] = useState<Note[]>([])
-  const [activeNoteId, setActiveNoteId] = useState<string | null>(null)
-  const [notesLoading, setNotesLoading] = useState(true)
+  // Lazy init from cache — renders instantly, no loading state needed
+  const [notes, setNotes] = useState<Note[]>(() => loadCachedNotes())
+  const [activeNoteId, setActiveNoteId] = useState<string | null>(() => loadCachedNotes()[0]?.id ?? null)
   const [showShare, setShowShare] = useState(false)
   const [showAppearance, setShowAppearance] = useState(false)
   const [showInfo, setShowInfo] = useState(false)
@@ -61,6 +79,7 @@ export default function AppShell() {
     applyAppearance(settings)
   }, [])
 
+  // Background sync — reconcile with server without blocking UI
   useEffect(() => {
     fetchNotes()
   }, [])
@@ -71,14 +90,23 @@ export default function AppShell() {
       if (!res.ok) return
       const data = (await res.json()) as Note[]
       setNotes(data)
-      if (data.length > 0) {
-        setActiveNoteId((prev) => prev ?? data[0].id)
-      }
+      saveCachedNotes(data)
+      setActiveNoteId((prev) => {
+        // Keep current selection if it still exists, otherwise pick first
+        if (prev && data.some((n) => n.id === prev)) return prev
+        return data[0]?.id ?? null
+      })
     } catch {}
-    setNotesLoading(false)
   }
 
-  // Optimistic new note — add placeholder immediately, replace on API response
+  const updateNotes = useCallback((updater: (prev: Note[]) => Note[]) => {
+    setNotes((prev) => {
+      const next = updater(prev)
+      saveCachedNotes(next)
+      return next
+    })
+  }, [])
+
   const handleNewNote = async () => {
     const tempId = `temp-${Date.now()}`
     const tempNote: Note = {
@@ -95,23 +123,21 @@ export default function AppShell() {
     try {
       const res = await fetch('/api/notes', { method: 'POST' })
       if (!res.ok) {
-        setNotes((prev) => prev.filter((n) => n.id !== tempId))
+        updateNotes((prev) => prev.filter((n) => n.id !== tempId))
         return
       }
       const note = (await res.json()) as Note
-      setNotes((prev) => prev.map((n) => (n.id === tempId ? note : n)))
+      updateNotes((prev) => prev.map((n) => (n.id === tempId ? note : n)))
       setActiveNoteId(note.id)
     } catch {
-      setNotes((prev) => prev.filter((n) => n.id !== tempId))
+      updateNotes((prev) => prev.filter((n) => n.id !== tempId))
     }
   }
 
-  // Optimistic save — update local state immediately, sync in background
   const handleSave = useCallback(async (title: string, content: string) => {
     if (!activeNoteId || activeNoteId.startsWith('temp-')) return
 
-    // Update local state immediately
-    setNotes((prev) =>
+    updateNotes((prev) =>
       prev.map((n) =>
         n.id === activeNoteId
           ? { ...n, title, content, updatedAt: new Date().toISOString() }
@@ -129,12 +155,11 @@ export default function AppShell() {
     } catch {}
 
     setSaving(false)
-  }, [activeNoteId])
+  }, [activeNoteId, updateNotes])
 
-  // Optimistic delete — remove immediately
   const handleDeleteNote = async (id: string) => {
     const prev = notes
-    setNotes((n) => n.filter((note) => note.id !== id))
+    updateNotes((n) => n.filter((note) => note.id !== id))
     if (activeNoteId === id) {
       const remaining = prev.filter((n) => n.id !== id)
       setActiveNoteId(remaining[0]?.id ?? null)
@@ -142,7 +167,8 @@ export default function AppShell() {
     try {
       await fetch(`/api/notes/${id}`, { method: 'DELETE' })
     } catch {
-      setNotes(prev) // rollback on error
+      setNotes(prev)
+      saveCachedNotes(prev)
     }
   }
 
@@ -174,7 +200,8 @@ export default function AppShell() {
           {activeNote && (
             <button
               onClick={() => setShowShare(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-[#E5E0D8] rounded-lg hover:bg-[#F5F2ED] transition-colors text-[#1A1A1A]"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-lg hover:bg-black/5 transition-colors"
+              style={{ borderColor: 'var(--border)', color: 'var(--ink)' }}
             >
               <Share2 size={13} />
               Share
@@ -182,7 +209,8 @@ export default function AppShell() {
           )}
           <button
             onClick={handleManualSave}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-[#1A1A1A] text-white rounded-lg hover:bg-black/80 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg hover:opacity-80 transition-opacity"
+            style={{ background: 'var(--ink)', color: 'var(--editor-bg)' }}
           >
             <Save size={13} />
             {saving ? 'Saving...' : 'Save'}
@@ -198,10 +226,6 @@ export default function AppShell() {
               onSave={handleSave}
               onWordCountChange={(w, c) => { setWordCount(w); setCharCount(c) }}
             />
-          ) : notesLoading ? (
-            <div className="flex h-full items-center justify-center">
-              <div style={{ color: 'var(--muted)' }} className="text-sm animate-pulse">Loading…</div>
-            </div>
           ) : (
             <div className="flex h-full items-center justify-center">
               <div className="text-center">
@@ -217,7 +241,7 @@ export default function AppShell() {
           )}
         </div>
 
-        {/* Bottom strip — Info above X */}
+        {/* Bottom strip */}
         <div className="flex items-center justify-end px-4 py-1 gap-1 border-t" style={{ background: 'var(--editor-bg)', borderColor: 'var(--border)' }}>
           <div className="relative">
             <button

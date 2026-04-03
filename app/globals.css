@@ -251,6 +251,34 @@ body {
   to { transform: translateY(0); opacity: 1; }
 }
 
+/* Animated gradient border around the editor text column */
+@property --bp {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.editor-anim-border {
+  position: relative;
+  border-radius: 12px;
+  padding: 1.5px;
+  background: conic-gradient(
+    from var(--bp),
+    var(--border)   0%,
+    var(--border)  25%,
+    var(--accent)  38%,
+    var(--border)  50%,
+    var(--muted)   62%,
+    var(--accent)  78%,
+    var(--border) 100%
+  );
+  animation: border-spin 14s linear infinite;
+}
+
+@keyframes border-spin {
+  to { --bp: 360deg; }
+}
+
 /* Sidebar styles */
 .sidebar {
   background: var(--sidebar-bg);

@@ -223,18 +223,18 @@ export default function EditorComponent({ note, onSave, onWordCountChange }: Edi
       <Toolbar editor={editor} />
       <div
         className="flex-1 overflow-y-auto"
+        style={{ padding: '2rem 2rem 4rem' }}
         onDrop={handleOuterDrop}
         onDragOver={(e) => e.preventDefault()}
       >
-        <EditorContent
-          editor={editor}
-          style={{
-            maxWidth: 720,
-            margin: '0 auto',
-            padding: '2rem',
-            minHeight: '100%',
-          }}
-        />
+        <div className="editor-anim-border" style={{ maxWidth: 720, margin: '0 auto' }}>
+          <div style={{ background: 'var(--editor-bg)', borderRadius: 11 }}>
+            <EditorContent
+              editor={editor}
+              style={{ padding: '2rem', minHeight: '70vh' }}
+            />
+          </div>
+        </div>
       </div>
     </div>
   )
