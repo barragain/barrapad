@@ -94,7 +94,7 @@ export default function Sidebar({
     <div className="sidebar flex flex-col h-full w-[230px] flex-shrink-0 relative">
       {/* Header */}
       <div className="flex items-center justify-between px-3 pt-4 pb-2">
-        <img src="/logo.svg" alt="barraPAD" className="h-5 w-auto" />
+        <img src="/logo.svg" alt="barraPAD" className="h-7 w-auto" />
         <button
           onClick={onNewNote}
           className="p-1.5 rounded hover:bg-black/5 transition-colors text-[#8A8178]"
