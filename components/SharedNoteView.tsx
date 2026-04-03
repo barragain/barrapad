@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
-import { useUser, SignInButton } from '@clerk/nextjs'
+import { useUser } from '@clerk/nextjs'
 import PartySocket from 'partysocket'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
@@ -223,7 +223,10 @@ export default function SharedNoteView({ token, initialTitle, initialContent, pe
           </span>
 
           {permission === 'EDIT' && isLoaded && !isSignedIn && (
-            <SignInButton mode="modal">
+            <a
+              href={`/sign-in?redirect_url=${encodeURIComponent(`/s/${token}`)}`}
+              style={{ textDecoration: 'none' }}
+            >
               <button style={{
                 fontSize: 13,
                 fontWeight: 600,
@@ -236,7 +239,7 @@ export default function SharedNoteView({ token, initialTitle, initialContent, pe
               }}>
                 Sign in to edit
               </button>
-            </SignInButton>
+            </a>
           )}
         </div>
       </div>
