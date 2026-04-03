@@ -1,5 +1,6 @@
 import { Extension } from '@tiptap/core'
-import { Plugin, PluginKey, DecorationSet, Decoration } from '@tiptap/pm/state'
+import { Plugin, PluginKey } from '@tiptap/pm/state'
+import { DecorationSet, Decoration } from '@tiptap/pm/view'
 
 export interface RemoteCursor {
   id: string

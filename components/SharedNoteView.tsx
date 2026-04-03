@@ -71,7 +71,7 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
   const remoteCursorsRef = useRef<Map<string, RemoteCursor>>(new Map())
   const myColorRef = useRef(pickColor(Math.random().toString()))
   const canEditRef = useRef(canEdit)
-  const editorRef = useRef(editor)
+  const editorRef = useRef<ReturnType<typeof useEditor>>(null)
   const userNameRef = useRef('Guest')
   useEffect(() => {
     if (user) {
