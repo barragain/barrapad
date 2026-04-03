@@ -1,6 +1,5 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X } from 'lucide-react'
 
@@ -9,19 +8,6 @@ interface AboutModalProps {
 }
 
 export default function AboutModal({ onClose }: AboutModalProps) {
-  const audioRef = useRef<HTMLAudioElement>(null)
-
-  // Autoplay on mount, stop on unmount
-  useEffect(() => {
-    const audio = audioRef.current
-    if (!audio) return
-    audio.volume = 0.5
-    audio.play().catch(() => {/* autoplay blocked — user hasn't interacted yet */})
-    return () => {
-      audio.pause()
-      audio.currentTime = 0
-    }
-  }, [])
 
   return (
     <AnimatePresence>
@@ -95,8 +81,6 @@ export default function AboutModal({ onClose }: AboutModalProps) {
             </a>
           </div>
 
-          {/* Hidden audio */}
-          <audio ref={audioRef} src="/about.mp3" loop />
         </motion.div>
       </motion.div>
     </AnimatePresence>

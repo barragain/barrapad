@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import Link from 'next/link'
 import { useUser, UserButton } from '@clerk/nextjs'
 import {
@@ -37,6 +37,7 @@ export default function Sidebar({
   const [search, setSearch] = useState('')
   const [hoveredNote, setHoveredNote] = useState<string | null>(null)
   const [showAbout, setShowAbout] = useState(false)
+  const aboutAudioRef = useRef<HTMLAudioElement | null>(null)
 
   const filtered = notes.filter((n) => {
     const q = search.toLowerCase()
@@ -128,13 +129,30 @@ export default function Sidebar({
       <div className="border-t border-[#E5E0D8] px-3 py-3 flex items-center justify-between">
         <div className="flex items-center gap-1">
           <button
-            onClick={() => setShowAbout(true)}
+            onClick={() => {
+              // Play audio synchronously inside the user gesture — browser allows this
+              const audio = new Audio('/about.mp3')
+              audio.volume = 0.5
+              audio.loop = true
+              audio.play().catch(() => {})
+              aboutAudioRef.current = audio
+              setShowAbout(true)
+            }}
             className="p-1.5 rounded hover:bg-black/5 transition-colors text-[#C4BFB6]"
             title="About"
           >
             <HelpCircle size={16} />
           </button>
-          {showAbout && <AboutModal onClose={() => setShowAbout(false)} />}
+          {showAbout && (
+            <AboutModal
+              onClose={() => {
+                aboutAudioRef.current?.pause()
+                if (aboutAudioRef.current) aboutAudioRef.current.currentTime = 0
+                aboutAudioRef.current = null
+                setShowAbout(false)
+              }}
+            />
+          )}
           <button
             onClick={onOpenSettings}
             className="p-1.5 rounded hover:bg-black/5 transition-colors text-[#C4BFB6]"
