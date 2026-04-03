@@ -410,43 +410,6 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
             </a>
           )}
 
-          {/* ⓘ Info button — same style as main editor */}
-          <div style={{ position: 'relative' }}>
-            <button
-              ref={infoRef}
-              onClick={() => setShowInfo((v) => !v)}
-              className="p-2 rounded-xl transition-all"
-              style={{ color: showInfo ? '#7A2C06' : '#D4550A', cursor: 'pointer', background: 'none', border: 'none' }}
-              onMouseEnter={(e) => { e.currentTarget.style.color = '#7A2C06' }}
-              onMouseLeave={(e) => { if (!showInfo) e.currentTarget.style.color = '#D4550A' }}
-              title="Note info"
-            >
-              <Info size={22} />
-            </button>
-            {showInfo && (
-              <div
-                style={{
-                  position: 'absolute', top: '110%', right: 0, zIndex: 60,
-                  background: 'var(--editor-bg, #fff)', border: '1px solid #E5E0D8',
-                  borderRadius: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.10)',
-                  width: 220, padding: '12px 16px',
-                }}
-              >
-                {[
-                  { label: 'Words', value: wordCount },
-                  { label: 'Characters', value: charCount },
-                  { label: 'Permission', value: permission === 'EDIT' ? 'Can edit' : 'View only' },
-                  { label: 'Updated', value: new Date(lastUpdated).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) },
-                ].map(({ label, value }) => (
-                  <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 12 }}>
-                    <span style={{ color: '#8A8178' }}>{label}</span>
-                    <span style={{ fontWeight: 600, color: '#1A1A1A', textAlign: 'right', maxWidth: 120 }}>{String(value)}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
           {/* ? About button */}
           <button
             onClick={() => {
@@ -500,9 +463,44 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '0 1rem 5rem' }}>
         <div className="editor-anim-border" style={{ marginTop: '1.5rem' }}>
           <div
-            style={{ borderRadius: 11, overflow: 'hidden', background: 'var(--editor-bg, #F9F7F4)' }}
+            style={{ borderRadius: 11, overflow: 'hidden', background: 'var(--editor-bg, #F9F7F4)', position: 'relative' }}
             onMouseMove={(e) => sendPointerRef(e.clientX, e.clientY)}
           >
+            {/* ⓘ Info button — top-left of editor, same as main editor */}
+            <div style={{ position: 'absolute', top: 8, left: 8, zIndex: 20 }}>
+              <button
+                ref={infoRef}
+                onClick={() => setShowInfo((v) => !v)}
+                className="p-2 rounded-xl transition-all"
+                style={{ color: showInfo ? '#7A2C06' : '#D4550A', cursor: 'pointer', background: 'none', border: 'none' }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = '#7A2C06' }}
+                onMouseLeave={(e) => { if (!showInfo) e.currentTarget.style.color = '#D4550A' }}
+                title="Note info"
+              >
+                <Info size={22} />
+              </button>
+              {showInfo && (
+                <div style={{
+                  position: 'absolute', top: '110%', left: 0, zIndex: 60,
+                  background: 'var(--editor-bg, #fff)', border: '1px solid #E5E0D8',
+                  borderRadius: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.10)',
+                  width: 220, padding: '12px 16px',
+                }}>
+                  {[
+                    { label: 'Words', value: wordCount },
+                    { label: 'Characters', value: charCount },
+                    { label: 'Permission', value: permission === 'EDIT' ? 'Can edit' : 'View only' },
+                    { label: 'Updated', value: new Date(lastUpdated).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) },
+                  ].map(({ label, value }) => (
+                    <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 12 }}>
+                      <span style={{ color: '#8A8178' }}>{label}</span>
+                      <span style={{ fontWeight: 600, color: '#1A1A1A', textAlign: 'right', maxWidth: 120 }}>{String(value)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <EditorContent editor={editor} />
           </div>
         </div>
