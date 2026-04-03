@@ -138,7 +138,7 @@ export default function SharedNoteView({ token, initialTitle, initialContent, pe
       }
 
       if (msg.type === 'sync' || msg.type === 'update') {
-        setConnections(msg.connections ?? connections)
+        if ('connections' in msg) setConnections(msg.connections)
         setLastUpdated(msg.updatedAt)
         // Only update the editor if someone else changed the content and
         // the local editor is not actively focused (to avoid cursor jumps)
