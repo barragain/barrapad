@@ -17,6 +17,8 @@ import TaskItem from '@tiptap/extension-task-item'
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
 import { common, createLowlight } from 'lowlight'
 import { GradientText } from '@/extensions/gradient-text'
+import { CollabCursor, setCursors, pickColor } from '@/extensions/collab-cursor'
+import type { RemoteCursor } from '@/extensions/collab-cursor'
 import Toolbar from './Toolbar'
 
 const lowlight = createLowlight(common)
@@ -37,12 +39,15 @@ const EXTENSIONS = [
   TaskItem.configure({ nested: true }),
   CodeBlockLowlight.configure({ lowlight }),
   GradientText,
+  CollabCursor,
 ]
 
 type ServerMessage =
   | { type: 'sync'; content: string; title: string; updatedAt: string; connections: number }
   | { type: 'update'; content: string; title: string; updatedAt: string }
   | { type: 'presence'; connections: number }
+  | { type: 'cursor'; id: string; from: number; to: number; name: string; color: string }
+  | { type: 'cursor-leave'; id: string }
 
 interface Props {
   token: string
@@ -56,20 +61,40 @@ interface Props {
 const PARTYKIT_HOST = process.env.NEXT_PUBLIC_PARTYKIT_HOST ?? 'barrapad.barragain.partykit.dev'
 
 export default function SharedNoteView({ token, noteId, initialTitle, initialContent, permission, updatedAt }: Props) {
-  const { isSignedIn, isLoaded } = useUser()
+  const { isSignedIn, isLoaded, user } = useUser()
   const canEdit = permission === 'EDIT' && !!isSignedIn
 
   const socketRef = useRef<PartySocket | null>(null)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const sendTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const sendCursorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const remoteCursorsRef = useRef<Map<string, RemoteCursor>>(new Map())
+  const myColorRef = useRef(pickColor(Math.random().toString()))
+  const canEditRef = useRef(canEdit)
+  const editorRef = useRef(editor)
+  const userNameRef = useRef('Guest')
+  useEffect(() => {
+    if (user) {
+      userNameRef.current =
+        user.firstName ||
+        user.username ||
+        user.primaryEmailAddress?.emailAddress?.split('@')[0] ||
+        'Guest'
+    }
+  }, [user])
 
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
   const [lastUpdated, setLastUpdated] = useState(updatedAt)
   const [connections, setConnections] = useState(1)
   const [connected, setConnected] = useState(false)
+  const [presenceList, setPresenceList] = useState<RemoteCursor[]>([])
 
   // Keep a ref of initialTitle for use inside the editor update handler
   const titleRef = useRef(initialTitle)
+
+  // Keep refs in sync
+  useEffect(() => { canEditRef.current = canEdit }, [canEdit])
+  useEffect(() => { editorRef.current = editor }, [editor])
 
   const editor = useEditor({
     extensions: EXTENSIONS,
@@ -110,6 +135,18 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
         } catch {}
       }, 2000)
     },
+    onSelectionUpdate: ({ editor }) => {
+      if (!canEditRef.current) return
+      const { from, to } = editor.state.selection
+      if (sendCursorTimerRef.current) clearTimeout(sendCursorTimerRef.current)
+      sendCursorTimerRef.current = setTimeout(() => {
+        socketRef.current?.send(JSON.stringify({
+          type: 'cursor', from, to,
+          name: userNameRef.current,
+          color: myColorRef.current,
+        }))
+      }, 50)
+    },
   })
 
   // Flip editable when sign-in state resolves
@@ -131,7 +168,12 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
     socket.addEventListener('close', () => setConnected(false))
 
     socket.addEventListener('message', (evt) => {
-      const msg = JSON.parse(evt.data as string) as ServerMessage
+      type AnyMsg = ServerMessage & {
+        cursors?: RemoteCursor[]
+        id?: string; from?: number; to?: number; name?: string; color?: string
+      }
+      const msg = JSON.parse(evt.data as string) as AnyMsg
+      const ed = editorRef.current
 
       if (msg.type === 'presence') {
         setConnections(msg.connections)
@@ -140,22 +182,41 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
 
       if (msg.type === 'sync' || msg.type === 'update') {
         if ('connections' in msg) setConnections(msg.connections)
-        // Only update the editor if someone else changed the content and
-        // the local editor is not actively focused (to avoid cursor jumps).
-        // Guard against an empty sync from a fresh PartyKit room overwriting
-        // the DB content that was loaded server-side.
-        // For READ viewers always apply updates; for EDIT viewers skip if focused to avoid cursor jumps
-        if (msg.content !== '' && editor && (!canEdit || !editor.isFocused)) {
-          const current = editor.getHTML()
-          if (current !== msg.content) {
-            editor.commands.setContent(msg.content, { emitUpdate: false })
-          }
+        if (msg.content !== '' && ed && (!canEditRef.current || !ed.isFocused)) {
+          const current = ed.getHTML()
+          if (current !== msg.content) ed.commands.setContent(msg.content, { emitUpdate: false })
         }
         if (msg.content !== '') setLastUpdated(msg.updatedAt)
+        // Initialise cursors from sync snapshot
+        if (msg.type === 'sync' && msg.cursors) {
+          remoteCursorsRef.current.clear()
+          for (const c of msg.cursors) remoteCursorsRef.current.set(c.id, c)
+          setPresenceList([...remoteCursorsRef.current.values()])
+          if (ed) setCursors(ed, [...remoteCursorsRef.current.values()])
+        }
+        return
+      }
+
+      if (msg.type === 'cursor' && msg.id && msg.from !== undefined && msg.to !== undefined) {
+        const cursor: RemoteCursor = {
+          id: msg.id, from: msg.from, to: msg.to,
+          name: msg.name ?? 'Guest', color: msg.color ?? '#888',
+        }
+        remoteCursorsRef.current.set(msg.id, cursor)
+        setPresenceList([...remoteCursorsRef.current.values()])
+        if (ed) setCursors(ed, [...remoteCursorsRef.current.values()])
+        return
+      }
+
+      if (msg.type === 'cursor-leave' && msg.id) {
+        remoteCursorsRef.current.delete(msg.id)
+        setPresenceList([...remoteCursorsRef.current.values()])
+        if (ed) setCursors(ed, [...remoteCursorsRef.current.values()])
       }
     })
 
     return () => {
+      remoteCursorsRef.current.clear()
       socket.close()
       socketRef.current = null
     }
@@ -186,18 +247,34 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
         </a>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {/* Live connection dot */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <div style={{
-              width: 7,
-              height: 7,
-              borderRadius: '50%',
-              background: connected ? '#22c55e' : '#C4BFB6',
-              transition: 'background 0.3s',
-            }} />
-            <span style={{ fontSize: 12, color: '#8A8178' }}>
-              {connected ? `${connections} online` : 'Connecting…'}
-            </span>
+          {/* Live presence */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {presenceList.slice(0, 5).map((p) => (
+              <div
+                key={p.id}
+                title={p.name}
+                style={{
+                  width: 24, height: 24, borderRadius: '50%',
+                  background: p.color, color: '#fff',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 10, fontWeight: 700,
+                  border: '2px solid #F9F7F4',
+                  flexShrink: 0,
+                }}
+              >
+                {p.name.charAt(0).toUpperCase()}
+              </div>
+            ))}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              <div style={{
+                width: 7, height: 7, borderRadius: '50%',
+                background: connected ? '#22c55e' : '#C4BFB6',
+                transition: 'background 0.3s',
+              }} />
+              <span style={{ fontSize: 12, color: '#8A8178' }}>
+                {connected ? `${connections} online` : 'Connecting…'}
+              </span>
+            </div>
           </div>
 
           {canEdit && saveStatus !== 'idle' && (

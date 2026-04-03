@@ -1,32 +1,39 @@
 import type * as Party from 'partykit/server'
 
-// Message types
 type ClientMessage =
   | { type: 'update'; content: string; title: string }
+  | { type: 'cursor'; from: number; to: number; name: string; color: string }
+
+type CursorState = { id: string; from: number; to: number; name: string; color: string }
 
 type ServerMessage =
-  | { type: 'sync'; content: string; title: string; updatedAt: string; connections: number }
+  | { type: 'sync'; content: string; title: string; updatedAt: string; connections: number; cursors: CursorState[] }
   | { type: 'update'; content: string; title: string; updatedAt: string }
   | { type: 'presence'; connections: number }
+  | { type: 'cursor'; id: string; from: number; to: number; name: string; color: string }
+  | { type: 'cursor-leave'; id: string }
 
 export default class NoteParty implements Party.Server {
+  private cursors = new Map<string, Omit<CursorState, 'id'>>()
+
   constructor(readonly room: Party.Room) {}
 
   async onConnect(conn: Party.Connection) {
-    // Send current state to the new joiner
     const content   = (await this.room.storage.get<string>('content'))   ?? ''
     const title     = (await this.room.storage.get<string>('title'))     ?? ''
     const updatedAt = (await this.room.storage.get<string>('updatedAt')) ?? new Date().toISOString()
     const connections = [...this.room.getConnections()].length
+    const cursors = [...this.cursors.entries()].map(([id, c]) => ({ id, ...c }))
 
-    const sync: ServerMessage = { type: 'sync', content, title, updatedAt, connections }
+    const sync: ServerMessage = { type: 'sync', content, title, updatedAt, connections, cursors }
     conn.send(JSON.stringify(sync))
 
-    // Tell everyone the new headcount
     this.broadcastPresence()
   }
 
-  onClose() {
+  onClose(conn: Party.Connection) {
+    this.cursors.delete(conn.id)
+    this.room.broadcast(JSON.stringify({ type: 'cursor-leave', id: conn.id } satisfies ServerMessage))
     this.broadcastPresence()
   }
 
@@ -40,26 +47,25 @@ export default class NoteParty implements Party.Server {
 
     if (data.type === 'update') {
       const updatedAt = new Date().toISOString()
-
-      // Persist in durable storage so late joiners get the latest version
       await this.room.storage.put('content', data.content)
       await this.room.storage.put('title', data.title)
       await this.room.storage.put('updatedAt', updatedAt)
 
-      // Broadcast to everyone except the sender
-      const outgoing: ServerMessage = {
-        type: 'update',
-        content: data.content,
-        title: data.title,
-        updatedAt,
-      }
+      const outgoing: ServerMessage = { type: 'update', content: data.content, title: data.title, updatedAt }
+      this.room.broadcast(JSON.stringify(outgoing), [sender.id])
+    }
+
+    if (data.type === 'cursor') {
+      const cursorData = { from: data.from, to: data.to, name: data.name, color: data.color }
+      this.cursors.set(sender.id, cursorData)
+
+      const outgoing: ServerMessage = { type: 'cursor', id: sender.id, ...cursorData }
       this.room.broadcast(JSON.stringify(outgoing), [sender.id])
     }
   }
 
   private broadcastPresence() {
     const connections = [...this.room.getConnections()].length
-    const msg: ServerMessage = { type: 'presence', connections }
-    this.room.broadcast(JSON.stringify(msg))
+    this.room.broadcast(JSON.stringify({ type: 'presence', connections } satisfies ServerMessage))
   }
 }

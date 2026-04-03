@@ -3,6 +3,7 @@
 import { useEffect, useCallback, useRef, useState } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import type { Editor } from '@tiptap/react'
+import { useUser } from '@clerk/nextjs'
 import { motion, AnimatePresence } from 'framer-motion'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
@@ -48,6 +49,8 @@ import {
   Download,
 } from 'lucide-react'
 import PartySocket from 'partysocket'
+import { CollabCursor, setCursors, pickColor } from '@/extensions/collab-cursor'
+import type { RemoteCursor } from '@/extensions/collab-cursor'
 import type { Note } from '@/types'
 
 const lowlight = createLowlight(common)
@@ -75,7 +78,22 @@ export default function EditorComponent({
   const pendingRef = useRef<{ title: string; html: string } | null>(null)
   const socketRef = useRef<PartySocket | null>(null)
   const sendTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const sendCursorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const prevNoteIdRef = useRef<string>(note.id)
+  const remoteCursorsRef = useRef<Map<string, RemoteCursor>>(new Map())
+  const myColorRef = useRef(pickColor(Math.random().toString()))
+  const userNameRef = useRef('Me')
+
+  const { user } = useUser()
+  useEffect(() => {
+    if (user) {
+      userNameRef.current =
+        user.firstName ||
+        user.username ||
+        user.primaryEmailAddress?.emailAddress?.split('@')[0] ||
+        'Me'
+    }
+  }, [user])
   const infoButtonRef = useRef<HTMLButtonElement>(null)
   const [showInfo, setShowInfo] = useState(false)
   const [wordCount, setWordCount] = useState(0)
@@ -121,6 +139,7 @@ export default function EditorComponent({
       GradientText,
       FileAttachment,
       LoremIpsum,
+      CollabCursor,
     ],
     editorProps: {
       handleDrop(view, event, _slice, moved) {
@@ -230,6 +249,17 @@ export default function EditorComponent({
       // Sync to API when editor loses focus (e.g. user clicks sidebar)
       flushAutoSave()
     },
+    onSelectionUpdate: ({ editor }) => {
+      const { from, to } = editor.state.selection
+      if (sendCursorTimerRef.current) clearTimeout(sendCursorTimerRef.current)
+      sendCursorTimerRef.current = setTimeout(() => {
+        socketRef.current?.send(JSON.stringify({
+          type: 'cursor', from, to,
+          name: userNameRef.current,
+          color: myColorRef.current,
+        }))
+      }, 50)
+    },
   })
 
   // Keep ref in sync
@@ -267,19 +297,47 @@ export default function EditorComponent({
     socketRef.current = socket
 
     socket.addEventListener('message', (evt) => {
-      type Msg = { type: 'sync' | 'update' | 'presence'; content?: string }
+      type Msg = {
+        type: 'sync' | 'update' | 'presence' | 'cursor' | 'cursor-leave'
+        content?: string
+        cursors?: RemoteCursor[]
+        id?: string
+        from?: number; to?: number; name?: string; color?: string
+      }
       const msg = JSON.parse(evt.data as string) as Msg
-      if ((msg.type === 'sync' || msg.type === 'update') && msg.content && msg.content !== '') {
-        const ed = editorRef.current
-        if (!ed || ed.isFocused) return
-        const current = ed.getHTML()
-        if (current !== msg.content) {
-          ed.commands.setContent(msg.content, { emitUpdate: false })
+      const ed = editorRef.current
+
+      if (msg.type === 'sync' || msg.type === 'update') {
+        if (msg.content && msg.content !== '') {
+          if (ed && !ed.isFocused) {
+            const current = ed.getHTML()
+            if (current !== msg.content) ed.commands.setContent(msg.content, { emitUpdate: false })
+          }
         }
+        // Initialise cursors from sync snapshot
+        if (msg.type === 'sync' && msg.cursors) {
+          remoteCursorsRef.current.clear()
+          for (const c of msg.cursors) remoteCursorsRef.current.set(c.id, c)
+          if (ed) setCursors(ed, [...remoteCursorsRef.current.values()])
+        }
+      }
+
+      if (msg.type === 'cursor' && msg.id && msg.from !== undefined && msg.to !== undefined) {
+        remoteCursorsRef.current.set(msg.id, {
+          id: msg.id, from: msg.from, to: msg.to,
+          name: msg.name ?? 'Guest', color: msg.color ?? '#888',
+        })
+        if (ed) setCursors(ed, [...remoteCursorsRef.current.values()])
+      }
+
+      if (msg.type === 'cursor-leave' && msg.id) {
+        remoteCursorsRef.current.delete(msg.id)
+        if (ed) setCursors(ed, [...remoteCursorsRef.current.values()])
       }
     })
 
     return () => {
+      remoteCursorsRef.current.clear()
       socket.close()
       socketRef.current = null
     }
