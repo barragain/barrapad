@@ -202,6 +202,7 @@ function ColorBoard({ color, onChange }: ColorBoardProps) {
           background: `linear-gradient(to bottom, transparent, #000), linear-gradient(to right, #fff, hsl(${hue}deg 100% 50%))`,
           userSelect: 'none',
           flexShrink: 0,
+          touchAction: 'none',
         }}
       >
         <div
@@ -235,6 +236,7 @@ function ColorBoard({ color, onChange }: ColorBoardProps) {
           background: 'linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)',
           userSelect: 'none',
           flexShrink: 0,
+          touchAction: 'none',
         }}
       >
         <div

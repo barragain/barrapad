@@ -63,15 +63,6 @@ export default function InfoPopover({ note, wordCount, charCount, onClose, ancho
           <span className="font-medium text-right" style={{ color: 'var(--ink)' }}>{formatDate(note.updatedAt)}</span>
         </div>
 
-        <hr style={{ borderColor: 'var(--border)' }} />
-
-        <p className="text-xs text-[#C4BFB6]">
-          Use the following key to edit the note on other devices.
-        </p>
-
-        <button className="w-full py-2 px-3 text-sm border-2 border-amber-500 text-amber-600 rounded-lg hover:bg-amber-50 transition-colors font-medium">
-          🔑 Save note to view Edit Key
-        </button>
       </div>
     </div>
   )
