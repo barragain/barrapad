@@ -131,8 +131,9 @@ body {
 }
 
 .ProseMirror pre {
-  background: #1e1e1e;
-  color: #d4d4d4;
+  background: var(--sidebar-bg);
+  color: var(--ink);
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 1em;
   overflow-x: auto;

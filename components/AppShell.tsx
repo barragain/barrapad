@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Save, Share2, X, CloudUpload, Download, ChevronDown, Menu } from 'lucide-react'
+import { useAuth } from '@clerk/nextjs'
 import { AnimatePresence, motion } from 'framer-motion'
 import { downloadTxt, downloadMd, downloadPdf, downloadDocx } from '@/lib/export'
 import Sidebar from './Sidebar'
@@ -60,6 +61,7 @@ function saveCachedNotes(notes: Note[]) {
 }
 
 export default function AppShell() {
+  const { isLoaded, isSignedIn } = useAuth()
   // Lazy init from cache — renders instantly, no loading state needed
   const [notes, setNotes] = useState<Note[]>(() => loadCachedNotes())
   const [activeNoteId, setActiveNoteId] = useState<string | null>(() => loadCachedNotes()[0]?.id ?? null)
@@ -80,10 +82,11 @@ export default function AppShell() {
     applyAppearance(settings)
   }, [])
 
-  // Background sync — reconcile with server without blocking UI
+  // Background sync — re-runs when Clerk finishes loading or auth state changes
+  // This fixes the case where the session isn't ready on first mount (e.g. just after login)
   useEffect(() => {
-    fetchNotes()
-  }, [])
+    if (isLoaded) fetchNotes()
+  }, [isLoaded, isSignedIn])
 
   const fetchNotes = async () => {
     try {

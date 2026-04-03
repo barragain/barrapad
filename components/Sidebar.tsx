@@ -35,7 +35,6 @@ export default function Sidebar({
 }: SidebarProps) {
   const { user, isSignedIn } = useUser()
   const [search, setSearch] = useState('')
-  const [hoveredNote, setHoveredNote] = useState<string | null>(null)
   const [showAbout, setShowAbout] = useState(false)
   const aboutAudioRef = useRef<HTMLAudioElement | null>(null)
 
@@ -101,8 +100,6 @@ export default function Sidebar({
         {filtered.map((note) => (
           <div
             key={note.id}
-            onMouseEnter={() => setHoveredNote(note.id)}
-            onMouseLeave={() => setHoveredNote(null)}
             className={`note-item group relative flex items-start gap-1 ${
               note.id === activeNoteId ? 'active' : ''
             }`}
@@ -116,17 +113,16 @@ export default function Sidebar({
                 {stripHtml(note.content).slice(0, 50) || 'No content'}
               </p>
             </div>
-            {hoveredNote === note.id && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onDeleteNote(note.id)
-                }}
-                className="flex-shrink-0 p-1.5 rounded-lg hover:bg-red-100 text-[#8A8178] hover:text-red-500 transition-colors"
-              >
-                <Trash2 size={14} />
-              </button>
-            )}
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onDeleteNote(note.id)
+              }}
+              className="flex-shrink-0 p-1 rounded hover:bg-red-100 text-[#C4BFB6] hover:text-red-500 transition-colors"
+              title="Delete note"
+            >
+              <Trash2 size={12} />
+            </button>
           </div>
         ))}
       </div>

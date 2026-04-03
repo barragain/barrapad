@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useEditorState } from '@tiptap/react'
 import type { Editor } from '@tiptap/react'
 import {
@@ -27,7 +27,6 @@ import {
 import TablePicker from './TablePicker'
 import ColorPicker from './ColorPicker'
 import LinkPopover from './LinkPopover'
-import { useRef } from 'react'
 import '@/extensions/resizable-image'
 
 interface ToolbarProps {
@@ -52,8 +51,59 @@ function useIsMac() {
   return isMac
 }
 
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false)
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
+  return isMobile
+}
+
 function key(isMac: boolean, mac: string, win: string) {
   return isMac ? mac : win
+}
+
+function MobileSheet({
+  onClose,
+  title,
+  children,
+}: {
+  onClose: () => void
+  title?: string
+  children: React.ReactNode
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col justify-end" onClick={onClose}>
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: 'var(--editor-bg)',
+          borderTop: '1px solid var(--border)',
+          borderLeft: '1px solid var(--border)',
+          borderRight: '1px solid var(--border)',
+          borderTopLeftRadius: 20,
+          borderTopRightRadius: 20,
+          boxShadow: '0 -8px 32px rgba(0,0,0,0.14)',
+          maxHeight: '82vh',
+          overflowY: 'auto',
+          animation: 'slideUp 0.22s cubic-bezier(0.34, 1.56, 0.64, 1)',
+        }}
+      >
+        <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--muted)', margin: '12px auto 0' }} />
+        {title && (
+          <p style={{ textAlign: 'center', fontSize: 13, fontWeight: 600, color: 'var(--ink)', padding: '10px 0 4px' }}>
+            {title}
+          </p>
+        )}
+        <div style={{ padding: '8px 16px 32px' }}>
+          {children}
+        </div>
+      </div>
+    </div>
+  )
 }
 
 function TBtn({
@@ -68,9 +118,7 @@ function TBtn({
   onClick: () => void
   active?: boolean
   disabled?: boolean
-  /** Tooltip label */
   label?: string
-  /** Already-formatted shortcut string for the current OS */
   shortcut?: string
   children: React.ReactNode
   className?: string
@@ -81,7 +129,7 @@ function TBtn({
         onClick={onClick}
         disabled={disabled}
         className={`
-          relative flex items-center justify-center p-1.5 rounded-lg
+          relative flex items-center justify-center p-2 md:p-1.5 rounded-lg
           disabled:opacity-25 disabled:cursor-not-allowed
           ${active
             ? 'bg-[#D4550A]/10 text-[#D4550A] shadow-inner'
@@ -118,6 +166,8 @@ function TBtn({
 
 export default function Toolbar({ editor }: ToolbarProps) {
   const isMac = useIsMac()
+  const isMobile = useIsMobile()
+  const iconSize = isMobile ? 18 : 15
   const mod = isMac ? '⌘' : 'CTRL'
   const imageRef = useRef<HTMLInputElement>(null)
   const [showTextStyle, setShowTextStyle] = useState(false)
@@ -208,23 +258,25 @@ export default function Toolbar({ editor }: ToolbarProps) {
 
   return (
     <>
-      {hasAnyDropdown && (
+      {/* Desktop backdrop — closes dropdowns when clicking outside */}
+      {hasAnyDropdown && !isMobile && (
         <div className="fixed inset-0 z-40" onClick={closeAll} />
       )}
 
       <div
-        className="toolbar flex items-center gap-0.5 px-3 py-2 flex-wrap relative"
+        className="toolbar flex items-center gap-0.5 px-3 py-1.5 flex-wrap md:flex-nowrap md:py-2 relative"
         onMouseDown={(e) => e.preventDefault()}
       >
 
-        {/* Undo / Redo */}
+        {/* ── ROW 1: Undo · Redo · Text style · B · I · U · Link ── */}
+
         <TBtn
           onClick={() => editor.chain().focus().undo().run()}
           disabled={!editorState.canUndo}
           label="Undo"
           shortcut={key(isMac, '⌘ Z', 'CTRL Z')}
         >
-          <Undo2 size={15} />
+          <Undo2 size={iconSize} />
         </TBtn>
         <TBtn
           onClick={() => editor.chain().focus().redo().run()}
@@ -232,10 +284,8 @@ export default function Toolbar({ editor }: ToolbarProps) {
           label="Redo"
           shortcut={key(isMac, '⇧⌘ Z', 'CTRL Y')}
         >
-          <Redo2 size={15} />
+          <Redo2 size={iconSize} />
         </TBtn>
-
-        <div className="w-px h-4 bg-[#E5E0D8] mx-1" />
 
         {/* Text style dropdown */}
         <div className="relative z-50">
@@ -254,7 +304,7 @@ export default function Toolbar({ editor }: ToolbarProps) {
             <span className="min-w-[78px] text-left font-medium">{getCurrentStyle()}</span>
             <ChevronDown size={11} className={`transition-transform duration-200 ${showTextStyle ? 'rotate-180' : ''}`} />
           </button>
-          {showTextStyle && (
+          {showTextStyle && !isMobile && (
             <div className="absolute top-full left-0 mt-1 z-50 bg-white border border-[#E5E0D8] rounded-xl shadow-xl overflow-hidden min-w-[150px]">
               {TEXT_STYLES.map((s) => (
                 <button
@@ -269,23 +319,23 @@ export default function Toolbar({ editor }: ToolbarProps) {
           )}
         </div>
 
-        <div className="w-px h-4 bg-[#E5E0D8] mx-1" />
-
-        {/* Bold / Italic / Underline */}
         <TBtn onClick={() => editor.chain().focus().toggleBold().run()} active={editorState.isBold} label="Bold" shortcut={`${mod} B`}>
-          <Bold size={15} />
+          <Bold size={iconSize} />
         </TBtn>
         <TBtn onClick={() => editor.chain().focus().toggleItalic().run()} active={editorState.isItalic} label="Italic" shortcut={`${mod} I`}>
-          <Italic size={15} />
+          <Italic size={iconSize} />
         </TBtn>
         <TBtn onClick={() => editor.chain().focus().toggleUnderline().run()} active={editorState.isUnderline} label="Underline" shortcut={`${mod} U`}>
-          <Underline size={15} />
+          <Underline size={iconSize} />
         </TBtn>
         <TBtn onClick={openLink} active={editorState.isLink} label="Link" shortcut={`${mod} K`}>
-          <Link2 size={15} />
+          <Link2 size={iconSize} />
         </TBtn>
 
-        <div className="w-px h-4 bg-[#E5E0D8] mx-1" />
+        {/* Mobile row break */}
+        <div className="block md:hidden w-full" style={{ borderTop: '1px solid var(--border)', margin: '2px 0' }} />
+
+        {/* ── ROW 2: Text color · Highlight · Gradient · Lists ── */}
 
         {/* Text color */}
         <div className="relative z-50">
@@ -293,9 +343,9 @@ export default function Toolbar({ editor }: ToolbarProps) {
             onClick={() => { setShowColor((v) => !v); setShowTextStyle(false); setShowHighlight(false); setShowGradient(false); setShowLink(false); setShowTable(false) }}
             label="Text color"
           >
-            <Palette size={15} />
+            <Palette size={iconSize} />
           </TBtn>
-          {showColor && (
+          {showColor && !isMobile && (
             <div className="absolute top-full left-0 mt-1 z-50 bg-white border border-[#E5E0D8] rounded-xl shadow-xl overflow-hidden">
               <div style={{ padding: '8px 8px 4px' }}>
                 <ColorPicker
@@ -318,9 +368,9 @@ export default function Toolbar({ editor }: ToolbarProps) {
             active={editorState.isHighlight}
             label="Highlight"
           >
-            <Highlighter size={15} />
+            <Highlighter size={iconSize} />
           </TBtn>
-          {showHighlight && (
+          {showHighlight && !isMobile && (
             <div className="absolute top-full left-0 mt-1 z-50 bg-white border border-[#E5E0D8] rounded-xl shadow-xl overflow-hidden">
               <div style={{ padding: '8px 8px 4px' }}>
                 <ColorPicker
@@ -343,9 +393,9 @@ export default function Toolbar({ editor }: ToolbarProps) {
             active={editorState.isGradient}
             label="Gradient"
           >
-            <Sparkles size={15} />
+            <Sparkles size={iconSize} />
           </TBtn>
-          {showGradient && (
+          {showGradient && !isMobile && (
             <div className="absolute top-full left-0 mt-1 z-50 bg-white border border-[#E5E0D8] rounded-xl shadow-xl overflow-hidden">
               <div style={{ padding: '8px 8px 4px' }}>
                 <ColorPicker
@@ -363,45 +413,42 @@ export default function Toolbar({ editor }: ToolbarProps) {
           )}
         </div>
 
-        <div className="w-px h-4 bg-[#E5E0D8] mx-1" />
-
-        {/* Lists */}
         <TBtn onClick={() => editor.chain().focus().toggleBulletList().run()} active={editorState.isBulletList} label="Bullet list">
-          <List size={15} />
+          <List size={iconSize} />
         </TBtn>
         <TBtn onClick={() => editor.chain().focus().toggleOrderedList().run()} active={editorState.isOrderedList} label="Numbered list">
-          <ListOrdered size={15} />
+          <ListOrdered size={iconSize} />
         </TBtn>
         <TBtn onClick={() => editor.chain().focus().toggleTaskList().run()} active={editorState.isTaskList} label="Checklist">
-          <CheckSquare size={15} />
+          <CheckSquare size={iconSize} />
         </TBtn>
 
-        <div className="w-px h-4 bg-[#E5E0D8] mx-1" />
+        {/* Mobile row break */}
+        <div className="block md:hidden w-full" style={{ borderTop: '1px solid var(--border)', margin: '2px 0' }} />
 
-        {/* Alignment */}
+        {/* ── ROW 3: Alignment · Table · Image · Code ── */}
+
         <TBtn
           onClick={() => editorState.isImageSelected ? editor.chain().focus().setImageAlign('left').run() : editor.chain().focus().setTextAlign('left').run()}
           active={editorState.isAlignLeft}
           label="Align left"
         >
-          <AlignLeft size={15} />
+          <AlignLeft size={iconSize} />
         </TBtn>
         <TBtn
           onClick={() => editorState.isImageSelected ? editor.chain().focus().setImageAlign('center').run() : editor.chain().focus().setTextAlign('center').run()}
           active={editorState.isAlignCenter}
           label="Align center"
         >
-          <AlignCenter size={15} />
+          <AlignCenter size={iconSize} />
         </TBtn>
         <TBtn
           onClick={() => editorState.isImageSelected ? editor.chain().focus().setImageAlign('right').run() : editor.chain().focus().setTextAlign('right').run()}
           active={editorState.isAlignRight}
           label="Align right"
         >
-          <AlignRight size={15} />
+          <AlignRight size={iconSize} />
         </TBtn>
-
-        <div className="w-px h-4 bg-[#E5E0D8] mx-1" />
 
         {/* Table */}
         <div className="relative z-50">
@@ -409,9 +456,9 @@ export default function Toolbar({ editor }: ToolbarProps) {
             onClick={() => { setShowTable((v) => !v); setShowTextStyle(false); setShowColor(false); setShowHighlight(false); setShowGradient(false); setShowLink(false) }}
             label="Table"
           >
-            <Table size={15} />
+            <Table size={iconSize} />
           </TBtn>
-          {showTable && (
+          {showTable && !isMobile && (
             <div className="absolute top-full left-0 mt-1 z-50 bg-white border border-[#E5E0D8] rounded-xl shadow-xl">
               <TablePicker
                 onSelect={(rows, cols) => { editor.chain().focus().insertTable({ rows, cols, withHeaderRow: true }).run(); setShowTable(false) }}
@@ -423,15 +470,96 @@ export default function Toolbar({ editor }: ToolbarProps) {
 
         {/* Image */}
         <TBtn onClick={() => imageRef.current?.click()} label="Insert image">
-          <ImageIcon size={15} />
+          <ImageIcon size={iconSize} />
         </TBtn>
         <input ref={imageRef} type="file" accept="image/*" className="hidden" onChange={handleImage} />
 
         {/* Code block */}
         <TBtn onClick={() => editor.chain().focus().toggleCodeBlock().run()} active={editorState.isCodeBlock} label="Code block">
-          <Code2 size={15} />
+          <Code2 size={iconSize} />
         </TBtn>
       </div>
+
+      {/* ── Mobile bottom sheets ── */}
+
+      {isMobile && showTextStyle && (
+        <MobileSheet onClose={closeAll} title="Text style">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {TEXT_STYLES.map((s) => (
+              <button
+                key={s.label}
+                onClick={() => { closeAll(); s.action(editor) }}
+                style={{
+                  width: '100%',
+                  textAlign: 'left',
+                  padding: '12px 16px',
+                  borderRadius: 10,
+                  fontSize: 15,
+                  fontWeight: 500,
+                  color: 'var(--ink)',
+                  background: 'transparent',
+                  border: '1px solid var(--border)',
+                  cursor: 'pointer',
+                }}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </MobileSheet>
+      )}
+
+      {isMobile && showColor && (
+        <MobileSheet onClose={closeAll} title="Text color">
+          <ColorPicker
+            value={editor.getAttributes('textStyle').color as string ?? '#000000'}
+            onChange={(color) => editor.chain().focus().setColor(color).run()}
+            mode="color"
+          />
+          <button onClick={() => { editor.chain().focus().unsetColor().run(); closeAll() }} style={{ marginTop: 12, width: '100%', padding: '10px 0', fontSize: 13, color: '#9b9b9b', background: 'var(--sidebar-bg)', border: '1px solid var(--border)', borderRadius: 8, cursor: 'pointer' }}>
+            Unset color
+          </button>
+        </MobileSheet>
+      )}
+
+      {isMobile && showHighlight && (
+        <MobileSheet onClose={closeAll} title="Highlight">
+          <ColorPicker
+            value={editor.getAttributes('highlight').color as string ?? '#fef08a'}
+            onChange={(color) => editor.chain().focus().setHighlight({ color }).run()}
+            mode="color"
+          />
+          <button onClick={() => { editor.chain().focus().unsetHighlight().run(); closeAll() }} style={{ marginTop: 12, width: '100%', padding: '10px 0', fontSize: 13, color: '#9b9b9b', background: 'var(--sidebar-bg)', border: '1px solid var(--border)', borderRadius: 8, cursor: 'pointer' }}>
+            Unset highlight
+          </button>
+        </MobileSheet>
+      )}
+
+      {isMobile && showGradient && (
+        <MobileSheet onClose={closeAll} title="Gradient">
+          <ColorPicker
+            value={editorState.isGradient ? (editor.getAttributes('gradientText').gradient as string ?? 'linear-gradient(90deg, #D4550A, #3b82f6)') : 'linear-gradient(90deg, #D4550A, #3b82f6)'}
+            onChange={(gradient) => editor.chain().focus().setGradientText(gradient).run()}
+            mode="gradient"
+          />
+          {editorState.isGradient && (
+            <button onClick={() => { editor.chain().focus().unsetGradientText().run(); closeAll() }} style={{ marginTop: 12, width: '100%', padding: '10px 0', fontSize: 13, color: '#9b9b9b', background: 'var(--sidebar-bg)', border: '1px solid var(--border)', borderRadius: 8, cursor: 'pointer' }}>
+              Unset gradient
+            </button>
+          )}
+        </MobileSheet>
+      )}
+
+      {isMobile && showTable && (
+        <MobileSheet onClose={closeAll} title="Insert table">
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <TablePicker
+              onSelect={(rows, cols) => { editor.chain().focus().insertTable({ rows, cols, withHeaderRow: true }).run(); closeAll() }}
+              onClose={closeAll}
+            />
+          </div>
+        </MobileSheet>
+      )}
 
       {showLink && (
         <LinkPopover

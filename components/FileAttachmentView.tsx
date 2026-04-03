@@ -2,7 +2,7 @@
 
 import { NodeViewWrapper } from '@tiptap/react'
 import type { NodeViewProps } from '@tiptap/react'
-import { FileText, Archive, File } from 'lucide-react'
+import { FileText, Archive, File, GripVertical } from 'lucide-react'
 
 function formatSize(bytes: number): string {
   if (bytes >= 1024 * 1024) {
@@ -47,21 +47,33 @@ export default function FileAttachmentView({ node }: NodeViewProps) {
 
   return (
     <NodeViewWrapper
-      as="span"
+      as="div"
       contentEditable={false}
-      style={{ display: 'inline-flex', verticalAlign: 'middle' }}
+      style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: '4px 0' }}
     >
+      <div
+        data-drag-handle
+        style={{
+          cursor: 'grab',
+          color: 'var(--muted)',
+          display: 'flex',
+          alignItems: 'center',
+          flexShrink: 0,
+          padding: '2px',
+        }}
+      >
+        <GripVertical size={16} />
+      </div>
       <span
         style={{
           display: 'inline-flex',
           alignItems: 'center',
           gap: '12px',
           padding: '10px 14px',
-          background: '#ffffff',
-          border: '1px solid #E5E0D8',
+          background: 'var(--editor-bg)',
+          border: '1px solid var(--border)',
           borderRadius: '12px',
           boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
-          margin: '2px 0',
           maxWidth: '320px',
         }}
       >
