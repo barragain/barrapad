@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { useUser, UserButton } from '@clerk/nextjs'
 import {
@@ -50,16 +50,44 @@ export default function Sidebar({
     img.src = '/about-gif.gif'
   }, [])
 
-  const filtered = notes.filter((n) => {
-    const q = search.toLowerCase()
-    return n.title.toLowerCase().includes(q) || n.content.toLowerCase().includes(q)
-  })
-
   const stripHtml = (html: string) => {
     if (typeof window === 'undefined') return html
     const div = document.createElement('div')
     div.innerHTML = html
     return div.textContent ?? ''
+  }
+
+  const filtered = notes.filter((n) => {
+    if (!search) return true
+    const q = search.toLowerCase()
+    const plainContent = stripHtml(n.content).toLowerCase()
+    return n.title.toLowerCase().includes(q) || plainContent.includes(q)
+  })
+
+  const getContentPreview = (note: Note): React.ReactNode => {
+    const plain = stripHtml(note.content)
+    if (!search) return plain.slice(0, 50) || 'No content'
+
+    const q = search.toLowerCase()
+    const lowerPlain = plain.toLowerCase()
+    const idx = lowerPlain.indexOf(q)
+
+    if (idx === -1) return plain.slice(0, 50) || 'No content'
+
+    const start = Math.max(0, idx - 20)
+    const end = Math.min(plain.length, idx + q.length + 30)
+    const prefix = start > 0 ? '…' : ''
+    const suffix = end < plain.length ? '…' : ''
+
+    return (
+      <>
+        {prefix}{plain.slice(start, idx)}
+        <mark style={{ background: 'rgba(212, 85, 10, 0.2)', color: 'inherit', borderRadius: 2, padding: '0 1px' }}>
+          {plain.slice(idx, idx + q.length)}
+        </mark>
+        {plain.slice(idx + q.length, end)}{suffix}
+      </>
+    )
   }
 
   return (
@@ -151,8 +179,8 @@ export default function Sidebar({
                   {note.title || 'Untitled'}
                 </p>
               )}
-              <p className="text-[10px] text-[#8A8178] truncate leading-tight mt-0.5">
-                {stripHtml(note.content).slice(0, 50) || 'No content'}
+              <p className="text-[10px] text-[#8A8178] leading-tight mt-0.5 line-clamp-2">
+                {getContentPreview(note)}
               </p>
             </div>
             <button
