@@ -574,7 +574,7 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
             </div>
 
             <div onContextMenu={handleContextMenu}>
-              <EditorContent editor={editor} />
+              <EditorContent editor={editor} style={{ padding: '2rem', minHeight: '70vh' }} />
             </div>
           </div>
         </div>
