@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useCallback, useRef } from 'react'
+import { useEffect, useCallback, useRef, useState } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import type { Editor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
@@ -20,6 +20,8 @@ import { GradientText } from '@/extensions/gradient-text'
 import { FileAttachment } from '@/extensions/file-attachment'
 import { ResizableImage } from '@/extensions/resizable-image'
 import Toolbar from './Toolbar'
+import InfoPopover from './InfoPopover'
+import { Info } from 'lucide-react'
 import type { Note } from '@/types'
 
 const lowlight = createLowlight(common)
@@ -32,7 +34,6 @@ interface EditorProps {
   onAutoSave: (title: string, content: string) => void
   /** Called when the user explicitly presses Save */
   onManualSave: (title: string, content: string) => void
-  onWordCountChange: (words: number, chars: number) => void
 }
 
 export default function EditorComponent({
@@ -40,12 +41,14 @@ export default function EditorComponent({
   onLocalChange,
   onAutoSave,
   onManualSave,
-  onWordCountChange,
 }: EditorProps) {
   const editorRef = useRef<Editor | null>(null)
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  // Snapshot of content pending API sync
   const pendingRef = useRef<{ title: string; html: string } | null>(null)
+  const infoButtonRef = useRef<HTMLButtonElement>(null)
+  const [showInfo, setShowInfo] = useState(false)
+  const [wordCount, setWordCount] = useState(0)
+  const [charCount, setCharCount] = useState(0)
 
   const flushAutoSave = useCallback(() => {
     if (!pendingRef.current) return
@@ -159,7 +162,8 @@ export default function EditorComponent({
       const text = editor.getText()
 
       const words = text.trim() ? text.trim().split(/\s+/).length : 0
-      onWordCountChange(words, text.length)
+      setWordCount(words)
+      setCharCount(text.length)
 
       const firstLine = text.split('\n')[0]?.trim() ?? ''
       const title = firstLine.slice(0, 100) || 'Untitled'
@@ -265,7 +269,29 @@ export default function EditorComponent({
         onDrop={handleOuterDrop}
         onDragOver={(e) => e.preventDefault()}
       >
-        <div className="editor-anim-border" style={{ maxWidth: 720, margin: '0 auto' }}>
+        <div className="editor-anim-border" style={{ maxWidth: 900, margin: '0 auto', position: 'relative' }}>
+          {/* Info button — top-left of the writing area */}
+          <div style={{ position: 'absolute', top: 8, left: 8, zIndex: 20 }}>
+            <button
+              ref={infoButtonRef}
+              onClick={() => setShowInfo((v) => !v)}
+              className="p-1.5 rounded hover:bg-black/5 transition-colors"
+              style={{ color: 'var(--muted)' }}
+              title="Note info"
+            >
+              <Info size={14} />
+            </button>
+            {showInfo && (
+              <InfoPopover
+                note={note}
+                wordCount={wordCount}
+                charCount={charCount}
+                onClose={() => setShowInfo(false)}
+                anchorRef={infoButtonRef}
+              />
+            )}
+          </div>
+
           <div style={{ background: 'var(--editor-bg)', borderRadius: 11 }}>
             <EditorContent
               editor={editor}

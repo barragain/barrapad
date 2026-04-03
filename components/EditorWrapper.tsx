@@ -10,7 +10,6 @@ interface EditorWrapperProps {
   onLocalChange: (title: string, content: string) => void
   onAutoSave: (title: string, content: string) => void
   onManualSave: (title: string, content: string) => void
-  onWordCountChange: (words: number, chars: number) => void
 }
 
 export default function EditorWrapper(props: EditorWrapperProps) {

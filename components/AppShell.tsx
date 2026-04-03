@@ -1,13 +1,12 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
-import { Save, Share2, X, Info, CloudUpload } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { Save, Share2, X, CloudUpload } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import Sidebar from './Sidebar'
 import EditorWrapper from './EditorWrapper'
 import ShareModal from './ShareModal'
 import AppearanceModal from './AppearanceModal'
-import InfoPopover from './InfoPopover'
 import type { Note, AppearanceSettings } from '@/types'
 
 const DEFAULT_APPEARANCE: AppearanceSettings = {
@@ -65,13 +64,9 @@ export default function AppShell() {
   const [activeNoteId, setActiveNoteId] = useState<string | null>(() => loadCachedNotes()[0]?.id ?? null)
   const [showShare, setShowShare] = useState(false)
   const [showAppearance, setShowAppearance] = useState(false)
-  const [showInfo, setShowInfo] = useState(false)
   const [appearance, setAppearance] = useState<AppearanceSettings>(DEFAULT_APPEARANCE)
-  const [wordCount, setWordCount] = useState(0)
-  const [charCount, setCharCount] = useState(0)
   const [manualSaving, setManualSaving] = useState(false)
   const [autoSaving, setAutoSaving] = useState(false)
-  const infoButtonRef = useRef<HTMLButtonElement>(null)
 
   const activeNote = notes.find((n) => n.id === activeNoteId) ?? null
 
@@ -263,7 +258,6 @@ export default function AppShell() {
               onLocalChange={handleLocalChange}
               onAutoSave={handleAutoSave}
               onManualSave={handleManualSaveContent}
-              onWordCountChange={(w, c) => { setWordCount(w); setCharCount(c) }}
             />
           ) : (
             <div className="flex h-full items-center justify-center">
@@ -281,29 +275,7 @@ export default function AppShell() {
         </div>
 
         {/* Bottom strip */}
-        <div className="flex items-center justify-end px-4 py-1 gap-1 border-t" style={{ background: 'var(--editor-bg)', borderColor: 'var(--border)' }}>
-          <div className="relative">
-            <button
-              ref={infoButtonRef}
-              onClick={() => setShowInfo((v) => !v)}
-              className="p-1.5 rounded hover:bg-black/5 transition-colors"
-              style={{ color: 'var(--muted)' }}
-              title="Note info"
-            >
-              <Info size={15} />
-            </button>
-            {showInfo && activeNote && (
-              <div className="absolute bottom-full right-0 mb-1">
-                <InfoPopover
-                  note={activeNote}
-                  wordCount={wordCount}
-                  charCount={charCount}
-                  onClose={() => setShowInfo(false)}
-                  anchorRef={infoButtonRef}
-                />
-              </div>
-            )}
-          </div>
+        <div className="flex items-center justify-end px-4 py-1 border-t" style={{ background: 'var(--editor-bg)', borderColor: 'var(--border)' }}>
           <button
             className="p-1.5 rounded hover:bg-black/5 transition-colors"
             style={{ color: 'var(--muted)' }}

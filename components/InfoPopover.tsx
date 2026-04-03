@@ -42,27 +42,28 @@ export default function InfoPopover({ note, wordCount, charCount, onClose, ancho
   return (
     <div
       ref={popoverRef}
-      className="absolute bottom-0 right-0 z-50 bg-white border border-[#E5E0D8] rounded-xl shadow-xl w-72 text-sm"
+      className="absolute top-full left-0 mt-2 z-50 rounded-xl shadow-xl w-72 text-sm"
+      style={{ background: 'var(--editor-bg)', border: '1px solid var(--border)' }}
     >
       <div className="p-4 space-y-2">
         <div className="flex justify-between">
-          <span className="text-[#C4BFB6]">Words</span>
-          <span className="font-medium text-[#1A1A1A]">{wordCount}</span>
+          <span style={{ color: 'var(--muted)' }}>Words</span>
+          <span className="font-medium" style={{ color: 'var(--ink)' }}>{wordCount}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-[#C4BFB6]">Characters</span>
-          <span className="font-medium text-[#1A1A1A]">{charCount}</span>
+          <span style={{ color: 'var(--muted)' }}>Characters</span>
+          <span className="font-medium" style={{ color: 'var(--ink)' }}>{charCount}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-[#C4BFB6]">Created</span>
-          <span className="font-medium text-[#1A1A1A] text-right">{formatDate(note.createdAt)}</span>
+          <span style={{ color: 'var(--muted)' }}>Created</span>
+          <span className="font-medium text-right" style={{ color: 'var(--ink)' }}>{formatDate(note.createdAt)}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-[#C4BFB6]">Updated</span>
-          <span className="font-medium text-[#1A1A1A] text-right">{formatDate(note.updatedAt)}</span>
+          <span style={{ color: 'var(--muted)' }}>Updated</span>
+          <span className="font-medium text-right" style={{ color: 'var(--ink)' }}>{formatDate(note.updatedAt)}</span>
         </div>
 
-        <hr className="border-[#E5E0D8]" />
+        <hr style={{ borderColor: 'var(--border)' }} />
 
         <p className="text-xs text-[#C4BFB6]">
           Use the following key to edit the note on other devices.
