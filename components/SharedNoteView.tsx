@@ -46,6 +46,7 @@ type ServerMessage =
 
 interface Props {
   token: string
+  noteId: string
   initialTitle: string
   initialContent: string
   permission: 'READ' | 'EDIT'
@@ -54,7 +55,7 @@ interface Props {
 
 const PARTYKIT_HOST = process.env.NEXT_PUBLIC_PARTYKIT_HOST ?? '127.0.0.1:1999'
 
-export default function SharedNoteView({ token, initialTitle, initialContent, permission, updatedAt }: Props) {
+export default function SharedNoteView({ token, noteId, initialTitle, initialContent, permission, updatedAt }: Props) {
   const { isSignedIn, isLoaded } = useUser()
   const canEdit = permission === 'EDIT' && !!isSignedIn
 
@@ -121,7 +122,7 @@ export default function SharedNoteView({ token, initialTitle, initialContent, pe
   useEffect(() => {
     const socket = new PartySocket({
       host: PARTYKIT_HOST,
-      room: token,
+      room: noteId, // same room for all share links on the same note
     })
 
     socketRef.current = socket

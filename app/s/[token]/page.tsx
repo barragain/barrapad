@@ -65,6 +65,7 @@ export default async function SharedNotePage({ params }: Props) {
   return (
     <SharedNoteView
       token={params.token}
+      noteId={link.noteId}
       initialTitle={link.note.title}
       initialContent={link.note.content}
       permission={link.permission as 'READ' | 'EDIT'}
