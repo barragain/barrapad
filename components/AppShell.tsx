@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { Save, Share2, X, CloudUpload } from 'lucide-react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { Save, Share2, X, CloudUpload, Download, ChevronDown } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
+import { downloadTxt, downloadMd, downloadPdf, downloadDocx } from '@/lib/export'
 import Sidebar from './Sidebar'
 import EditorWrapper from './EditorWrapper'
 import ShareModal from './ShareModal'
@@ -64,9 +65,11 @@ export default function AppShell() {
   const [activeNoteId, setActiveNoteId] = useState<string | null>(() => loadCachedNotes()[0]?.id ?? null)
   const [showShare, setShowShare] = useState(false)
   const [showAppearance, setShowAppearance] = useState(false)
+  const [showExport, setShowExport] = useState(false)
   const [appearance, setAppearance] = useState<AppearanceSettings>(DEFAULT_APPEARANCE)
   const [manualSaving, setManualSaving] = useState(false)
   const [autoSaving, setAutoSaving] = useState(false)
+  const exportRef = useRef<HTMLDivElement>(null)
 
   const activeNote = notes.find((n) => n.id === activeNoteId) ?? null
 
@@ -190,6 +193,29 @@ export default function AppShell() {
     window.dispatchEvent(new Event('barrapad:save'))
   }
 
+  const handleExport = async (fmt: 'txt' | 'md' | 'pdf' | 'docx') => {
+    if (!activeNote) return
+    setShowExport(false)
+    const title = activeNote.title || 'note'
+    const html = activeNote.content || ''
+    if (fmt === 'txt') downloadTxt(title, html)
+    else if (fmt === 'md') await downloadMd(title, html)
+    else if (fmt === 'pdf') await downloadPdf(title, html)
+    else if (fmt === 'docx') await downloadDocx(title, html)
+  }
+
+  // Close export dropdown when clicking outside
+  useEffect(() => {
+    if (!showExport) return
+    const handler = (e: MouseEvent) => {
+      if (exportRef.current && !exportRef.current.contains(e.target as Node)) {
+        setShowExport(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [showExport])
+
   const handleAppearanceChange = (settings: AppearanceSettings) => {
     setAppearance(settings)
     applyAppearance(settings)
@@ -228,6 +254,44 @@ export default function AppShell() {
               </motion.span>
             )}
           </AnimatePresence>
+
+          {activeNote && (
+            <div ref={exportRef} className="relative">
+              <button
+                onClick={() => setShowExport((v) => !v)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-lg hover:bg-black/5 transition-colors"
+                style={{ borderColor: 'var(--border)', color: 'var(--ink)' }}
+              >
+                <Download size={13} />
+                Export
+                <ChevronDown size={11} className={`transition-transform duration-150 ${showExport ? 'rotate-180' : ''}`} />
+              </button>
+              <AnimatePresence>
+                {showExport && (
+                  <motion.div
+                    key="export-dropdown"
+                    initial={{ opacity: 0, y: -4, scale: 0.97 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -4, scale: 0.97 }}
+                    transition={{ duration: 0.12 }}
+                    className="absolute top-full right-0 mt-1 z-50 rounded-xl shadow-xl overflow-hidden"
+                    style={{ background: 'var(--editor-bg)', border: '1px solid var(--border)', minWidth: 120 }}
+                  >
+                    {(['txt', 'md', 'pdf', 'docx'] as const).map((fmt) => (
+                      <button
+                        key={fmt}
+                        onClick={() => handleExport(fmt)}
+                        className="w-full text-left px-4 py-2 text-sm hover:bg-black/5 transition-colors"
+                        style={{ color: 'var(--ink)' }}
+                      >
+                        .{fmt}
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
 
           {activeNote && (
             <button

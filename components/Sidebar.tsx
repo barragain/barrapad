@@ -115,9 +115,9 @@ export default function Sidebar({
                   e.stopPropagation()
                   onDeleteNote(note.id)
                 }}
-                className="flex-shrink-0 p-0.5 rounded hover:bg-red-100 text-[#C4BFB6] hover:text-red-500 transition-colors"
+                className="flex-shrink-0 p-1.5 rounded-lg hover:bg-red-100 text-[#C4BFB6] hover:text-red-500 transition-colors"
               >
-                <Trash2 size={12} />
+                <Trash2 size={14} />
               </button>
             )}
           </div>
