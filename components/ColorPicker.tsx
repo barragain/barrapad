@@ -66,26 +66,21 @@ function ColorBoard({ color, onChange }: ColorBoardProps) {
     return { x, y }
   }, [])
 
+  const applyBoardCoords = useCallback((clientX: number, clientY: number) => {
+    const c = getBoardCoords(clientX, clientY)
+    if (!c) return
+    const ns = Math.round(c.x * 100)
+    const nv = Math.round((1 - c.y) * 100)
+    setSat(ns)
+    setVal(nv)
+    emitColor(hue, ns, nv)
+  }, [hue, getBoardCoords, emitColor])
+
   const onBoardMouseDown = useCallback(
     (e: React.MouseEvent) => {
       isDraggingBoard.current = true
-      const coords = getBoardCoords(e.clientX, e.clientY)
-      if (!coords) return
-      const ns = Math.round(coords.x * 100)
-      const nv = Math.round((1 - coords.y) * 100)
-      setSat(ns)
-      setVal(nv)
-      emitColor(hue, ns, nv)
-
-      const onMove = (me: MouseEvent) => {
-        const c = getBoardCoords(me.clientX, me.clientY)
-        if (!c) return
-        const ms = Math.round(c.x * 100)
-        const mv = Math.round((1 - c.y) * 100)
-        setSat(ms)
-        setVal(mv)
-        emitColor(hue, ms, mv)
-      }
+      applyBoardCoords(e.clientX, e.clientY)
+      const onMove = (me: MouseEvent) => applyBoardCoords(me.clientX, me.clientY)
       const onUp = () => {
         isDraggingBoard.current = false
         document.removeEventListener('mousemove', onMove)
@@ -94,7 +89,28 @@ function ColorBoard({ color, onChange }: ColorBoardProps) {
       document.addEventListener('mousemove', onMove)
       document.addEventListener('mouseup', onUp)
     },
-    [hue, getBoardCoords, emitColor]
+    [applyBoardCoords]
+  )
+
+  const onBoardTouchStart = useCallback(
+    (e: React.TouchEvent) => {
+      e.preventDefault() // block keyboard / scroll
+      isDraggingBoard.current = true
+      const t = e.touches[0]
+      applyBoardCoords(t.clientX, t.clientY)
+      const onMove = (te: TouchEvent) => {
+        te.preventDefault()
+        applyBoardCoords(te.touches[0].clientX, te.touches[0].clientY)
+      }
+      const onEnd = () => {
+        isDraggingBoard.current = false
+        document.removeEventListener('touchmove', onMove)
+        document.removeEventListener('touchend', onEnd)
+      }
+      document.addEventListener('touchmove', onMove, { passive: false })
+      document.addEventListener('touchend', onEnd)
+    },
+    [applyBoardCoords]
   )
 
   // Hue drag
@@ -104,18 +120,17 @@ function ColorBoard({ color, onChange }: ColorBoardProps) {
     return Math.round(Math.max(0, Math.min(360, ((clientX - rect.left) / rect.width) * 360)))
   }, [])
 
+  const applyHue = useCallback((clientX: number) => {
+    const nh = getHueFromX(clientX)
+    setHue(nh)
+    emitColor(nh, sat, val)
+  }, [sat, val, getHueFromX, emitColor])
+
   const onHueMouseDown = useCallback(
     (e: React.MouseEvent) => {
       isDraggingHue.current = true
-      const nh = getHueFromX(e.clientX)
-      setHue(nh)
-      emitColor(nh, sat, val)
-
-      const onMove = (me: MouseEvent) => {
-        const mh = getHueFromX(me.clientX)
-        setHue(mh)
-        emitColor(mh, sat, val)
-      }
+      applyHue(e.clientX)
+      const onMove = (me: MouseEvent) => applyHue(me.clientX)
       const onUp = () => {
         isDraggingHue.current = false
         document.removeEventListener('mousemove', onMove)
@@ -124,7 +139,27 @@ function ColorBoard({ color, onChange }: ColorBoardProps) {
       document.addEventListener('mousemove', onMove)
       document.addEventListener('mouseup', onUp)
     },
-    [sat, val, getHueFromX, emitColor]
+    [applyHue]
+  )
+
+  const onHueTouchStart = useCallback(
+    (e: React.TouchEvent) => {
+      e.preventDefault() // block keyboard / scroll
+      isDraggingHue.current = true
+      applyHue(e.touches[0].clientX)
+      const onMove = (te: TouchEvent) => {
+        te.preventDefault()
+        applyHue(te.touches[0].clientX)
+      }
+      const onEnd = () => {
+        isDraggingHue.current = false
+        document.removeEventListener('touchmove', onMove)
+        document.removeEventListener('touchend', onEnd)
+      }
+      document.addEventListener('touchmove', onMove, { passive: false })
+      document.addEventListener('touchend', onEnd)
+    },
+    [applyHue]
   )
 
   const onHexChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -157,6 +192,7 @@ function ColorBoard({ color, onChange }: ColorBoardProps) {
       <div
         ref={boardRef}
         onMouseDown={onBoardMouseDown}
+        onTouchStart={onBoardTouchStart}
         style={{
           width: '100%',
           height: 160,
@@ -189,6 +225,7 @@ function ColorBoard({ color, onChange }: ColorBoardProps) {
       <div
         ref={hueRef}
         onMouseDown={onHueMouseDown}
+        onTouchStart={onHueTouchStart}
         style={{
           width: '100%',
           height: 12,

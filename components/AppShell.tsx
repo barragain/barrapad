@@ -335,7 +335,7 @@ export default function AppShell() {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -4, scale: 0.97 }}
                     transition={{ duration: 0.12 }}
-                    className="absolute top-full right-0 mt-1 z-50 rounded-xl shadow-xl p-1.5"
+                    className="absolute top-full right-0 mt-1 z-[55] rounded-xl shadow-xl p-1.5"
                     style={{ background: 'var(--editor-bg)', border: '1px solid var(--border)', minWidth: 190 }}
                   >
                     {([
