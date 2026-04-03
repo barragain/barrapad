@@ -275,13 +275,10 @@ export default function EditorComponent({
             <button
               ref={infoButtonRef}
               onClick={() => setShowInfo((v) => !v)}
-              className="p-2 rounded-lg transition-colors"
-              style={{
-                color: 'var(--ink)',
-                background: 'var(--border)',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--muted)')}
-              onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--border)')}
+              className="p-1.5 rounded-lg transition-all"
+              style={{ color: 'var(--accent)', opacity: showInfo ? 1 : 0.75 }}
+              onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
+              onMouseLeave={(e) => (e.currentTarget.style.opacity = showInfo ? '1' : '0.75')}
               title="Note info"
             >
               <Info size={16} />
