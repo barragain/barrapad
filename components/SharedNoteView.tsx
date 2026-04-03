@@ -4,8 +4,9 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import { useUser } from '@clerk/nextjs'
 import PartySocket from 'partysocket'
-import { HelpCircle, Settings } from 'lucide-react'
+import { Info, HelpCircle, Settings } from 'lucide-react'
 import AppearanceModal from './AppearanceModal'
+import AboutModal from './AboutModal'
 import type { AppearanceSettings } from '@/types'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
@@ -115,6 +116,7 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
   const [connected, setConnected] = useState(false)
   const [presenceList, setPresenceList] = useState<RemoteCursor[]>([])
   const [showInfo, setShowInfo] = useState(false)
+  const [showAbout, setShowAbout] = useState(false)
   const [showAppearance, setShowAppearance] = useState(false)
   const [appearance, setAppearance] = useState<AppearanceSettings>(DEFAULT_APPEARANCE)
   const [wordCount, setWordCount] = useState(0)
@@ -408,22 +410,18 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
             </a>
           )}
 
-          {/* Info button */}
+          {/* ⓘ Info button — same style as main editor */}
           <div style={{ position: 'relative' }}>
             <button
               ref={infoRef}
               onClick={() => setShowInfo((v) => !v)}
-              style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                width: 32, height: 32, borderRadius: 8,
-                background: showInfo ? '#D4550A1A' : 'transparent',
-                border: showInfo ? '1px solid #D4550A44' : '1px solid transparent',
-                color: showInfo ? '#D4550A' : '#8A8178',
-                cursor: 'pointer', transition: 'all 0.15s',
-              }}
-              title="Info"
+              className="p-2 rounded-xl transition-all"
+              style={{ color: showInfo ? '#B8420A' : '#8A8178', opacity: showInfo ? 1 : 0.8, cursor: 'pointer', background: 'none', border: 'none' }}
+              onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.color = '#B8420A' }}
+              onMouseLeave={(e) => { if (!showInfo) { e.currentTarget.style.opacity = '0.8'; e.currentTarget.style.color = '#8A8178' } }}
+              title="Note info"
             >
-              <HelpCircle size={17} />
+              <Info size={22} />
             </button>
             {showInfo && (
               <div
@@ -442,28 +440,48 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
                 ].map(({ label, value }) => (
                   <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 12 }}>
                     <span style={{ color: '#8A8178' }}>{label}</span>
-                    <span style={{ fontWeight: 600, color: '#1A1A1A', textAlign: 'right', maxWidth: 120 }}>{value}</span>
+                    <span style={{ fontWeight: 600, color: '#1A1A1A', textAlign: 'right', maxWidth: 120 }}>{String(value)}</span>
                   </div>
                 ))}
               </div>
             )}
           </div>
 
+          {/* ? About button */}
+          <button
+            onClick={() => {
+              const audio = new Audio('/about.mp3.mp3')
+              audio.volume = 0.5
+              audio.loop = true
+              audio.play().catch(() => {})
+              setShowAbout(true)
+            }}
+            className="p-2 rounded-xl transition-all"
+            style={{ color: '#8A8178', opacity: 0.8, cursor: 'pointer', background: 'none', border: 'none' }}
+            onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.color = '#B8420A' }}
+            onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.8'; e.currentTarget.style.color = '#8A8178' }}
+            title="About barraPAD"
+          >
+            <HelpCircle size={22} />
+          </button>
+
           {/* Settings button */}
           <button
             onClick={() => setShowAppearance(true)}
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              width: 32, height: 32, borderRadius: 8,
-              background: 'transparent', border: '1px solid transparent',
-              color: '#8A8178', cursor: 'pointer', transition: 'all 0.15s',
-            }}
+            className="p-2 rounded-xl transition-all"
+            style={{ color: '#8A8178', opacity: 0.8, cursor: 'pointer', background: 'none', border: 'none' }}
+            onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.color = '#B8420A' }}
+            onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.8'; e.currentTarget.style.color = '#8A8178' }}
             title="Appearance"
           >
-            <Settings size={17} />
+            <Settings size={22} />
           </button>
         </div>
       </div>
+
+      {showAbout && (
+        <AboutModal onClose={() => setShowAbout(false)} />
+      )}
 
       {showAppearance && (
         <AppearanceModal
