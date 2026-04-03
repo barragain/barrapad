@@ -139,15 +139,17 @@ export default function SharedNoteView({ token, initialTitle, initialContent, pe
 
       if (msg.type === 'sync' || msg.type === 'update') {
         if ('connections' in msg) setConnections(msg.connections)
-        setLastUpdated(msg.updatedAt)
         // Only update the editor if someone else changed the content and
-        // the local editor is not actively focused (to avoid cursor jumps)
-        if (editor && !editor.isFocused) {
+        // the local editor is not actively focused (to avoid cursor jumps).
+        // Guard against an empty sync from a fresh PartyKit room overwriting
+        // the DB content that was loaded server-side.
+        if (msg.content !== '' && editor && !editor.isFocused) {
           const current = editor.getHTML()
           if (current !== msg.content) {
             editor.commands.setContent(msg.content, { emitUpdate: false })
           }
         }
+        if (msg.content !== '') setLastUpdated(msg.updatedAt)
       }
     })
 

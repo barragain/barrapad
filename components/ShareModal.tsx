@@ -124,8 +124,8 @@ export default function ShareModal({ note, onClose }: ShareModalProps) {
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div
-        className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 overflow-hidden"
-        style={{ background: 'var(--editor-bg, #fff)' }}
+        className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 flex flex-col"
+        style={{ background: 'var(--editor-bg, #fff)', maxHeight: '90vh' }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -139,7 +139,7 @@ export default function ShareModal({ note, onClose }: ShareModalProps) {
           </button>
         </div>
 
-        <div className="p-5 space-y-4">
+        <div className="p-5 space-y-4 overflow-y-auto">
           {loading ? (
             <div className="flex justify-center py-6">
               <div className="w-6 h-6 border-2 border-[#D4550A] border-t-transparent rounded-full animate-spin" />
