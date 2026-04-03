@@ -282,22 +282,15 @@ function LinkRow({
 
       {link && (
         <div className="space-y-2">
-          <div
-            className="flex items-center gap-2 bg-[#F5F2ED] border border-[#E5E0D8] rounded-lg px-3 py-2 cursor-pointer"
-            onClick={onSelectQr}
-            title={isActiveQr ? 'Click to hide QR' : 'Click to show QR'}
-          >
+          <div className="flex items-center gap-2 bg-[#F5F2ED] border border-[#E5E0D8] rounded-lg px-3 py-2">
             <input
               ref={urlRef}
               type="text"
               readOnly
               value={shareUrl}
-              onClick={(e) => { e.stopPropagation(); urlRef.current?.select() }}
-              className="flex-1 text-xs bg-transparent outline-none text-[#1A1A1A] cursor-pointer min-w-0"
+              onClick={() => urlRef.current?.select()}
+              className="flex-1 text-xs bg-transparent outline-none text-[#1A1A1A] cursor-text min-w-0"
             />
-            {isActiveQr && (
-              <span className="text-[10px] font-semibold text-[#D4550A] uppercase tracking-wide flex-shrink-0">QR</span>
-            )}
           </div>
 
           <div className="flex gap-2">
@@ -314,6 +307,21 @@ function LinkRow({
             >
               <Share2 size={12} />
               Share
+            </button>
+            <button
+              onClick={onSelectQr}
+              className="flex-1 flex items-center justify-center gap-1.5 text-xs py-2 border rounded-lg transition-colors font-medium"
+              style={isActiveQr
+                ? { background: '#D4550A1A', borderColor: '#D4550A', color: '#D4550A' }
+                : { borderColor: '#E5E0D8', color: '#1A1A1A' }
+              }
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+                <rect x="5" y="5" width="3" height="3" fill="currentColor" stroke="none"/><rect x="16" y="5" width="3" height="3" fill="currentColor" stroke="none"/><rect x="5" y="16" width="3" height="3" fill="currentColor" stroke="none"/>
+                <path d="M14 14h3v3h-3zM17 17h3v3h-3zM14 20h3"/>
+              </svg>
+              QR
             </button>
           </div>
         </div>
