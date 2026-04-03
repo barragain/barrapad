@@ -1,4 +1,5 @@
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
+import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
 import type { Metadata } from 'next'
 import SharedNoteView from '@/components/SharedNoteView'
@@ -52,6 +53,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function SharedNotePage({ params }: Props) {
   const link = await getShareData(params.token)
   if (!link) notFound()
+
+  // EDIT links require a signed-in account — redirect unauthenticated visitors to sign-in
+  if (link.permission === 'EDIT') {
+    const { userId } = await auth()
+    if (!userId) {
+      redirect(`/sign-in?redirect_url=${encodeURIComponent(`/s/${params.token}`)}`)
+    }
+  }
 
   return (
     <SharedNoteView
