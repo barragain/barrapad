@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useEditorState } from '@tiptap/react'
 import type { Editor } from '@tiptap/react'
 import {
@@ -78,9 +78,48 @@ function MobileSheet({
   title?: string
   children: React.ReactNode
 }) {
+  const sheetRef = useRef<HTMLDivElement>(null)
+  const startYRef = useRef(0)
+  const dragYRef = useRef(0)
+  const draggingRef = useRef(false)
+
+  const onPillTouchStart = useCallback((e: React.TouchEvent) => {
+    e.stopPropagation()
+    startYRef.current = e.touches[0].clientY
+    dragYRef.current = 0
+    draggingRef.current = true
+    if (sheetRef.current) sheetRef.current.style.transition = 'none'
+  }, [])
+
+  const onPillTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!draggingRef.current) return
+    e.stopPropagation()
+    const dy = Math.max(0, e.touches[0].clientY - startYRef.current)
+    dragYRef.current = dy
+    if (sheetRef.current) sheetRef.current.style.transform = `translateY(${dy}px)`
+  }, [])
+
+  const onPillTouchEnd = useCallback(() => {
+    draggingRef.current = false
+    if (dragYRef.current > 80) {
+      if (sheetRef.current) {
+        sheetRef.current.style.transition = 'transform 0.22s ease'
+        sheetRef.current.style.transform = 'translateY(100%)'
+      }
+      setTimeout(onClose, 220)
+    } else {
+      if (sheetRef.current) {
+        sheetRef.current.style.transition = 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)'
+        sheetRef.current.style.transform = 'translateY(0)'
+      }
+      dragYRef.current = 0
+    }
+  }, [onClose])
+
   return (
     <div className="fixed inset-0 z-50 flex flex-col justify-end" onClick={onClose}>
       <div
+        ref={sheetRef}
         onClick={(e) => e.stopPropagation()}
         style={{
           background: 'var(--editor-bg)',
@@ -95,20 +134,24 @@ function MobileSheet({
           animation: 'slideUp 0.22s cubic-bezier(0.34, 1.56, 0.64, 1)',
         }}
       >
-        <button
+        {/* Pill handle — drag down to dismiss */}
+        <div
+          onTouchStart={onPillTouchStart}
+          onTouchMove={onPillTouchMove}
+          onTouchEnd={onPillTouchEnd}
           onClick={onClose}
           aria-label="Close"
           style={{
-            display: 'block',
+            display: 'flex',
+            justifyContent: 'center',
             width: '100%',
             padding: '12px 0 4px',
-            background: 'transparent',
-            border: 'none',
-            cursor: 'pointer',
+            cursor: 'grab',
+            touchAction: 'none',
           }}
         >
-          <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--muted)', margin: '0 auto' }} />
-        </button>
+          <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--muted)' }} />
+        </div>
         {title && (
           <p style={{ textAlign: 'center', fontSize: 13, fontWeight: 600, color: 'var(--ink)', padding: '4px 0 4px' }}>
             {title}

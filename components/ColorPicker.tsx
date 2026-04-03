@@ -493,7 +493,11 @@ export default function ColorPicker({ value, onChange, mode = 'color', onModeCha
                 {row.map((c) => (
                   <button
                     key={c}
-                    onClick={() => onChange(c)}
+                    onPointerDown={(e) => {
+                      e.preventDefault()
+                      ;(document.activeElement as HTMLElement)?.blur()
+                      onChange(c)
+                    }}
                     title={c}
                     style={{
                       width: 24,
