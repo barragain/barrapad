@@ -23,6 +23,9 @@ import { FileAttachment } from '@/extensions/file-attachment'
 import { ResizableImage } from '@/extensions/resizable-image'
 import Toolbar from './Toolbar'
 import InfoPopover from './InfoPopover'
+import LinkPopover from './LinkPopover'
+import ContextMenu from './ContextMenu'
+import type { ContextMenuItem } from './ContextMenu'
 import { Info } from 'lucide-react'
 import type { Note } from '@/types'
 
@@ -51,6 +54,10 @@ export default function EditorComponent({
   const [showInfo, setShowInfo] = useState(false)
   const [wordCount, setWordCount] = useState(0)
   const [charCount, setCharCount] = useState(0)
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; items: ContextMenuItem[] } | null>(null)
+  const [linkPopover, setLinkPopover] = useState<{ x: number; y: number } | null>(null)
+  const contextClickRef = useRef<{ x: number; y: number; editorPos?: number }>({ x: 0, y: 0 })
+  const ctxImageRef = useRef<HTMLInputElement>(null)
 
   const flushAutoSave = useCallback(() => {
     if (!pendingRef.current) return
@@ -233,6 +240,86 @@ export default function EditorComponent({
     return () => window.removeEventListener('barrapad:save', handler)
   }, [handleManualSave])
 
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    if (!editor) return
+    e.preventDefault()
+
+    const x = e.clientX
+    const y = e.clientY
+    const target = e.target as HTMLElement
+
+    // Find editor position at click
+    const coords = editor.view.posAtCoords({ left: x, top: y })
+    contextClickRef.current = { x, y, editorPos: coords?.inside ?? coords?.pos }
+
+    // Context 4: image
+    const imgEl = target.tagName === 'IMG' ? target as HTMLImageElement : target.closest('img') as HTMLImageElement | null
+    if (imgEl) {
+      setContextMenu({ x, y, items: [
+        { type: 'item', label: 'Copy image URL', onClick: () => { navigator.clipboard.writeText(imgEl.src); setContextMenu(null) } },
+        { type: 'item', label: 'Download image', onClick: () => {
+          const a = document.createElement('a'); a.href = imgEl.src; a.download = 'image'; a.click(); setContextMenu(null)
+        }},
+        { type: 'item', label: 'Replace image', onClick: () => { ctxImageRef.current?.click(); setContextMenu(null) }},
+        { type: 'separator' },
+        { type: 'item', label: 'Remove image', danger: true, onClick: () => {
+          const pos = contextClickRef.current.editorPos
+          if (pos !== undefined) editor.chain().focus().setNodeSelection(pos).deleteSelection().run()
+          setContextMenu(null)
+        }},
+      ]})
+      return
+    }
+
+    // Context 5: link
+    const linkEl = (target.tagName === 'A' ? target : target.closest('a')) as HTMLAnchorElement | null
+    if (linkEl) {
+      const href = linkEl.href
+      setContextMenu({ x, y, items: [
+        { type: 'item', label: 'Open link', onClick: () => { window.open(href, '_blank'); setContextMenu(null) }},
+        { type: 'item', label: 'Copy link URL', onClick: () => { navigator.clipboard.writeText(href); setContextMenu(null) }},
+        { type: 'item', label: 'Edit link…', onClick: () => { setContextMenu(null); setLinkPopover({ x, y }) }},
+        { type: 'separator' },
+        { type: 'item', label: 'Remove link', danger: true, onClick: () => {
+          editor.chain().focus().extendMarkRange('link').unsetLink().run(); setContextMenu(null)
+        }},
+      ]})
+      return
+    }
+
+    // Context 2: text selection
+    if (!editor.state.selection.empty) {
+      const { from, to } = editor.state.selection
+      const selectedText = editor.state.doc.textBetween(from, to, ' ')
+      setContextMenu({ x, y, items: [
+        { type: 'item', label: 'Bold', onClick: () => { editor.chain().focus().toggleBold().run(); setContextMenu(null) }},
+        { type: 'item', label: 'Italic', onClick: () => { editor.chain().focus().toggleItalic().run(); setContextMenu(null) }},
+        { type: 'item', label: 'Underline', onClick: () => { editor.chain().focus().toggleUnderline().run(); setContextMenu(null) }},
+        { type: 'item', label: 'Strikethrough', onClick: () => { editor.chain().focus().toggleStrike().run(); setContextMenu(null) }},
+        { type: 'separator' },
+        { type: 'item', label: 'Link…', onClick: () => { setContextMenu(null); setLinkPopover({ x, y }) }},
+        { type: 'separator' },
+        { type: 'item', label: 'Copy', onClick: () => { navigator.clipboard.writeText(selectedText); setContextMenu(null) }},
+        { type: 'item', label: 'Cut', onClick: () => { navigator.clipboard.writeText(selectedText); editor.chain().focus().deleteSelection().run(); setContextMenu(null) }},
+      ]})
+      return
+    }
+
+    // Context 3: empty cursor / no selection
+    setContextMenu({ x, y, items: [
+      { type: 'item', label: 'Paste', onClick: () => {
+        navigator.clipboard.readText().then(text => { if (text) editor.chain().focus().insertContent(text).run() }); setContextMenu(null)
+      }},
+      { type: 'item', label: 'Select All', onClick: () => { editor.commands.selectAll(); setContextMenu(null) }},
+      { type: 'separator' },
+      { type: 'item', label: 'Insert image', onClick: () => { ctxImageRef.current?.click(); setContextMenu(null) }},
+      { type: 'item', label: 'Insert table', onClick: () => { editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(); setContextMenu(null) }},
+      { type: 'item', label: 'Insert lorem ipsum', onClick: () => {
+        editor.chain().focus().insertContent('Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.').run(); setContextMenu(null)
+      }},
+    ]})
+  }, [editor])
+
   const handleOuterDrop = useCallback((e: React.DragEvent) => {
     if (e.defaultPrevented) return
     const files = e.dataTransfer?.files
@@ -314,12 +401,50 @@ export default function EditorComponent({
             id="barrapad-editor-content"
             style={{ background: 'var(--editor-bg)', borderRadius: 11 }}
             onClick={() => editor?.commands.focus()}
+            onContextMenu={handleContextMenu}
           >
             <EditorContent
               editor={editor}
               style={{ padding: '2rem', minHeight: '70vh' }}
             />
+            <input
+              ref={ctxImageRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (!file || !editor) return
+                const reader = new FileReader()
+                reader.onload = (ev) => {
+                  const result = ev.target?.result as string
+                  if (!result) return
+                  const pos = contextClickRef.current.editorPos
+                  if (pos !== undefined) {
+                    editor.chain().focus().setNodeSelection(pos).run()
+                  }
+                  editor.chain().focus().setImage({ src: result }).run()
+                }
+                reader.readAsDataURL(file)
+                e.target.value = ''
+              }}
+            />
           </div>
+          {linkPopover && (
+            <LinkPopover
+              editor={editor!}
+              onClose={() => setLinkPopover(null)}
+              pos={{ left: linkPopover.x, top: linkPopover.y }}
+            />
+          )}
+          {contextMenu && (
+            <ContextMenu
+              x={contextMenu.x}
+              y={contextMenu.y}
+              items={contextMenu.items}
+              onClose={() => setContextMenu(null)}
+            />
+          )}
         </div>
       </div>
     </div>

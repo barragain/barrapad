@@ -178,6 +178,17 @@ export default function AppShell() {
     }
   }
 
+  const handleRenameNote = useCallback(async (id: string, newTitle: string) => {
+    updateNotes((prev) => prev.map((n) => n.id === id ? { ...n, title: newTitle, updatedAt: new Date().toISOString() } : n))
+    try {
+      await fetch(`/api/notes/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: newTitle }),
+      })
+    } catch {}
+  }, [updateNotes])
+
   const handleDeleteNote = async (id: string) => {
     const prev = notes
     updateNotes((n) => n.filter((note) => note.id !== id))
@@ -257,6 +268,7 @@ export default function AppShell() {
           onNewNote={handleNewNote}
           onDeleteNote={handleDeleteNote}
           onOpenSettings={() => setShowAppearance(true)}
+          onRenameNote={handleRenameNote}
         />
       </div>
 
@@ -277,6 +289,7 @@ export default function AppShell() {
               onNewNote={() => { handleNewNote(); setSidebarOpen(false) }}
               onDeleteNote={handleDeleteNote}
               onOpenSettings={() => { setShowAppearance(true); setSidebarOpen(false) }}
+              onRenameNote={handleRenameNote}
             />
           </motion.div>
         )}

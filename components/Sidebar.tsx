@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import type { Note } from '@/types'
+import ContextMenu from './ContextMenu'
 
 const AboutModal = dynamic(() => import('./AboutModal'), { ssr: false })
 
@@ -23,6 +24,7 @@ interface SidebarProps {
   onNewNote: () => void
   onDeleteNote: (id: string) => void
   onOpenSettings: () => void
+  onRenameNote: (id: string, newTitle: string) => void
 }
 
 export default function Sidebar({
@@ -32,11 +34,15 @@ export default function Sidebar({
   onNewNote,
   onDeleteNote,
   onOpenSettings,
+  onRenameNote,
 }: SidebarProps) {
   const { user, isSignedIn } = useUser()
   const [search, setSearch] = useState('')
   const [showAbout, setShowAbout] = useState(false)
   const aboutAudioRef = useRef<HTMLAudioElement | null>(null)
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; noteId: string } | null>(null)
+  const [renamingId, setRenamingId] = useState<string | null>(null)
+  const [renameValue, setRenameValue] = useState('')
 
   // Preload the about GIF as soon as the sidebar mounts so it's cached by the time the user clicks ?
   useEffect(() => {
@@ -104,11 +110,47 @@ export default function Sidebar({
               note.id === activeNoteId ? 'active' : ''
             }`}
             onClick={() => onSelectNote(note.id)}
+            onContextMenu={(e) => {
+              e.preventDefault()
+              setContextMenu({ x: e.clientX, y: e.clientY, noteId: note.id })
+              setRenameValue(note.title || 'Untitled')
+            }}
           >
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-[#1A1A1A] truncate leading-tight">
-                {note.title || 'Untitled'}
-              </p>
+              {renamingId === note.id ? (
+                <input
+                  autoFocus
+                  value={renameValue}
+                  onChange={(e) => setRenameValue(e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      onRenameNote(note.id, renameValue.trim() || 'Untitled')
+                      setRenamingId(null)
+                    } else if (e.key === 'Escape') {
+                      setRenamingId(null)
+                    }
+                  }}
+                  onBlur={() => {
+                    onRenameNote(note.id, renameValue.trim() || 'Untitled')
+                    setRenamingId(null)
+                  }}
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 500,
+                    color: 'var(--ink)',
+                    border: 'none',
+                    background: 'transparent',
+                    outline: 'none',
+                    width: '100%',
+                    padding: 0,
+                  }}
+                />
+              ) : (
+                <p className="text-xs font-medium text-[#1A1A1A] truncate leading-tight">
+                  {note.title || 'Untitled'}
+                </p>
+              )}
               <p className="text-[10px] text-[#8A8178] truncate leading-tight mt-0.5">
                 {stripHtml(note.content).slice(0, 50) || 'No content'}
               </p>
@@ -126,6 +168,34 @@ export default function Sidebar({
           </div>
         ))}
       </div>
+
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          items={[
+            {
+              type: 'item',
+              label: 'Rename',
+              onClick: () => {
+                setRenamingId(contextMenu.noteId)
+                setContextMenu(null)
+              },
+            },
+            { type: 'separator' },
+            {
+              type: 'item',
+              label: 'Delete',
+              danger: true,
+              onClick: () => {
+                onDeleteNote(contextMenu.noteId)
+                setContextMenu(null)
+              },
+            },
+          ]}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
 
       {/* Bottom bar */}
       <div className="border-t border-[#E5E0D8] px-3 py-3 flex items-center justify-between">
