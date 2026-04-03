@@ -47,9 +47,12 @@ import {
   Trash2,
   Download,
 } from 'lucide-react'
+import PartySocket from 'partysocket'
 import type { Note } from '@/types'
 
 const lowlight = createLowlight(common)
+
+const PARTYKIT_HOST = process.env.NEXT_PUBLIC_PARTYKIT_HOST ?? '127.0.0.1:1999'
 
 interface EditorProps {
   note: Note
@@ -70,6 +73,8 @@ export default function EditorComponent({
   const editorRef = useRef<Editor | null>(null)
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pendingRef = useRef<{ title: string; html: string } | null>(null)
+  const socketRef = useRef<PartySocket | null>(null)
+  const sendTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const infoButtonRef = useRef<HTMLButtonElement>(null)
   const [showInfo, setShowInfo] = useState(false)
   const [wordCount, setWordCount] = useState(0)
@@ -205,6 +210,12 @@ export default function EditorComponent({
       // Immediate: update localStorage, no network
       onLocalChange(title, html)
 
+      // Broadcast to PartyKit for real-time sync with share-link viewers
+      if (sendTimerRef.current) clearTimeout(sendTimerRef.current)
+      sendTimerRef.current = setTimeout(() => {
+        socketRef.current?.send(JSON.stringify({ type: 'update', content: html, title }))
+      }, 50)
+
       // Track what needs to be synced
       pendingRef.current = { title, html }
 
@@ -235,6 +246,33 @@ export default function EditorComponent({
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [note.id])
+
+  // PartyKit — real-time sync with share-link viewers
+  useEffect(() => {
+    if (!editor || note.id.startsWith('temp-')) return
+
+    const socket = new PartySocket({ host: PARTYKIT_HOST, room: note.id })
+    socketRef.current = socket
+
+    socket.addEventListener('message', (evt) => {
+      type Msg = { type: 'sync' | 'update' | 'presence'; content?: string }
+      const msg = JSON.parse(evt.data as string) as Msg
+      if ((msg.type === 'sync' || msg.type === 'update') && msg.content && msg.content !== '') {
+        const ed = editorRef.current
+        if (!ed || ed.isFocused) return
+        const current = ed.getHTML()
+        if (current !== msg.content) {
+          ed.commands.setContent(msg.content, { emitUpdate: false })
+        }
+      }
+    })
+
+    return () => {
+      socket.close()
+      socketRef.current = null
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [note.id, editor])
 
   // Sync to API when tab is hidden (user switches tabs/minimizes)
   useEffect(() => {
