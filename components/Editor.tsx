@@ -576,9 +576,9 @@ export default function EditorComponent({
               ref={infoButtonRef}
               onClick={() => setShowInfo((v) => !v)}
               className="p-2 rounded-xl transition-all"
-              style={{ color: showInfo ? '#B8420A' : 'var(--muted)', opacity: showInfo ? 1 : 0.8 }}
-              onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.color = '#B8420A' }}
-              onMouseLeave={(e) => { if (!showInfo) { e.currentTarget.style.opacity = '0.8'; e.currentTarget.style.color = 'var(--muted)' } }}
+              style={{ color: showInfo ? '#7A2C06' : '#D4550A' }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = '#7A2C06' }}
+              onMouseLeave={(e) => { if (!showInfo) e.currentTarget.style.color = '#D4550A' }}
               title="Note info"
             >
               <Info size={22} />

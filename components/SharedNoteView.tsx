@@ -416,9 +416,9 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
               ref={infoRef}
               onClick={() => setShowInfo((v) => !v)}
               className="p-2 rounded-xl transition-all"
-              style={{ color: showInfo ? '#B8420A' : '#8A8178', opacity: showInfo ? 1 : 0.8, cursor: 'pointer', background: 'none', border: 'none' }}
-              onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.color = '#B8420A' }}
-              onMouseLeave={(e) => { if (!showInfo) { e.currentTarget.style.opacity = '0.8'; e.currentTarget.style.color = '#8A8178' } }}
+              style={{ color: showInfo ? '#7A2C06' : '#D4550A', cursor: 'pointer', background: 'none', border: 'none' }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = '#7A2C06' }}
+              onMouseLeave={(e) => { if (!showInfo) e.currentTarget.style.color = '#D4550A' }}
               title="Note info"
             >
               <Info size={22} />
