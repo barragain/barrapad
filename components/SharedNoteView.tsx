@@ -243,7 +243,7 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
         zIndex: 30,
       }}>
         <a href="/" style={{ textDecoration: 'none' }}>
-          <img src="/logo.svg" alt="barraPAD" style={{ height: 22 }} />
+          <img src="/logo.svg" alt="barraPAD" style={{ height: 28 }} />
         </a>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -328,6 +328,44 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '0 1rem 4rem' }}>
         <EditorContent editor={editor} />
       </div>
+
+      {/* CTA banner for read-only viewers */}
+      {permission === 'READ' && isLoaded && !isSignedIn && (
+        <div style={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          background: '#1A1A1A',
+          color: '#fff',
+          padding: '14px 24px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 16,
+          zIndex: 50,
+        }}>
+          <div>
+            <p style={{ fontSize: 14, fontWeight: 600, margin: 0 }}>Like what you see?</p>
+            <p style={{ fontSize: 12, color: '#9b9b9b', margin: 0 }}>Create your own notes — free, forever.</p>
+          </div>
+          <a href="/sign-up" style={{ textDecoration: 'none', flexShrink: 0 }}>
+            <button style={{
+              fontSize: 13,
+              fontWeight: 700,
+              padding: '8px 18px',
+              borderRadius: 8,
+              background: '#D4550A',
+              color: '#fff',
+              border: 'none',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+            }}>
+              Get started free
+            </button>
+          </a>
+        </div>
+      )}
     </div>
   )
 }
