@@ -75,6 +75,7 @@ export default function EditorComponent({
   const pendingRef = useRef<{ title: string; html: string } | null>(null)
   const socketRef = useRef<PartySocket | null>(null)
   const sendTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const prevNoteIdRef = useRef<string>(note.id)
   const infoButtonRef = useRef<HTMLButtonElement>(null)
   const [showInfo, setShowInfo] = useState(false)
   const [wordCount, setWordCount] = useState(0)
@@ -237,7 +238,18 @@ export default function EditorComponent({
   // Sync content when switching notes
   useEffect(() => {
     if (!editor) return
+    const wasTemp = prevNoteIdRef.current.startsWith('temp-')
+    prevNoteIdRef.current = note.id
     const currentHtml = editor.getHTML()
+    // Don't wipe editor when a temp note is promoted to a real one —
+    // the user may have typed content while the API request was in flight.
+    if (wasTemp && !note.id.startsWith('temp-') && (!note.content || note.content === '<p></p>')) {
+      // Keep current editor content; trigger a save so it reaches the server
+      const text = editor.getText()
+      const title = text.split('\n')[0]?.trim().slice(0, 100) || 'Untitled'
+      pendingRef.current = { title, html: currentHtml }
+      return
+    }
     if (currentHtml !== note.content) {
       editor.commands.setContent(note.content || '')
     }

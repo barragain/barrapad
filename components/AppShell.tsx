@@ -179,7 +179,12 @@ export default function AppShell() {
         return
       }
       const note = (await res.json()) as Note
-      updateNotes((prev) => prev.map((n) => (n.id === tempId ? note : n)))
+      // Preserve any content/title typed while the API request was in flight
+      updateNotes((prev) => {
+        const temp = prev.find((n) => n.id === tempId)
+        const merged = { ...note, title: temp?.title ?? note.title, content: temp?.content ?? note.content }
+        return prev.map((n) => (n.id === tempId ? merged : n))
+      })
       setActiveNoteId(note.id)
     } catch {
       updateNotes((prev) => prev.filter((n) => n.id !== tempId))
