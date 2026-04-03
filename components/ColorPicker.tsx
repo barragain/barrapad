@@ -352,6 +352,7 @@ export default function ColorPicker({ value, onChange, mode = 'color', onModeCha
   const [gradientAngle, setGradientAngle] = useState(90)
   const [gradientStart, setGradientStart] = useState('#D4550A')
   const [gradientEnd, setGradientEnd] = useState('#3b82f6')
+  const [activeStop, setActiveStop] = useState<'start' | 'end'>('start')
 
   // Parse incoming value to init gradient state
   useEffect(() => {
@@ -480,12 +481,49 @@ export default function ColorPicker({ value, onChange, mode = 'color', onModeCha
       {activeTab === 'gradient' && (
         <>
           {/* Preview strip */}
-          <div
-            style={{
-              height: 32,
-              borderRadius: 8,
-              background: gradient,
-              border: '1px solid #E5E0D8',
+          <div style={{ position: 'relative', height: 32, borderRadius: 8, background: gradient, border: '1px solid #E5E0D8' }} />
+
+          {/* Stop selector */}
+          <div style={{ display: 'flex', gap: 8 }}>
+            {(['start', 'end'] as const).map((stop) => {
+              const color = stop === 'start' ? gradientStart : gradientEnd
+              const isActive = activeStop === stop
+              return (
+                <button
+                  key={stop}
+                  onClick={() => setActiveStop(stop)}
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '8px 10px',
+                    borderRadius: 8,
+                    border: isActive ? '2px solid #D4550A' : '1px solid #E5E0D8',
+                    background: isActive ? '#FFF7F3' : '#F9F7F4',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <div style={{ width: 20, height: 20, borderRadius: '50%', background: color, border: '1px solid rgba(0,0,0,0.1)', flexShrink: 0 }} />
+                  <span style={{ fontSize: 12, fontWeight: 500, color: isActive ? '#D4550A' : '#6b6b6b' }}>
+                    {stop === 'start' ? 'Start' : 'End'}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Single shared board for the active stop */}
+          <ColorBoard
+            color={activeStop === 'start' ? gradientStart : gradientEnd}
+            onChange={(c) => {
+              if (activeStop === 'start') {
+                setGradientStart(c)
+                emitGradient(gradientType, gradientAngle, c, gradientEnd)
+              } else {
+                setGradientEnd(c)
+                emitGradient(gradientType, gradientAngle, gradientStart, c)
+              }
             }}
           />
 
@@ -552,34 +590,6 @@ export default function ColorPicker({ value, onChange, mode = 'color', onModeCha
               />
             </div>
           )}
-
-          {/* Start color */}
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 600, color: '#6b6b6b', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Start color
-            </div>
-            <ColorBoard
-              color={gradientStart}
-              onChange={(c) => {
-                setGradientStart(c)
-                emitGradient(gradientType, gradientAngle, c, gradientEnd)
-              }}
-            />
-          </div>
-
-          {/* End color */}
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 600, color: '#6b6b6b', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              End color
-            </div>
-            <ColorBoard
-              color={gradientEnd}
-              onChange={(c) => {
-                setGradientEnd(c)
-                emitGradient(gradientType, gradientAngle, gradientStart, c)
-              }}
-            />
-          </div>
         </>
       )}
     </div>
