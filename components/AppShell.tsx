@@ -277,23 +277,30 @@ export default function AppShell() {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -4, scale: 0.97 }}
                     transition={{ duration: 0.12 }}
-                    className="absolute top-full right-0 mt-1 z-50 rounded-xl shadow-xl overflow-hidden"
-                    style={{ background: 'var(--editor-bg)', border: '1px solid var(--border)', minWidth: 200 }}
+                    className="absolute top-full right-0 mt-1 z-50 rounded-2xl shadow-2xl p-2"
+                    style={{ background: '#1a1a1a', minWidth: 220 }}
                   >
                     {([
-                      { fmt: 'pdf', label: '.pdf', note: 'Visual · searchable' },
-                      { fmt: 'md',  label: '.md',  note: 'Markdown · plain text' },
-                      { fmt: 'txt', label: '.txt', note: 'Plain text only' },
-                      { fmt: 'docx',label: '.docx',note: 'Word · basic styles' },
+                      { fmt: 'pdf',  label: '.pdf',  note: 'Visual · searchable' },
+                      { fmt: 'md',   label: '.md',   note: 'Markdown' },
+                      { fmt: 'txt',  label: '.txt',  note: 'Plain text' },
+                      { fmt: 'docx', label: '.docx', note: 'Word · basic styles' },
                     ] as const).map(({ fmt, label, note }) => (
                       <button
                         key={fmt}
                         onClick={() => handleExport(fmt)}
-                        className="w-full text-left px-4 py-2.5 hover:bg-black/5 transition-colors flex items-baseline justify-between gap-4"
-                        style={{ color: 'var(--ink)' }}
+                        className="w-full text-left flex items-center justify-between gap-3 px-3 py-2 rounded-xl transition-colors"
+                        style={{ color: '#fff' }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.07)')}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                       >
-                        <span className="text-sm font-medium">{label}</span>
-                        <span className="text-[11px]" style={{ color: 'var(--muted)' }}>{note}</span>
+                        <span className="text-sm font-semibold">{label}</span>
+                        <span
+                          className="text-[11px] font-medium px-2 py-0.5 rounded-full"
+                          style={{ background: '#D4550A', color: '#fff' }}
+                        >
+                          {note}
+                        </span>
                       </button>
                     ))}
                   </motion.div>

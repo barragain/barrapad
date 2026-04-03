@@ -71,24 +71,24 @@ export default function AboutModal({ onClose }: AboutModalProps) {
               <AnimatePresence>
                 {xHovered && (
                   <motion.div
-                    initial={{ opacity: 0, y: 4, scale: 0.9 }}
+                    initial={{ opacity: 0, y: 6, scale: 0.88 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 4, scale: 0.9 }}
-                    transition={{ duration: 0.12 }}
+                    exit={{ opacity: 0, y: 6, scale: 0.88 }}
+                    transition={{ type: 'spring', stiffness: 380, damping: 22 }}
                     style={{
                       position: 'absolute',
-                      top: '100%',
+                      bottom: '100%',
                       right: 0,
-                      marginTop: 6,
-                      background: 'rgba(0,0,0,0.8)',
+                      marginBottom: 8,
+                      background: '#D4550A',
                       color: '#fff',
-                      fontSize: 11,
-                      fontWeight: 500,
-                      padding: '4px 8px',
-                      borderRadius: 6,
+                      fontSize: 13,
+                      fontWeight: 700,
+                      padding: '6px 14px',
+                      borderRadius: 999,
                       whiteSpace: 'nowrap',
-                      backdropFilter: 'blur(4px)',
                       pointerEvents: 'none',
+                      boxShadow: '0 4px 20px rgba(212,85,10,0.5)',
                     }}
                   >
                     Not working lol
