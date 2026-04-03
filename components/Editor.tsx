@@ -18,6 +18,7 @@ import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
 import Placeholder from '@tiptap/extension-placeholder'
 import { common, createLowlight } from 'lowlight'
 import { GradientText } from '@/extensions/gradient-text'
+import { LoremIpsum } from '@/extensions/lorem-ipsum'
 import { FileAttachment } from '@/extensions/file-attachment'
 import { ResizableImage } from '@/extensions/resizable-image'
 import Toolbar from './Toolbar'
@@ -82,6 +83,7 @@ export default function EditorComponent({
       Placeholder.configure({ placeholder: 'Start typing to get started...' }),
       GradientText,
       FileAttachment,
+      LoremIpsum,
     ],
     editorProps: {
       handleDrop(view, event, _slice, moved) {
