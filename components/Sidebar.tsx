@@ -11,7 +11,10 @@ import {
   Settings,
   Trash2,
 } from 'lucide-react'
+import dynamic from 'next/dynamic'
 import type { Note } from '@/types'
+
+const AboutModal = dynamic(() => import('./AboutModal'), { ssr: false })
 
 interface SidebarProps {
   notes: Note[]
@@ -33,6 +36,7 @@ export default function Sidebar({
   const { user, isSignedIn } = useUser()
   const [search, setSearch] = useState('')
   const [hoveredNote, setHoveredNote] = useState<string | null>(null)
+  const [showAbout, setShowAbout] = useState(false)
 
   const filtered = notes.filter((n) => {
     const q = search.toLowerCase()
@@ -123,9 +127,14 @@ export default function Sidebar({
       {/* Bottom bar */}
       <div className="border-t border-[#E5E0D8] px-3 py-3 flex items-center justify-between">
         <div className="flex items-center gap-1">
-          <button className="p-1.5 rounded hover:bg-black/5 transition-colors text-[#C4BFB6]" title="Help">
+          <button
+            onClick={() => setShowAbout(true)}
+            className="p-1.5 rounded hover:bg-black/5 transition-colors text-[#C4BFB6]"
+            title="About"
+          >
             <HelpCircle size={16} />
           </button>
+          {showAbout && <AboutModal onClose={() => setShowAbout(false)} />}
           <button
             onClick={onOpenSettings}
             className="p-1.5 rounded hover:bg-black/5 transition-colors text-[#C4BFB6]"

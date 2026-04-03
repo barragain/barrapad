@@ -275,11 +275,16 @@ export default function EditorComponent({
             <button
               ref={infoButtonRef}
               onClick={() => setShowInfo((v) => !v)}
-              className="p-1.5 rounded hover:bg-black/5 transition-colors"
-              style={{ color: 'var(--muted)' }}
+              className="p-2 rounded-lg transition-colors"
+              style={{
+                color: 'var(--ink)',
+                background: 'var(--border)',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--muted)')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--border)')}
               title="Note info"
             >
-              <Info size={14} />
+              <Info size={16} />
             </button>
             {showInfo && (
               <InfoPopover
