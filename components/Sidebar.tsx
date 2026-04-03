@@ -202,31 +202,33 @@ export default function Sidebar({
 
       {/* Shared with me section */}
       {sharedNotes.length > 0 && (
-        <>
-          <div className="px-3 pt-3 pb-1">
-            <span className="text-[10px] font-semibold text-[#8A8178] uppercase tracking-widest">Shared with me</span>
+        <div className="mx-2 mb-2 rounded-xl overflow-hidden" style={{ background: '#D4550A0D', border: '1px solid #D4550A22' }}>
+          <div className="flex items-center gap-1.5 px-3 pt-2.5 pb-1.5">
+            <Users size={10} style={{ color: '#D4550A' }} />
+            <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#D4550A' }}>Shared with me</span>
           </div>
-          <div className="px-2 pb-2 space-y-0.5">
+          <div className="px-1 pb-1.5 space-y-0.5">
             {sharedNotes.map((record) => (
               <a
                 key={record.id}
                 href={`/s/${record.token}`}
-                className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-black/5 transition-colors group"
-                style={{ textDecoration: 'none' }}
+                className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors"
+                style={{ textDecoration: 'none', display: 'flex' }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = '#D4550A14')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
               >
-                <Users size={11} className="text-[#C4BFB6] flex-shrink-0" />
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-medium truncate leading-tight" style={{ color: 'var(--ink)' }}>
                     {record.noteTitle || 'Untitled'}
                   </p>
-                  <p className="text-[10px] text-[#C4BFB6] leading-tight">
+                  <p className="text-[10px] leading-tight" style={{ color: '#D4550A99' }}>
                     {record.permission === 'EDIT' ? 'Can edit' : 'View only'}
                   </p>
                 </div>
               </a>
             ))}
           </div>
-        </>
+        </div>
       )}
 
       {contextMenu && (

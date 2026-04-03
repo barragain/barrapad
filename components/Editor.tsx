@@ -83,6 +83,7 @@ export default function EditorComponent({
   const remoteCursorsRef = useRef<Map<string, RemoteCursor>>(new Map())
   const myColorRef = useRef(pickColor(Math.random().toString()))
   const userNameRef = useRef('Me')
+  const userImageRef = useRef<string | undefined>(undefined)
 
   const { user } = useUser()
   useEffect(() => {
@@ -92,6 +93,7 @@ export default function EditorComponent({
         user.username ||
         user.primaryEmailAddress?.emailAddress?.split('@')[0] ||
         'Me'
+      userImageRef.current = user.imageUrl || undefined
     }
   }, [user])
   const infoButtonRef = useRef<HTMLButtonElement>(null)
@@ -257,6 +259,7 @@ export default function EditorComponent({
           type: 'cursor', from, to,
           name: userNameRef.current,
           color: myColorRef.current,
+          imageUrl: userImageRef.current,
         }))
       }, 50)
     },
@@ -572,13 +575,20 @@ export default function EditorComponent({
             <button
               ref={infoButtonRef}
               onClick={() => setShowInfo((v) => !v)}
-              className="p-1.5 rounded-lg transition-all"
-              style={{ color: 'var(--accent)', opacity: showInfo ? 1 : 0.75 }}
-              onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
-              onMouseLeave={(e) => (e.currentTarget.style.opacity = showInfo ? '1' : '0.75')}
+              className="rounded-xl transition-all flex items-center gap-1.5"
+              style={{
+                padding: '6px 12px',
+                color: showInfo ? '#D4550A' : 'var(--muted)',
+                background: showInfo ? '#D4550A1A' : 'var(--border)',
+                border: showInfo ? '1px solid #D4550A44' : '1px solid transparent',
+                fontSize: 12, fontWeight: 600, cursor: 'pointer',
+              }}
+              onMouseEnter={(e) => { if (!showInfo) e.currentTarget.style.color = 'var(--ink)' }}
+              onMouseLeave={(e) => { if (!showInfo) e.currentTarget.style.color = 'var(--muted)' }}
               title="Note info"
             >
-              <Info size={16} />
+              <Info size={14} />
+              Info
             </button>
             {showInfo && (
               <InfoPopover

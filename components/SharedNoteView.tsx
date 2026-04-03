@@ -1,9 +1,12 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import { useUser } from '@clerk/nextjs'
 import PartySocket from 'partysocket'
+import { HelpCircle, Settings } from 'lucide-react'
+import AppearanceModal from './AppearanceModal'
+import type { AppearanceSettings } from '@/types'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
 import Link from '@tiptap/extension-link'
@@ -60,6 +63,27 @@ interface Props {
 
 const PARTYKIT_HOST = process.env.NEXT_PUBLIC_PARTYKIT_HOST ?? 'barrapad.barragain.partykit.dev'
 
+const DEFAULT_APPEARANCE: AppearanceSettings = { mode: 'light', font: 'mono', zoom: 16, theme: 'barrapad' }
+
+function loadAppearance(): AppearanceSettings {
+  if (typeof window === 'undefined') return DEFAULT_APPEARANCE
+  try {
+    const raw = localStorage.getItem('barrapad_appearance')
+    if (raw) return { ...DEFAULT_APPEARANCE, ...JSON.parse(raw) }
+  } catch {}
+  return DEFAULT_APPEARANCE
+}
+
+function applyAppearance(s: AppearanceSettings) {
+  const root = document.documentElement
+  root.setAttribute('data-theme', s.theme)
+  root.setAttribute('data-font', s.font)
+  if (s.mode === 'dark') root.classList.add('dark')
+  else if (s.mode === 'light') root.classList.remove('dark')
+  else root.classList.toggle('dark', window.matchMedia('(prefers-color-scheme: dark)').matches)
+  root.style.setProperty('--editor-size', `${s.zoom}px`)
+}
+
 export default function SharedNoteView({ token, noteId, initialTitle, initialContent, permission, updatedAt }: Props) {
   const { isSignedIn, isLoaded, user } = useUser()
   const canEdit = permission === 'EDIT' && !!isSignedIn
@@ -73,6 +97,7 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
   const canEditRef = useRef(canEdit)
   const editorRef = useRef<ReturnType<typeof useEditor>>(null)
   const userNameRef = useRef('Guest')
+  const userImageRef = useRef<string | undefined>(undefined)
   useEffect(() => {
     if (user) {
       userNameRef.current =
@@ -80,6 +105,7 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
         user.username ||
         user.primaryEmailAddress?.emailAddress?.split('@')[0] ||
         'Guest'
+      userImageRef.current = user.imageUrl || undefined
     }
   }, [user])
 
@@ -88,9 +114,23 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
   const [connections, setConnections] = useState(1)
   const [connected, setConnected] = useState(false)
   const [presenceList, setPresenceList] = useState<RemoteCursor[]>([])
+  const [showInfo, setShowInfo] = useState(false)
+  const [showAppearance, setShowAppearance] = useState(false)
+  const [appearance, setAppearance] = useState<AppearanceSettings>(DEFAULT_APPEARANCE)
+  const [wordCount, setWordCount] = useState(0)
+  const [charCount, setCharCount] = useState(0)
+  const infoRef = useRef<HTMLButtonElement>(null)
+  const sendPointerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Keep a ref of initialTitle for use inside the editor update handler
   const titleRef = useRef(initialTitle)
+
+  // Load & apply appearance on mount
+  useEffect(() => {
+    const s = loadAppearance()
+    setAppearance(s)
+    applyAppearance(s)
+  }, [])
 
   // Keep canEdit ref in sync (editor ref synced after useEditor below)
   useEffect(() => { canEditRef.current = canEdit }, [canEdit])
@@ -143,13 +183,38 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
           type: 'cursor', from, to,
           name: userNameRef.current,
           color: myColorRef.current,
+          imageUrl: userImageRef.current,
         }))
       }, 50)
     },
   })
 
-  // Keep editor ref in sync
-  useEffect(() => { editorRef.current = editor }, [editor])
+  // Keep editor ref in sync + update word/char count
+  useEffect(() => {
+    editorRef.current = editor
+    if (!editor) return
+    const text = editor.getText()
+    setWordCount(text.trim() ? text.trim().split(/\s+/).length : 0)
+    setCharCount(text.length)
+  }, [editor])
+
+  // Mouse pointer tracking — sends position to PartyKit for all viewers
+  const sendPointerRef = useCallback((clientX: number, clientY: number) => {
+    const ed = editorRef.current
+    if (!ed) return
+    const pos = ed.view.posAtCoords({ left: clientX, top: clientY })
+    if (!pos) return
+    if (sendPointerTimerRef.current) clearTimeout(sendPointerTimerRef.current)
+    sendPointerTimerRef.current = setTimeout(() => {
+      socketRef.current?.send(JSON.stringify({
+        type: 'cursor',
+        from: pos.pos, to: pos.pos,
+        name: userNameRef.current,
+        color: myColorRef.current,
+        imageUrl: userImageRef.current,
+      }))
+    }, 80)
+  }, [])
 
   // Flip editable when sign-in state resolves
   useEffect(() => {
@@ -203,6 +268,7 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
         const cursor: RemoteCursor = {
           id: msg.id, from: msg.from, to: msg.to,
           name: msg.name ?? 'Guest', color: msg.color ?? '#888',
+          imageUrl: msg.imageUrl,
         }
         remoteCursorsRef.current.set(msg.id, cursor)
         setPresenceList([...remoteCursorsRef.current.values()])
@@ -267,19 +333,28 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
           {/* Live presence */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             {presenceList.slice(0, 5).map((p) => (
-              <div
-                key={p.id}
-                title={p.name}
-                style={{
-                  width: 24, height: 24, borderRadius: '50%',
-                  background: p.color, color: '#fff',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 10, fontWeight: 700,
-                  border: '2px solid #F9F7F4',
-                  flexShrink: 0,
-                }}
-              >
-                {p.name.charAt(0).toUpperCase()}
+              <div key={p.id} title={p.name} style={{ position: 'relative', flexShrink: 0 }}>
+                {p.imageUrl ? (
+                  <img
+                    src={p.imageUrl}
+                    alt={p.name}
+                    style={{
+                      width: 26, height: 26, borderRadius: '50%',
+                      border: `2px solid ${p.color}`,
+                      objectFit: 'cover',
+                    }}
+                  />
+                ) : (
+                  <div style={{
+                    width: 26, height: 26, borderRadius: '50%',
+                    background: p.color, color: '#fff',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 10, fontWeight: 700,
+                    border: '2px solid #F9F7F4',
+                  }}>
+                    {p.name.charAt(0).toUpperCase()}
+                  </div>
+                )}
               </div>
             ))}
             <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
@@ -324,33 +399,94 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
               style={{ textDecoration: 'none' }}
             >
               <button style={{
-                fontSize: 13,
-                fontWeight: 600,
-                padding: '6px 14px',
-                borderRadius: 8,
-                background: '#D4550A',
-                color: '#fff',
-                border: 'none',
-                cursor: 'pointer',
+                fontSize: 13, fontWeight: 600, padding: '6px 14px',
+                borderRadius: 8, background: '#D4550A', color: '#fff',
+                border: 'none', cursor: 'pointer',
               }}>
                 Sign in to edit
               </button>
             </a>
           )}
+
+          {/* Info button */}
+          <div style={{ position: 'relative' }}>
+            <button
+              ref={infoRef}
+              onClick={() => setShowInfo((v) => !v)}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: 32, height: 32, borderRadius: 8,
+                background: showInfo ? '#D4550A1A' : 'transparent',
+                border: showInfo ? '1px solid #D4550A44' : '1px solid transparent',
+                color: showInfo ? '#D4550A' : '#8A8178',
+                cursor: 'pointer', transition: 'all 0.15s',
+              }}
+              title="Info"
+            >
+              <HelpCircle size={17} />
+            </button>
+            {showInfo && (
+              <div
+                style={{
+                  position: 'absolute', top: '110%', right: 0, zIndex: 60,
+                  background: 'var(--editor-bg, #fff)', border: '1px solid #E5E0D8',
+                  borderRadius: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.10)',
+                  width: 220, padding: '12px 16px',
+                }}
+              >
+                {[
+                  { label: 'Words', value: wordCount },
+                  { label: 'Characters', value: charCount },
+                  { label: 'Permission', value: permission === 'EDIT' ? 'Can edit' : 'View only' },
+                  { label: 'Updated', value: new Date(lastUpdated).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) },
+                ].map(({ label, value }) => (
+                  <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 12 }}>
+                    <span style={{ color: '#8A8178' }}>{label}</span>
+                    <span style={{ fontWeight: 600, color: '#1A1A1A', textAlign: 'right', maxWidth: 120 }}>{value}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Settings button */}
+          <button
+            onClick={() => setShowAppearance(true)}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: 32, height: 32, borderRadius: 8,
+              background: 'transparent', border: '1px solid transparent',
+              color: '#8A8178', cursor: 'pointer', transition: 'all 0.15s',
+            }}
+            title="Appearance"
+          >
+            <Settings size={17} />
+          </button>
         </div>
       </div>
+
+      {showAppearance && (
+        <AppearanceModal
+          settings={appearance}
+          onChange={(s) => {
+            setAppearance(s)
+            applyAppearance(s)
+            localStorage.setItem('barrapad_appearance', JSON.stringify(s))
+          }}
+          onClose={() => setShowAppearance(false)}
+        />
+      )}
 
       {canEdit && editor && <Toolbar editor={editor} />}
 
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '0 1rem 5rem' }}>
-        <div style={{
-          border: '1px solid #E5E0D8',
-          borderRadius: 16,
-          overflow: 'hidden',
-          background: 'var(--editor-bg, #F9F7F4)',
-          marginTop: '1.5rem',
-        }}>
-          <EditorContent editor={editor} />
+        <div className="editor-anim-border" style={{ marginTop: '1.5rem' }}>
+          <div
+            style={{ borderRadius: 11, overflow: 'hidden', background: 'var(--editor-bg, #F9F7F4)' }}
+            onMouseMove={(e) => sendPointerRef(e.clientX, e.clientY)}
+          >
+            <EditorContent editor={editor} />
+          </div>
         </div>
       </div>
 

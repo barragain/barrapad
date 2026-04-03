@@ -8,6 +8,7 @@ export interface RemoteCursor {
   to: number
   name: string
   color: string
+  imageUrl?: string
 }
 
 export const collabCursorKey = new PluginKey<{ cursors: RemoteCursor[] }>('collabCursor')
