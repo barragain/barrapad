@@ -244,9 +244,24 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
         top: 0,
         zIndex: 30,
       }}>
-        <a href="/" style={{ textDecoration: 'none' }}>
-          <img src="/logo.svg" alt="barraPAD" style={{ height: 28 }} />
-        </a>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <a href="/" style={{ textDecoration: 'none' }}>
+            <img src="/logo.svg" alt="barraPAD" style={{ height: 28 }} />
+          </a>
+          {isLoaded && isSignedIn && (
+            <a
+              href="/"
+              style={{
+                display: 'flex', alignItems: 'center', gap: 5,
+                fontSize: 12, color: '#8A8178', textDecoration: 'none',
+                padding: '4px 10px', borderRadius: 8,
+                border: '1px solid #E5E0D8', background: '#F5F2ED',
+              }}
+            >
+              ← My notes
+            </a>
+          )}
+        </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           {/* Live presence */}
@@ -327,43 +342,49 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
 
       {canEdit && editor && <Toolbar editor={editor} />}
 
-      <div style={{ maxWidth: 900, margin: '0 auto', padding: '0 1rem 4rem' }}>
-        <EditorContent editor={editor} />
+      <div style={{ maxWidth: 900, margin: '0 auto', padding: '0 1rem 5rem' }}>
+        <div style={{
+          border: '1px solid #E5E0D8',
+          borderRadius: 16,
+          overflow: 'hidden',
+          background: 'var(--editor-bg, #F9F7F4)',
+          marginTop: '1.5rem',
+        }}>
+          <EditorContent editor={editor} />
+        </div>
       </div>
 
-      {/* CTA banner for read-only viewers */}
+      {/* Floating pill CTA for unauthenticated read-only viewers */}
       {permission === 'READ' && isLoaded && !isSignedIn && (
         <div style={{
           position: 'fixed',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          background: '#1A1A1A',
-          color: '#fff',
-          padding: '14px 24px',
+          bottom: 24,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 50,
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 16,
-          zIndex: 50,
+          gap: 12,
+          background: '#1A1A1A',
+          color: '#fff',
+          padding: '10px 10px 10px 18px',
+          borderRadius: 999,
+          boxShadow: '0 4px 24px rgba(0,0,0,0.18)',
+          whiteSpace: 'nowrap',
         }}>
-          <div>
-            <p style={{ fontSize: 14, fontWeight: 600, margin: 0 }}>Like what you see?</p>
-            <p style={{ fontSize: 12, color: '#9b9b9b', margin: 0 }}>Create your own notes — free, forever.</p>
-          </div>
-          <a href="/sign-up" style={{ textDecoration: 'none', flexShrink: 0 }}>
+          <span style={{ fontSize: 13, fontWeight: 500 }}>Create your own notes — free, forever</span>
+          <a href="/sign-up" style={{ textDecoration: 'none' }}>
             <button style={{
               fontSize: 13,
               fontWeight: 700,
-              padding: '8px 18px',
-              borderRadius: 8,
+              padding: '7px 16px',
+              borderRadius: 999,
               background: '#D4550A',
               color: '#fff',
               border: 'none',
               cursor: 'pointer',
-              whiteSpace: 'nowrap',
             }}>
-              Get started free
+              Get started
             </button>
           </a>
         </div>

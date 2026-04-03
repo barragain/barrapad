@@ -54,11 +54,27 @@ export default async function SharedNotePage({ params }: Props) {
   const link = await getShareData(params.token)
   if (!link) notFound()
 
-  // EDIT links require a signed-in account — redirect unauthenticated visitors to sign-in
+  // EDIT links require a signed-in account
   if (link.permission === 'EDIT') {
     const { userId } = await auth()
     if (!userId) {
       redirect(`/sign-in?redirect_url=${encodeURIComponent(`/s/${params.token}`)}`)
+    }
+    // Record this user has accessed the shared note
+    await prisma.sharedAccess.upsert({
+      where: { userId_noteId: { userId, noteId: link.noteId } },
+      update: { noteTitle: link.note.title, token: params.token, permission: link.permission, lastSeen: new Date() },
+      create: { userId, noteId: link.noteId, noteTitle: link.note.title, token: params.token, permission: link.permission },
+    })
+  } else {
+    // READ: record if signed in
+    const { userId } = await auth()
+    if (userId) {
+      await prisma.sharedAccess.upsert({
+        where: { userId_noteId: { userId, noteId: link.noteId } },
+        update: { noteTitle: link.note.title, token: params.token, permission: link.permission, lastSeen: new Date() },
+        create: { userId, noteId: link.noteId, noteTitle: link.note.title, token: params.token, permission: link.permission },
+      })
     }
   }
 

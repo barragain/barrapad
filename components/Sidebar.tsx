@@ -12,13 +12,15 @@ import {
   Trash2,
 } from 'lucide-react'
 import dynamic from 'next/dynamic'
-import type { Note } from '@/types'
+import { Users } from 'lucide-react'
+import type { Note, SharedAccessRecord } from '@/types'
 import ContextMenu from './ContextMenu'
 
 const AboutModal = dynamic(() => import('./AboutModal'), { ssr: false })
 
 interface SidebarProps {
   notes: Note[]
+  sharedNotes: SharedAccessRecord[]
   activeNoteId: string | null
   onSelectNote: (id: string) => void
   onNewNote: () => void
@@ -29,6 +31,7 @@ interface SidebarProps {
 
 export default function Sidebar({
   notes,
+  sharedNotes,
   activeNoteId,
   onSelectNote,
   onNewNote,
@@ -196,6 +199,35 @@ export default function Sidebar({
           </div>
         ))}
       </div>
+
+      {/* Shared with me section */}
+      {sharedNotes.length > 0 && (
+        <>
+          <div className="px-3 pt-3 pb-1">
+            <span className="text-[10px] font-semibold text-[#8A8178] uppercase tracking-widest">Shared with me</span>
+          </div>
+          <div className="px-2 pb-2 space-y-0.5">
+            {sharedNotes.map((record) => (
+              <a
+                key={record.id}
+                href={`/s/${record.token}`}
+                className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-black/5 transition-colors group"
+                style={{ textDecoration: 'none' }}
+              >
+                <Users size={11} className="text-[#C4BFB6] flex-shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-medium truncate leading-tight" style={{ color: 'var(--ink)' }}>
+                    {record.noteTitle || 'Untitled'}
+                  </p>
+                  <p className="text-[10px] text-[#C4BFB6] leading-tight">
+                    {record.permission === 'EDIT' ? 'Can edit' : 'View only'}
+                  </p>
+                </div>
+              </a>
+            ))}
+          </div>
+        </>
+      )}
 
       {contextMenu && (
         <ContextMenu

@@ -7,6 +7,15 @@ export interface Note {
   updatedAt: string
 }
 
+export interface SharedAccessRecord {
+  id: string
+  noteId: string
+  noteTitle: string
+  token: string
+  permission: string
+  lastSeen: string
+}
+
 export interface AppearanceSettings {
   mode: 'light' | 'dark' | 'system'
   font: 'sans' | 'serif' | 'mono' | 'comic'

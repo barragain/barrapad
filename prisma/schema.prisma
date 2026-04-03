@@ -31,3 +31,17 @@ model ShareLink {
   @@index([token])
   @@index([noteId])
 }
+
+model SharedAccess {
+  id          String   @id @default(cuid())
+  userId      String
+  noteId      String
+  noteTitle   String   @default("")
+  token       String
+  permission  String
+  ownerName   String   @default("")
+  lastSeen    DateTime @default(now())
+
+  @@unique([userId, noteId])
+  @@index([userId])
+}

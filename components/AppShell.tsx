@@ -2,14 +2,15 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Save, Share2, X, CloudUpload, Download, ChevronDown, Menu } from 'lucide-react'
-import { useAuth } from '@clerk/nextjs'
+import { useAuth, useUser } from '@clerk/nextjs'
 import { AnimatePresence, motion } from 'framer-motion'
 import { downloadTxt, downloadMd, downloadPdf, downloadDocx } from '@/lib/export'
 import Sidebar from './Sidebar'
 import EditorWrapper from './EditorWrapper'
 import ShareModal from './ShareModal'
 import AppearanceModal from './AppearanceModal'
-import type { Note, AppearanceSettings } from '@/types'
+import OnboardingModal from './OnboardingModal'
+import type { Note, AppearanceSettings, SharedAccessRecord } from '@/types'
 
 const DEFAULT_APPEARANCE: AppearanceSettings = {
   mode: 'light',
@@ -62,9 +63,12 @@ function saveCachedNotes(notes: Note[]) {
 
 export default function AppShell() {
   const { isLoaded, isSignedIn } = useAuth()
+  const { user } = useUser()
+  const needsOnboarding = isLoaded && isSignedIn && user && !user.firstName
   // Lazy init from cache — renders instantly, no loading state needed
   const [notes, setNotes] = useState<Note[]>(() => loadCachedNotes())
   const [activeNoteId, setActiveNoteId] = useState<string | null>(() => loadCachedNotes()[0]?.id ?? null)
+  const [sharedNotes, setSharedNotes] = useState<SharedAccessRecord[]>([])
   const [showShare, setShowShare] = useState(false)
   const [showAppearance, setShowAppearance] = useState(false)
   const [showExport, setShowExport] = useState(false)
@@ -98,16 +102,22 @@ export default function AppShell() {
 
   const fetchNotes = async () => {
     try {
-      const res = await fetch('/api/notes')
-      if (!res.ok) return
-      const data = (await res.json()) as Note[]
-      setNotes(data)
-      saveCachedNotes(data)
-      setActiveNoteId((prev) => {
-        // Keep current selection if it still exists, otherwise pick first
-        if (prev && data.some((n) => n.id === prev)) return prev
-        return data[0]?.id ?? null
-      })
+      const [notesRes, sharedRes] = await Promise.all([
+        fetch('/api/notes'),
+        fetch('/api/shared-notes'),
+      ])
+      if (notesRes.ok) {
+        const data = (await notesRes.json()) as Note[]
+        setNotes(data)
+        saveCachedNotes(data)
+        setActiveNoteId((prev) => {
+          if (prev && data.some((n) => n.id === prev)) return prev
+          return data[0]?.id ?? null
+        })
+      }
+      if (sharedRes.ok) {
+        setSharedNotes((await sharedRes.json()) as SharedAccessRecord[])
+      }
     } catch {}
   }
 
@@ -276,6 +286,7 @@ export default function AppShell() {
       <div className="hidden md:flex md:flex-shrink-0">
         <Sidebar
           notes={notes}
+          sharedNotes={sharedNotes}
           activeNoteId={activeNoteId}
           onSelectNote={setActiveNoteId}
           onNewNote={handleNewNote}
@@ -297,6 +308,7 @@ export default function AppShell() {
           >
             <Sidebar
               notes={notes}
+              sharedNotes={sharedNotes}
               activeNoteId={activeNoteId}
               onSelectNote={(id) => { setActiveNoteId(id); setSidebarOpen(false) }}
               onNewNote={() => { handleNewNote(); setSidebarOpen(false) }}
@@ -448,6 +460,9 @@ export default function AppShell() {
           </button>
         </div>
       </div>
+
+      {/* Onboarding — collect name on first sign-up */}
+      {needsOnboarding && <OnboardingModal />}
 
       {/* Modals */}
       {showShare && activeNote && (
