@@ -20,11 +20,15 @@ import {
   Code2,
   ChevronDown,
   Sparkles,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
 } from 'lucide-react'
 import TablePicker from './TablePicker'
 import ColorPicker from './ColorPicker'
 import LinkPopover from './LinkPopover'
 import { useRef } from 'react'
+import '@/extensions/resizable-image'
 
 interface ToolbarProps {
   editor: Editor | null
@@ -108,6 +112,10 @@ export default function Toolbar({ editor }: ToolbarProps) {
         isH3: ctx.editor.isActive('heading', { level: 3 }),
         canUndo: ctx.editor.can().undo(),
         canRedo: ctx.editor.can().redo(),
+        isAlignLeft: ctx.editor.isActive({ textAlign: 'left' }) || ctx.editor.isActive('image', { align: 'left' }),
+        isAlignCenter: ctx.editor.isActive({ textAlign: 'center' }) || ctx.editor.isActive('image', { align: 'center' }),
+        isAlignRight: ctx.editor.isActive({ textAlign: 'right' }) || ctx.editor.isActive('image', { align: 'right' }),
+        isImageSelected: ctx.editor.isActive('image'),
       }
     },
   })
@@ -400,6 +408,40 @@ export default function Toolbar({ editor }: ToolbarProps) {
         </TBtn>
         <TBtn onClick={() => editor.chain().focus().toggleTaskList().run()} active={editorState.isTaskList} title="Checklist">
           <CheckSquare size={15} />
+        </TBtn>
+
+        <div className="w-px h-4 bg-[#E5E0D8] mx-1" />
+
+        {/* Alignment */}
+        <TBtn
+          onClick={() => editorState.isImageSelected
+            ? editor.chain().focus().setImageAlign('left').run()
+            : editor.chain().focus().setTextAlign('left').run()
+          }
+          active={editorState.isAlignLeft}
+          title="Align left"
+        >
+          <AlignLeft size={15} />
+        </TBtn>
+        <TBtn
+          onClick={() => editorState.isImageSelected
+            ? editor.chain().focus().setImageAlign('center').run()
+            : editor.chain().focus().setTextAlign('center').run()
+          }
+          active={editorState.isAlignCenter}
+          title="Align center"
+        >
+          <AlignCenter size={15} />
+        </TBtn>
+        <TBtn
+          onClick={() => editorState.isImageSelected
+            ? editor.chain().focus().setImageAlign('right').run()
+            : editor.chain().focus().setTextAlign('right').run()
+          }
+          active={editorState.isAlignRight}
+          title="Align right"
+        >
+          <AlignRight size={15} />
         </TBtn>
 
         <div className="w-px h-4 bg-[#E5E0D8] mx-1" />

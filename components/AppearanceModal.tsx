@@ -37,20 +37,20 @@ export default function AppearanceModal({ settings, onChange, onClose }: Appeara
   const update = (partial: Partial<AppearanceSettings>) => onChange({ ...settings, ...partial })
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div className="modal-backdrop-sheet" onClick={onClose}>
       <div
-        className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 overflow-hidden"
+        className="appearance-sheet"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[#E5E0D8]">
-          <h2 className="font-semibold text-[#1A1A1A]">Appearance</h2>
-          <button onClick={onClose} className="p-1 rounded hover:bg-black/5 transition-colors">
+        <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
+          <h2 className="font-semibold" style={{ color: 'var(--ink)' }}>Appearance</h2>
+          <button onClick={onClose} className="p-1 rounded hover:bg-black/5 transition-colors" style={{ color: 'var(--ink)' }}>
             <X size={16} />
           </button>
         </div>
 
-        <div className="p-5 space-y-5 max-h-[80vh] overflow-y-auto">
+        <div className="p-5 space-y-5 overflow-y-auto flex-1">
           {/* Mode */}
           <div>
             <label className="text-xs font-medium text-[#C4BFB6] uppercase tracking-wider mb-2 block">Mode</label>

@@ -10,7 +10,7 @@ import { TextStyle } from '@tiptap/extension-text-style'
 import { Color } from '@tiptap/extension-color'
 import Highlight from '@tiptap/extension-highlight'
 import { Table, TableRow, TableCell, TableHeader } from '@tiptap/extension-table'
-import Image from '@tiptap/extension-image'
+import TextAlign from '@tiptap/extension-text-align'
 import TaskList from '@tiptap/extension-task-list'
 import TaskItem from '@tiptap/extension-task-item'
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
@@ -18,6 +18,7 @@ import Placeholder from '@tiptap/extension-placeholder'
 import { common, createLowlight } from 'lowlight'
 import { GradientText } from '@/extensions/gradient-text'
 import { FileAttachment } from '@/extensions/file-attachment'
+import { ResizableImage } from '@/extensions/resizable-image'
 import Toolbar from './Toolbar'
 import type { Note } from '@/types'
 
@@ -46,7 +47,8 @@ export default function EditorComponent({ note, onSave, onWordCountChange }: Edi
       TableRow,
       TableCell,
       TableHeader,
-      Image.configure({ inline: true, allowBase64: true }),
+      ResizableImage,
+      TextAlign.configure({ types: ['heading', 'paragraph'] }),
       TaskList,
       TaskItem.configure({ nested: true }),
       CodeBlockLowlight.configure({ lowlight }),
@@ -186,10 +188,44 @@ export default function EditorComponent({ note, onSave, onWordCountChange }: Edi
     return () => window.removeEventListener('barrapad:save', handler)
   }, [handleManualSave])
 
+  const handleOuterDrop = useCallback((e: React.DragEvent) => {
+    if (e.defaultPrevented) return
+    const files = e.dataTransfer?.files
+    if (!files || files.length === 0) return
+    e.preventDefault()
+    const ed = editorRef.current
+    if (!ed) return
+    for (const file of Array.from(files)) {
+      const reader = new FileReader()
+      if (file.type.startsWith('image/')) {
+        reader.onload = (ev) => {
+          const result = ev.target?.result as string
+          if (result) ed.chain().focus().setImage({ src: result }).run()
+        }
+      } else {
+        reader.onload = (ev) => {
+          const result = ev.target?.result as string
+          if (!result) return
+          ed.chain().focus().insertFileAttachment({
+            name: file.name,
+            size: file.size,
+            mimeType: file.type || 'application/octet-stream',
+            dataUrl: result,
+          }).run()
+        }
+      }
+      reader.readAsDataURL(file)
+    }
+  }, [])
+
   return (
     <div className="flex flex-col h-full overflow-hidden" style={{ background: 'var(--editor-bg)' }}>
       <Toolbar editor={editor} />
-      <div className="flex-1 overflow-y-auto">
+      <div
+        className="flex-1 overflow-y-auto"
+        onDrop={handleOuterDrop}
+        onDragOver={(e) => e.preventDefault()}
+      >
         <EditorContent
           editor={editor}
           style={{

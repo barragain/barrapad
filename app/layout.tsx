@@ -3,10 +3,11 @@ import { ClerkProvider } from '@clerk/nextjs'
 import './globals.css'
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://barrapad.barragan.com.py'),
   title: 'barraPAD - A notepad for whatever',
   description: 'A rich text notepad for whatever. Cloud sync, rich formatting, and more.',
   icons: {
-    icon: '/favicon.svg',
+    icon: [{ url: '/favicon.svg', type: 'image/svg+xml' }],
   },
   openGraph: {
     title: 'barraPAD - A notepad for whatever',
