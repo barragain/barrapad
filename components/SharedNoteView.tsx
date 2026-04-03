@@ -102,7 +102,7 @@ export default function SharedNoteView({ token, initialTitle, initialContent, pe
       if (!res.ok) return
       const data = await res.json() as { content: string; updatedAt: string }
       if (data.updatedAt !== lastUpdated && editor && !editor.isFocused) {
-        editor.commands.setContent(data.content, false)
+        editor.commands.setContent(data.content, { emitUpdate: false })
         setLastUpdated(data.updatedAt)
       }
     } catch {}
