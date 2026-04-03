@@ -1,0 +1,170 @@
+'use client'
+
+import { useState, useEffect, useRef } from 'react'
+import type { Editor } from '@tiptap/react'
+
+interface LinkPopoverProps {
+  editor: Editor
+  onClose: () => void
+}
+
+export default function LinkPopover({ editor, onClose }: LinkPopoverProps) {
+  const existingHref = (editor.getAttributes('link').href as string) ?? ''
+  const [url, setUrl] = useState(existingHref)
+  const [openNewTab, setOpenNewTab] = useState(
+    (editor.getAttributes('link').target as string) === '_blank'
+  )
+  const hasLink = editor.isActive('link')
+  const containerRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    // Focus input on mount
+    setTimeout(() => inputRef.current?.focus(), 50)
+  }, [])
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    const handleMouseDown = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        onClose()
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    document.addEventListener('mousedown', handleMouseDown)
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+      document.removeEventListener('mousedown', handleMouseDown)
+    }
+  }, [onClose])
+
+  const handleApply = () => {
+    if (!url.trim()) return
+    editor
+      .chain()
+      .focus()
+      .extendMarkRange('link')
+      .setLink({ href: url.trim(), target: openNewTab ? '_blank' : null })
+      .run()
+    onClose()
+  }
+
+  const handleRemove = () => {
+    editor.chain().focus().extendMarkRange('link').unsetLink().run()
+    onClose()
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') handleApply()
+  }
+
+  return (
+    <div
+      ref={containerRef}
+      style={{
+        position: 'absolute',
+        top: '100%',
+        left: 0,
+        marginTop: 4,
+        zIndex: 50,
+        background: '#fff',
+        border: '1px solid #E5E0D8',
+        borderRadius: 12,
+        boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+        padding: 12,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 10,
+        width: 280,
+      }}
+    >
+      {/* URL input */}
+      <input
+        ref={inputRef}
+        type="url"
+        value={url}
+        onChange={(e) => setUrl(e.target.value)}
+        onKeyDown={handleKeyDown}
+        placeholder="https://example.com"
+        style={{
+          width: '100%',
+          padding: '7px 10px',
+          fontSize: 13,
+          border: '1px solid #E5E0D8',
+          borderRadius: 8,
+          outline: 'none',
+          color: '#1A1A1A',
+          background: '#F9F7F4',
+          boxSizing: 'border-box',
+        }}
+      />
+
+      {/* Open in new tab */}
+      <label
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          fontSize: 12,
+          color: '#6b6b6b',
+          cursor: 'pointer',
+          userSelect: 'none',
+        }}
+      >
+        <input
+          type="checkbox"
+          checked={openNewTab}
+          onChange={(e) => setOpenNewTab(e.target.checked)}
+          style={{ width: 14, height: 14, cursor: 'pointer', accentColor: '#D4550A' }}
+        />
+        Open in new tab
+      </label>
+
+      {/* Buttons */}
+      <div style={{ display: 'flex', gap: 6 }}>
+        <button
+          onClick={handleApply}
+          style={{
+            flex: 1,
+            padding: '6px 0',
+            fontSize: 12,
+            fontWeight: 600,
+            background: '#D4550A',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 8,
+            cursor: 'pointer',
+            transition: 'background 150ms ease',
+          }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = '#B84208' }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = '#D4550A' }}
+        >
+          Apply
+        </button>
+        {hasLink && (
+          <button
+            onClick={handleRemove}
+            style={{
+              flex: 1,
+              padding: '6px 0',
+              fontSize: 12,
+              fontWeight: 600,
+              background: '#F5F0E8',
+              color: '#6b6b6b',
+              border: '1px solid #E5E0D8',
+              borderRadius: 8,
+              cursor: 'pointer',
+              transition: 'background 150ms ease',
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = '#EDE8DF' }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = '#F5F0E8' }}
+          >
+            Remove
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
