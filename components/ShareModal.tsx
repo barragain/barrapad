@@ -1,8 +1,15 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { X, Copy, Share2, Download } from 'lucide-react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { X, Copy, Share2, Download, Link2, Trash2, RefreshCw } from 'lucide-react'
 import type { Note } from '@/types'
+
+interface ShareLink {
+  id: string
+  token: string
+  permission: string
+  createdAt: string
+}
 
 interface ShareModalProps {
   note: Note
@@ -10,41 +17,99 @@ interface ShareModalProps {
 }
 
 export default function ShareModal({ note, onClose }: ShareModalProps) {
-  const [allowEditing, setAllowEditing] = useState(false)
-  const [copied, setCopied] = useState(false)
+  const [links, setLinks] = useState<{ READ: ShareLink | null; EDIT: ShareLink | null }>({ READ: null, EDIT: null })
+  const [loading, setLoading] = useState(true)
+  const [generating, setGenerating] = useState<'READ' | 'EDIT' | null>(null)
+  const [revoking, setRevoking] = useState<string | null>(null)
+  const [copied, setCopied] = useState<'READ' | 'EDIT' | null>(null)
   const [qrDataUrl, setQrDataUrl] = useState('')
-  const urlRef = useRef<HTMLInputElement>(null)
+  const [activeQr, setActiveQr] = useState<'READ' | 'EDIT'>('READ')
 
-  // Generate a note-specific share URL
-  const shareUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}/?note=${note.id}`
-    : ''
+  const origin = typeof window !== 'undefined' ? window.location.origin : ''
 
+  const shareUrl = (token: string) => `${origin}/s/${token}`
+
+  // Load existing share links
+  const loadLinks = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/notes/${note.id}/share`)
+      if (!res.ok) return
+      const data = (await res.json()) as ShareLink[]
+      const read = data.find((l) => l.permission === 'READ') ?? null
+      const edit = data.find((l) => l.permission === 'EDIT') ?? null
+      setLinks({ READ: read, EDIT: edit })
+      // Default QR to whichever exists
+      if (read) setActiveQr('READ')
+      else if (edit) setActiveQr('EDIT')
+    } finally {
+      setLoading(false)
+    }
+  }, [note.id])
+
+  useEffect(() => { loadLinks() }, [loadLinks])
+
+  // Regenerate QR when active link changes
   useEffect(() => {
-    if (!shareUrl) return
-    const generateQR = async () => {
+    const token = links[activeQr]?.token
+    if (!token) { setQrDataUrl(''); return }
+    const url = shareUrl(token)
+    const generate = async () => {
       try {
         const QRCode = (await import('qrcode')).default
-        const dataUrl = await QRCode.toDataURL(shareUrl, { width: 200, margin: 1 })
+        const dataUrl = await QRCode.toDataURL(url, { width: 180, margin: 1 })
         setQrDataUrl(dataUrl)
-      } catch (e) {
-        console.error(e)
-      }
+      } catch {}
     }
-    generateQR()
-  }, [shareUrl])
+    generate()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [links, activeQr])
 
-  const handleCopy = async () => {
-    await navigator.clipboard.writeText(shareUrl)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+  const handleGenerate = async (permission: 'READ' | 'EDIT') => {
+    setGenerating(permission)
+    try {
+      const res = await fetch(`/api/notes/${note.id}/share`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ permission }),
+      })
+      if (!res.ok) return
+      const link = (await res.json()) as ShareLink
+      setLinks((prev) => ({ ...prev, [permission]: link }))
+      setActiveQr(permission)
+    } finally {
+      setGenerating(null)
+    }
   }
 
-  const handleShare = async () => {
+  const handleRevoke = async (permission: 'READ' | 'EDIT') => {
+    const link = links[permission]
+    if (!link) return
+    setRevoking(link.token)
+    try {
+      await fetch(`/api/share/${link.token}`, { method: 'DELETE' })
+      setLinks((prev) => ({ ...prev, [permission]: null }))
+      if (activeQr === permission) setQrDataUrl('')
+    } finally {
+      setRevoking(null)
+    }
+  }
+
+  const handleCopy = async (permission: 'READ' | 'EDIT') => {
+    const token = links[permission]?.token
+    if (!token) return
+    await navigator.clipboard.writeText(shareUrl(token))
+    setCopied(permission)
+    setTimeout(() => setCopied(null), 2000)
+  }
+
+  const handleNativeShare = async (permission: 'READ' | 'EDIT') => {
+    const token = links[permission]?.token
+    if (!token) return
+    const url = shareUrl(token)
     if (navigator.share) {
-      await navigator.share({ title: note.title, url: shareUrl })
+      await navigator.share({ title: note.title || 'Untitled', url })
     } else {
-      handleCopy()
+      handleCopy(permission)
     }
   }
 
@@ -59,7 +124,8 @@ export default function ShareModal({ note, onClose }: ShareModalProps) {
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div
-        className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 overflow-hidden"
+        className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 overflow-hidden"
+        style={{ background: 'var(--editor-bg, #fff)' }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -74,77 +140,183 @@ export default function ShareModal({ note, onClose }: ShareModalProps) {
         </div>
 
         <div className="p-5 space-y-4">
-          {/* Allow editing toggle */}
-          <div className="flex items-center justify-between">
-            <div>
-              <span className="text-sm text-[#1A1A1A]">Allow Editing</span>
-              <p className="text-xs text-[#C4BFB6]">Coming soon</p>
+          {loading ? (
+            <div className="flex justify-center py-6">
+              <div className="w-6 h-6 border-2 border-[#D4550A] border-t-transparent rounded-full animate-spin" />
             </div>
-            <button
-              onClick={() => setAllowEditing(!allowEditing)}
-              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                allowEditing ? 'bg-[#D4550A]' : 'bg-[#C4BFB6]'
-              }`}
-            >
-              <span
-                className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
-                  allowEditing ? 'translate-x-4' : 'translate-x-1'
-                }`}
+          ) : (
+            <>
+              {/* View-only link */}
+              <LinkRow
+                label="View only"
+                description="Anyone with this link can read"
+                permission="READ"
+                link={links.READ}
+                generating={generating === 'READ'}
+                revoking={revoking === links.READ?.token}
+                copied={copied === 'READ'}
+                isActiveQr={activeQr === 'READ' && !!links.READ}
+                onGenerate={() => handleGenerate('READ')}
+                onRevoke={() => handleRevoke('READ')}
+                onCopy={() => handleCopy('READ')}
+                onShare={() => handleNativeShare('READ')}
+                onSelectQr={() => { if (links.READ) setActiveQr('READ') }}
+                shareUrl={links.READ ? shareUrl(links.READ.token) : ''}
               />
+
+              <div className="border-t border-[#E5E0D8]" />
+
+              {/* Edit link */}
+              <LinkRow
+                label="Can edit"
+                description="Signed-in users can make changes"
+                permission="EDIT"
+                link={links.EDIT}
+                generating={generating === 'EDIT'}
+                revoking={revoking === links.EDIT?.token}
+                copied={copied === 'EDIT'}
+                isActiveQr={activeQr === 'EDIT' && !!links.EDIT}
+                onGenerate={() => handleGenerate('EDIT')}
+                onRevoke={() => handleRevoke('EDIT')}
+                onCopy={() => handleCopy('EDIT')}
+                onShare={() => handleNativeShare('EDIT')}
+                onSelectQr={() => { if (links.EDIT) setActiveQr('EDIT') }}
+                shareUrl={links.EDIT ? shareUrl(links.EDIT.token) : ''}
+              />
+
+              {/* QR code */}
+              {(links.READ || links.EDIT) && (
+                <>
+                  <div className="border-t border-[#E5E0D8]" />
+                  <div className="flex flex-col items-center gap-3">
+                    <p className="text-xs text-[#C4BFB6] self-start">QR Code — {activeQr === 'READ' ? 'View only' : 'Can edit'}</p>
+                    {qrDataUrl ? (
+                      <img src={qrDataUrl} alt="QR code" className="rounded-lg border border-[#E5E0D8]" />
+                    ) : (
+                      <div className="w-[180px] h-[180px] bg-[#F5F2ED] rounded-lg animate-pulse" />
+                    )}
+                    <button
+                      onClick={handleDownloadQR}
+                      disabled={!qrDataUrl}
+                      className="flex items-center gap-1.5 text-sm px-4 py-2 border border-[#E5E0D8] rounded-lg hover:bg-[#F5F2ED] transition-colors disabled:opacity-40"
+                    >
+                      <Download size={14} />
+                      Download QR
+                    </button>
+                  </div>
+                </>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+interface LinkRowProps {
+  label: string
+  description: string
+  permission: 'READ' | 'EDIT'
+  link: ShareLink | null
+  generating: boolean
+  revoking: boolean
+  copied: boolean
+  isActiveQr: boolean
+  onGenerate: () => void
+  onRevoke: () => void
+  onCopy: () => void
+  onShare: () => void
+  onSelectQr: () => void
+  shareUrl: string
+}
+
+function LinkRow({
+  label, description, link, generating, revoking, copied,
+  isActiveQr, onGenerate, onRevoke, onCopy, onShare, onSelectQr, shareUrl,
+}: LinkRowProps) {
+  const urlRef = useRef<HTMLInputElement>(null)
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-[#1A1A1A]">{label}</p>
+          <p className="text-xs text-[#C4BFB6]">{description}</p>
+        </div>
+        {!link ? (
+          <button
+            onClick={onGenerate}
+            disabled={generating}
+            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-[#D4550A] text-white hover:bg-[#B84208] transition-colors disabled:opacity-60"
+          >
+            {generating ? (
+              <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <Link2 size={12} />
+            )}
+            Generate link
+          </button>
+        ) : (
+          <div className="flex items-center gap-1">
+            <button
+              onClick={onGenerate}
+              disabled={generating}
+              title="Regenerate link"
+              className="p-1.5 rounded-lg hover:bg-black/5 text-[#8A8178] transition-colors disabled:opacity-40"
+            >
+              <RefreshCw size={13} className={generating ? 'animate-spin' : ''} />
+            </button>
+            <button
+              onClick={onRevoke}
+              disabled={revoking}
+              title="Revoke link"
+              className="p-1.5 rounded-lg hover:bg-red-50 text-[#C4BFB6] hover:text-red-500 transition-colors disabled:opacity-40"
+            >
+              <Trash2 size={13} />
             </button>
           </div>
+        )}
+      </div>
 
-          {/* URL input */}
-          <div className="flex gap-2">
+      {link && (
+        <div className="space-y-2">
+          <div
+            className="flex items-center gap-2 bg-[#F5F2ED] border border-[#E5E0D8] rounded-lg px-3 py-2 cursor-pointer"
+            onClick={onSelectQr}
+            title="Click to show QR"
+          >
             <input
               ref={urlRef}
               type="text"
               readOnly
               value={shareUrl}
-              onClick={() => urlRef.current?.select()}
-              className="flex-1 text-xs bg-[#F5F2ED] border border-[#E5E0D8] rounded-lg px-3 py-2 text-[#1A1A1A] cursor-pointer"
+              onClick={(e) => { e.stopPropagation(); urlRef.current?.select() }}
+              className="flex-1 text-xs bg-transparent outline-none text-[#1A1A1A] cursor-pointer min-w-0"
             />
+            {isActiveQr && (
+              <span className="text-[10px] font-semibold text-[#D4550A] uppercase tracking-wide flex-shrink-0">QR</span>
+            )}
           </div>
 
-          {/* Action buttons */}
           <div className="flex gap-2">
             <button
-              onClick={handleCopy}
-              className="flex-1 flex items-center justify-center gap-1.5 text-sm py-2 border border-[#E5E0D8] rounded-lg hover:bg-[#F5F2ED] transition-colors"
+              onClick={onCopy}
+              className="flex-1 flex items-center justify-center gap-1.5 text-xs py-2 border border-[#E5E0D8] rounded-lg hover:bg-[#F5F2ED] transition-colors font-medium"
             >
-              <Copy size={14} />
+              <Copy size={12} />
               {copied ? 'Copied!' : 'Copy'}
             </button>
             <button
-              onClick={handleShare}
-              className="flex-1 flex items-center justify-center gap-1.5 text-sm py-2 border border-[#E5E0D8] rounded-lg hover:bg-[#F5F2ED] transition-colors"
+              onClick={onShare}
+              className="flex-1 flex items-center justify-center gap-1.5 text-xs py-2 border border-[#E5E0D8] rounded-lg hover:bg-[#F5F2ED] transition-colors font-medium"
             >
-              <Share2 size={14} />
+              <Share2 size={12} />
               Share
             </button>
           </div>
-
-          <hr className="border-[#E5E0D8]" />
-
-          {/* QR code */}
-          <div className="flex flex-col items-center gap-3">
-            <p className="text-xs text-[#C4BFB6] self-start">QR Code</p>
-            {qrDataUrl ? (
-              <img src={qrDataUrl} alt="QR code" className="rounded-lg border border-[#E5E0D8]" />
-            ) : (
-              <div className="w-[200px] h-[200px] bg-[#F5F2ED] rounded-lg animate-pulse" />
-            )}
-            <button
-              onClick={handleDownloadQR}
-              disabled={!qrDataUrl}
-              className="flex items-center gap-1.5 text-sm px-4 py-2 border border-[#E5E0D8] rounded-lg hover:bg-[#F5F2ED] transition-colors disabled:opacity-40"
-            >
-              <Download size={14} />
-              Download QR
-            </button>
-          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }
