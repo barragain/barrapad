@@ -575,20 +575,13 @@ export default function EditorComponent({
             <button
               ref={infoButtonRef}
               onClick={() => setShowInfo((v) => !v)}
-              className="rounded-xl transition-all flex items-center gap-1.5"
-              style={{
-                padding: '6px 12px',
-                color: showInfo ? '#D4550A' : 'var(--muted)',
-                background: showInfo ? '#D4550A1A' : 'var(--border)',
-                border: showInfo ? '1px solid #D4550A44' : '1px solid transparent',
-                fontSize: 12, fontWeight: 600, cursor: 'pointer',
-              }}
-              onMouseEnter={(e) => { if (!showInfo) e.currentTarget.style.color = 'var(--ink)' }}
-              onMouseLeave={(e) => { if (!showInfo) e.currentTarget.style.color = 'var(--muted)' }}
+              className="p-2 rounded-xl transition-all"
+              style={{ color: showInfo ? '#B8420A' : 'var(--muted)', opacity: showInfo ? 1 : 0.8 }}
+              onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.color = '#B8420A' }}
+              onMouseLeave={(e) => { if (!showInfo) { e.currentTarget.style.opacity = '0.8'; e.currentTarget.style.color = 'var(--muted)' } }}
               title="Note info"
             >
-              <Info size={14} />
-              Info
+              <Info size={22} />
             </button>
             {showInfo && (
               <InfoPopover
