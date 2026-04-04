@@ -98,7 +98,10 @@ export default function EditorComponent({
 
     if (sendTimerRef.current) clearTimeout(sendTimerRef.current)
     sendTimerRef.current = setTimeout(() => {
-      socketRef.current?.send(JSON.stringify({ type: 'update', content: html, title, ts: lastLocalChangeTimeRef.current }))
+      // Send JSON alongside HTML — JSON preserves all whitespace (spaces, trailing spaces)
+      // which the HTML serializer/parser would otherwise silently strip.
+      const contentJson = editorRef.current?.getJSON()
+      socketRef.current?.send(JSON.stringify({ type: 'update', content: html, contentJson, title, ts: lastLocalChangeTimeRef.current }))
     }, 50)
 
     pendingRef.current = { title, html }
@@ -156,6 +159,7 @@ export default function EditorComponent({
       type Msg = {
         type: 'sync' | 'update' | 'presence' | 'cursor' | 'cursor-leave' | 'tags'
         content?: string
+        contentJson?: Record<string, unknown>
         title?: string
         tags?: Tag[]
         cursors?: RemoteCursor[]
@@ -168,17 +172,15 @@ export default function EditorComponent({
         if (msg.content && msg.content !== '') {
           const safeToApply = ed && (msg.type === 'sync' || !isLocallyEditingRef.current)
           if (safeToApply) {
-            // Don't use getHTML() comparison — trailing spaces are stripped by the HTML
-            // serializer, causing space keystrokes to be silently dropped on the receiver side.
-            // Always apply; setContent with { emitUpdate: false } is safe and cheap.
             const { from, to } = ed!.state.selection
-            ed!.commands.setContent(msg.content, { emitUpdate: false })
+            // Prefer JSON over HTML — JSON preserves trailing spaces that HTML parsing strips
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            ed!.commands.setContent((msg.contentJson ?? msg.content) as any, { emitUpdate: false })
             const maxPos = ed!.state.doc.content.size
             try {
               ed!.commands.setTextSelection({ from: Math.min(from, maxPos), to: Math.min(to, maxPos) })
             } catch { /* position no longer valid */ }
-            // Keep sidebar title in sync with remote content changes
-            if (msg.title) onLocalChange(msg.title, msg.content)
+            if (msg.title) onLocalChange(msg.title, msg.content!)
           }
         }
         if (msg.type === 'sync' && msg.cursors) {
