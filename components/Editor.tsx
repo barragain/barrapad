@@ -67,6 +67,17 @@ const lowlight = createLowlight(common)
 
 const PARTYKIT_HOST = process.env.NEXT_PUBLIC_PARTYKIT_HOST ?? 'barrapad.barragain.partykit.dev'
 
+// If a node is selected (NodeSelection), move cursor to after the node so the
+// next insert appends rather than replacing the selected node.
+function deselect(ed: Editor | null) {
+  if (!ed) return
+  const sel = ed.state.selection
+  // NodeSelection has a `.node` property; TextSelection does not
+  if ('node' in sel && sel.node) {
+    ed.commands.setTextSelection(sel.to)
+  }
+}
+
 interface EditorProps {
   note: Note
   allTags: Tag[]
@@ -114,9 +125,7 @@ export default function EditorComponent({
   }, [user])
   const editorAreaRef = useRef<HTMLDivElement>(null)
   const editorContainerRef = useRef<HTMLDivElement>(null)
-  const sendPointerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [isEditorFocused, setIsEditorFocused] = useState(true)
-  const [remoteMouseCursors, setRemoteMouseCursors] = useState<RemoteCursor[]>([])
   const infoButtonRef = useRef<HTMLButtonElement>(null)
   const [showInfo, setShowInfo] = useState(false)
   const [wordCount, setWordCount] = useState(0)
@@ -202,12 +211,13 @@ export default function EditorComponent({
           if (file.type.startsWith('image/')) {
             reader.onload = (e) => {
               const result = e.target?.result as string
-              if (result) ed.chain().focus().setImage({ src: result }).run()
+              if (result) { deselect(ed); ed.chain().focus().setImage({ src: result }).run() }
             }
           } else {
             reader.onload = (e) => {
               const result = e.target?.result as string
               if (!result) return
+              deselect(ed)
               ed.chain().focus().insertFileAttachment({
                 name: file.name,
                 size: file.size,
@@ -233,7 +243,7 @@ export default function EditorComponent({
               const reader = new FileReader()
               reader.onload = (e) => {
                 const result = e.target?.result as string
-                if (result) ed.chain().focus().setImage({ src: result }).run()
+                if (result) { deselect(ed); ed.chain().focus().setImage({ src: result }).run() }
               }
               reader.readAsDataURL(file)
               return true
@@ -248,6 +258,7 @@ export default function EditorComponent({
               reader.onload = (e) => {
                 const result = e.target?.result as string
                 if (!result) return
+                deselect(ed)
                 ed.chain().focus().insertFileAttachment({
                   name: file.name,
                   size: file.size,
@@ -313,32 +324,6 @@ export default function EditorComponent({
       }, 50)
     },
   })
-
-  // Mouse tracking — sends pointer position to PartyKit for remote cursor overlay
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    const container = editorContainerRef.current
-    if (!container) return
-    const rect = container.getBoundingClientRect()
-    const mx = (e.clientX - rect.left) / rect.width
-    const my = (e.clientY - rect.top) / rect.height
-    if (sendPointerTimerRef.current) clearTimeout(sendPointerTimerRef.current)
-    sendPointerTimerRef.current = setTimeout(() => {
-      const ed = editorRef.current
-      if (!ed) return
-      const pos = ed.view.posAtCoords({ left: e.clientX, top: e.clientY })
-      // Fall back to current selection so cursor doesn't snap to doc-start when
-      // the mouse is over non-text areas (padding, margins, etc.)
-      const docPos = pos?.pos ?? ed.state.selection.from
-      socketRef.current?.send(JSON.stringify({
-        type: 'cursor',
-        from: docPos, to: docPos,
-        name: userNameRef.current,
-        color: myColorRef.current,
-        imageUrl: userImageRef.current,
-        mx, my,
-      }))
-    }, 80)
-  }, [])
 
   // Keep ref in sync
   useEffect(() => { editorRef.current = editor }, [editor])
@@ -417,32 +402,21 @@ export default function EditorComponent({
         if (msg.type === 'sync' && msg.cursors) {
           remoteCursorsRef.current.clear()
           for (const c of msg.cursors) remoteCursorsRef.current.set(c.id, c)
-          const cursors = [...remoteCursorsRef.current.values()]
-          if (ed) setCursors(ed, cursors)
-          setRemoteMouseCursors(cursors)
+          if (ed) setCursors(ed, [...remoteCursorsRef.current.values()])
         }
       }
 
       if (msg.type === 'cursor' && msg.id && msg.from !== undefined && msg.to !== undefined) {
-        const existing = remoteCursorsRef.current.get(msg.id)
         remoteCursorsRef.current.set(msg.id, {
-          ...existing,
           id: msg.id, from: msg.from, to: msg.to,
           name: msg.name ?? 'Guest', color: msg.color ?? '#888',
-          ...((msg as { mx?: number; my?: number }).mx !== undefined
-            ? { mx: (msg as { mx?: number; my?: number }).mx, my: (msg as { mx?: number; my?: number }).my }
-            : {}),
         })
-        const cursors = [...remoteCursorsRef.current.values()]
-        if (ed) setCursors(ed, cursors)
-        setRemoteMouseCursors(cursors)
+        if (ed) setCursors(ed, [...remoteCursorsRef.current.values()])
       }
 
       if (msg.type === 'cursor-leave' && msg.id) {
         remoteCursorsRef.current.delete(msg.id)
-        const cursors = [...remoteCursorsRef.current.values()]
-        if (ed) setCursors(ed, cursors)
-        setRemoteMouseCursors(cursors)
+        if (ed) setCursors(ed, [...remoteCursorsRef.current.values()])
       }
     })
 
@@ -700,6 +674,7 @@ export default function EditorComponent({
         fr.onload = (ev) => {
           const dataUrl = ev.target?.result as string
           if (!dataUrl || !editor) return
+          deselect(editor)
           editor.chain().focus().insertFileAttachment({
             name, size: blob.size, mimeType: recorder.mimeType, dataUrl,
           }).run()
@@ -731,12 +706,13 @@ export default function EditorComponent({
       if (file.type.startsWith('image/')) {
         reader.onload = (ev) => {
           const result = ev.target?.result as string
-          if (result) ed.chain().focus().setImage({ src: result }).run()
+          if (result) { deselect(ed); ed.chain().focus().setImage({ src: result }).run() }
         }
       } else {
         reader.onload = (ev) => {
           const result = ev.target?.result as string
           if (!result) return
+          deselect(ed)
           ed.chain().focus().insertFileAttachment({
             name: file.name,
             size: file.size,
@@ -797,7 +773,7 @@ export default function EditorComponent({
         onDrop={handleOuterDrop}
         onDragOver={(e) => e.preventDefault()}
       >
-        <div ref={editorContainerRef} className="editor-anim-border" style={{ maxWidth: 900, margin: '0 auto', position: 'relative' }} onMouseMove={handleMouseMove}>
+        <div ref={editorContainerRef} className="editor-anim-border" style={{ maxWidth: 900, margin: '0 auto', position: 'relative' }}>
           {/* Info button — snapped to the left border of the editor, popover opens right */}
           <div style={{ position: 'absolute', top: 10, left: 0, transform: 'translateX(-50%)', zIndex: 20 }}>
             <motion.button
@@ -836,33 +812,6 @@ export default function EditorComponent({
               )}
             </AnimatePresence>
           </div>
-          {/* Remote mouse cursors */}
-          {remoteMouseCursors.some(p => p.mx !== undefined) && (
-            <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'visible', zIndex: 50 }}>
-              {remoteMouseCursors.map((p) => {
-                if (p.mx === undefined || p.my === undefined) return null
-                return (
-                  <div key={p.id} style={{ position: 'absolute', left: `${p.mx * 100}%`, top: `${p.my * 100}%`, pointerEvents: 'none' }}>
-                    <svg width="16" height="20" viewBox="0 0 16 20" fill="none" style={{ display: 'block', filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.25))' }}>
-                      <path d="M1 1L6.5 17L9.5 10.5L16 8L1 1Z" fill={p.color} stroke="white" strokeWidth="1.5" strokeLinejoin="round" />
-                    </svg>
-                    <div style={{
-                      position: 'absolute', top: 14, left: 10,
-                      background: p.color, color: '#fff',
-                      fontSize: 10, fontWeight: 600,
-                      padding: '2px 6px', borderRadius: 4,
-                      whiteSpace: 'nowrap',
-                      fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                      lineHeight: 1.4,
-                      boxShadow: '0 1px 4px rgba(0,0,0,0.18)',
-                    }}>
-                      {p.name}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
           <div
             id="barrapad-editor-content"
             style={{ background: 'var(--editor-bg)', borderRadius: 11, WebkitTouchCallout: 'none' } as React.CSSProperties}
@@ -911,6 +860,7 @@ export default function EditorComponent({
                 reader.onload = (ev) => {
                   const result = ev.target?.result as string
                   if (!result) return
+                  deselect(editor)
                   editor.chain().focus().insertFileAttachment({
                     name: file.name,
                     size: file.size,

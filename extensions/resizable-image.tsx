@@ -55,7 +55,7 @@ function ResizableImageView({ node, updateAttributes, selected }: NodeViewProps)
     const ghost = document.createElement('div')
     ghost.textContent = label.length > 28 ? label.slice(0, 28) + '…' : label
     ghost.style.cssText = [
-      'position:fixed', 'top:-1000px', 'left:-1000px',
+      'position:fixed', 'top:0', 'left:-9999px',
       'background:#D4550A', 'color:white',
       'font:600 12px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
       'padding:5px 10px', 'border-radius:99px',
@@ -63,8 +63,8 @@ function ResizableImageView({ node, updateAttributes, selected }: NodeViewProps)
       'box-shadow:0 2px 8px rgba(212,85,10,0.35)',
     ].join(';')
     document.body.appendChild(ghost)
-    e.dataTransfer.setDragImage(ghost, -12, ghost.offsetHeight / 2 + 4)
-    setTimeout(() => ghost.remove(), 100)
+    e.dataTransfer.setDragImage(ghost, 0, Math.max(ghost.offsetHeight / 2, 8))
+    setTimeout(() => ghost.remove(), 0)
   }
 
   return (

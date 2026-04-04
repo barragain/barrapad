@@ -31,6 +31,8 @@ import TaskItem from '@tiptap/extension-task-item'
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
 import { common, createLowlight } from 'lowlight'
 import { GradientText } from '@/extensions/gradient-text'
+import { FileAttachment } from '@/extensions/file-attachment'
+import { ResizableImage } from '@/extensions/resizable-image'
 import { CollabCursor, setCursors, pickColor } from '@/extensions/collab-cursor'
 import type { RemoteCursor } from '@/extensions/collab-cursor'
 import Toolbar from './Toolbar'
@@ -53,6 +55,8 @@ const EXTENSIONS = [
   TaskItem.configure({ nested: true }),
   CodeBlockLowlight.configure({ lowlight }),
   GradientText,
+  FileAttachment,
+  ResizableImage,
   CollabCursor,
 ]
 
@@ -694,36 +698,7 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
           <div
             ref={editorContainerRef}
             style={{ borderRadius: 11, overflow: 'visible', background: 'var(--editor-bg, #F9F7F4)', position: 'relative' }}
-            onMouseMove={(e) => sendPointerRef(e.clientX, e.clientY)}
           >
-            {/* Remote mouse cursors */}
-            {presenceList.some(p => p.mx !== undefined) && (
-              <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'visible', zIndex: 50 }}>
-                {presenceList.map((p) => {
-                  if (p.mx === undefined || p.my === undefined) return null
-                  return (
-                    <div key={p.id} style={{ position: 'absolute', left: `${p.mx * 100}%`, top: `${p.my * 100}%`, pointerEvents: 'none' }}>
-                      <svg width="16" height="20" viewBox="0 0 16 20" fill="none" style={{ display: 'block', filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.25))' }}>
-                        <path d="M1 1L6.5 17L9.5 10.5L16 8L1 1Z" fill={p.color} stroke="white" strokeWidth="1.5" strokeLinejoin="round" />
-                      </svg>
-                      <div style={{
-                        position: 'absolute', top: 14, left: 10,
-                        background: p.color, color: '#fff',
-                        fontSize: 10, fontWeight: 600,
-                        padding: '2px 6px', borderRadius: 4,
-                        whiteSpace: 'nowrap',
-                        fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                        lineHeight: 1.4,
-                        boxShadow: '0 1px 4px rgba(0,0,0,0.18)',
-                      }}>
-                        {p.name}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-
             <div onContextMenu={handleContextMenu}>
               <EditorContent editor={editor} style={{ padding: '2rem', minHeight: '70vh' }} />
             </div>

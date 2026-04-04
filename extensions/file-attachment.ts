@@ -45,7 +45,20 @@ export const FileAttachment = Node.create<FileAttachmentOptions>({
   },
 
   parseHTML() {
-    return [{ tag: 'div[data-file-attachment]' }]
+    return [
+      {
+        tag: 'div[data-file-attachment]',
+        getAttrs: (el) => {
+          const div = el as HTMLDivElement
+          return {
+            name: div.getAttribute('data-name') ?? '',
+            size: parseInt(div.getAttribute('data-size') ?? '0', 10),
+            mimeType: div.getAttribute('data-mime-type') ?? 'application/octet-stream',
+            dataUrl: div.getAttribute('data-url') ?? '',
+          }
+        },
+      },
+    ]
   },
 
   renderHTML({ HTMLAttributes }) {
@@ -56,6 +69,7 @@ export const FileAttachment = Node.create<FileAttachmentOptions>({
         'data-name': HTMLAttributes.name,
         'data-size': HTMLAttributes.size,
         'data-mime-type': HTMLAttributes.mimeType,
+        'data-url': HTMLAttributes.dataUrl,
       }),
     ]
   },
