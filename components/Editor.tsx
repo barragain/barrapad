@@ -256,11 +256,11 @@ export default function EditorComponent({
       // Track what needs to be synced
       pendingRef.current = { title, html }
 
-      // Reset the 30s idle timer
+      // Reset the 1s idle timer
       if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
       autoSaveTimerRef.current = setTimeout(() => {
         flushAutoSave()
-      }, 30_000)
+      }, 1_000)
     },
     onBlur: () => {
       // Sync to API when editor loses focus (e.g. user clicks sidebar)

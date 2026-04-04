@@ -173,7 +173,7 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
         socketRef.current?.send(JSON.stringify({ type: 'update', content: html, title, ts: lastLocalChangeTimeRef.current }))
       }, 50) // tiny debounce to avoid per-keystroke sends
 
-      // 2. Persist to DB with a longer debounce
+      // 2. Persist to DB with a short debounce
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
       setSaveStatus('saving')
       saveTimerRef.current = setTimeout(async () => {
@@ -191,7 +191,7 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
             setTimeout(() => setSaveStatus('idle'), 2000)
           }
         } catch {}
-      }, 2000)
+      }, 1000)
     },
     onSelectionUpdate: ({ editor }) => {
       if (!canEditRef.current) return
