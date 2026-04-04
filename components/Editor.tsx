@@ -697,7 +697,12 @@ export default function EditorComponent({
           <div
             id="barrapad-editor-content"
             style={{ background: 'var(--editor-bg)', borderRadius: 11, WebkitTouchCallout: 'none' } as React.CSSProperties}
-            onClick={() => editor?.commands.focus()}
+            onClick={(e) => {
+              // Don't steal focus from inputs/textareas or any contentEditable=false
+              // NodeView (poll, footnote, etc.) — they manage their own focus
+              if ((e.target as HTMLElement).closest('[contenteditable="false"]')) return
+              editor?.commands.focus()
+            }}
             onContextMenu={handleContextMenu}
           >
             <EditorContent
