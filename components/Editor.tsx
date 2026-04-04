@@ -143,13 +143,15 @@ export default function EditorComponent({
       return
     }
     if (currentHtml !== note.content) {
-      ed.commands.setContent(note.content || '')
+      ed.commands.setContent(note.content || '', { emitUpdate: false })
     }
     pendingRef.current = null
     lastLocalChangeTimeRef.current = 0
     isLocallyEditingRef.current = false
     if (localEditTimeoutRef.current) clearTimeout(localEditTimeoutRef.current)
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
+    if (sendTimerRef.current) { clearTimeout(sendTimerRef.current); sendTimerRef.current = null }
+    if (sendCursorTimerRef.current) { clearTimeout(sendCursorTimerRef.current); sendCursorTimerRef.current = null }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [note.id])
 
