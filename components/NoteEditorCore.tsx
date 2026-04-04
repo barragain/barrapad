@@ -455,6 +455,11 @@ export default function NoteEditorCore({
                 ed.chain().focus().setTextSelection({ from: wordResult.from, to: wordResult.to }).insertContent(s).run()
                 setContextMenu(null)
                 try { ed.commands.setTextSelection(from) } catch {}
+                // Toggle spellcheck off then on so the browser re-evaluates
+                // all remaining underlines — programmatic insertContent() clears them.
+                const dom = ed.view.dom as HTMLElement
+                dom.spellcheck = false
+                requestAnimationFrame(() => { dom.spellcheck = true })
               },
             })
           })
