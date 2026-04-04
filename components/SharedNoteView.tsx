@@ -133,7 +133,8 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
 
     if (sendTimerRef.current) clearTimeout(sendTimerRef.current)
     sendTimerRef.current = setTimeout(() => {
-      socketRef.current?.send(JSON.stringify({ type: 'update', content: html, title, ts: lastLocalChangeTimeRef.current }))
+      const contentJson = editorRef.current?.getJSON()
+      socketRef.current?.send(JSON.stringify({ type: 'update', content: html, contentJson, title, ts: lastLocalChangeTimeRef.current }))
     }, 50)
 
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
@@ -181,8 +182,10 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
 
     socket.addEventListener('message', (evt) => {
       type AnyMsg = {
-        type: 'sync' | 'update' | 'presence' | 'cursor' | 'cursor-leave'
-        content?: string; title?: string; updatedAt?: string; connections?: number
+        type: 'sync' | 'update' | 'presence' | 'cursor' | 'cursor-leave' | 'tags' | 'title'
+        content?: string; contentJson?: Record<string, unknown>
+        title?: string; updatedAt?: string; connections?: number
+        tags?: import('@/types').Tag[]
         cursors?: RemoteCursor[]
         id?: string; from?: number; to?: number; name?: string; color?: string; imageUrl?: string
         ts?: number
@@ -203,15 +206,13 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
             msg.type === 'sync' ||
             !isLocallyEditingRef.current
           if (safeToApply) {
-            const current = ed.getHTML()
-            if (current !== msg.content) {
-              const { from, to } = ed.state.selection
-              ed.commands.setContent(msg.content, { emitUpdate: false })
-              const maxPos = ed.state.doc.content.size
-              try {
-                ed.commands.setTextSelection({ from: Math.min(from, maxPos), to: Math.min(to, maxPos) })
-              } catch { /* position no longer valid */ }
-            }
+            const { from, to } = ed.state.selection
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            ed.commands.setContent((msg.contentJson ?? msg.content) as any, { emitUpdate: false })
+            const maxPos = ed.state.doc.content.size
+            try {
+              ed.commands.setTextSelection({ from: Math.min(from, maxPos), to: Math.min(to, maxPos) })
+            } catch { /* position no longer valid */ }
           }
         }
         if (msg.content !== '') setLastUpdated(msg.updatedAt ?? lastUpdated)
