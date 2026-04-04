@@ -82,7 +82,7 @@ export default function TagInput({ tags, allTags, onChange, readOnly = false }: 
         <span
           key={tag.id}
           className="barrapad-tag-pill"
-          style={{ background: tag.color + '18', color: tag.color, border: `1px solid ${tag.color}40` }}
+          style={{ background: tag.color, color: '#fff', border: 'none' }}
         >
           {tag.label}
           {!readOnly && (
