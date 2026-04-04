@@ -7,6 +7,17 @@ function parseTags(raw: string): Tag[] {
   try { return JSON.parse(raw || '[]') } catch { return [] }
 }
 
+function broadcastTitleToParty(noteId: string, title: string) {
+  const partyHost = process.env.NEXT_PUBLIC_PARTYKIT_HOST ?? 'barrapad.barragain.partykit.dev'
+  const isLocal = partyHost.startsWith('localhost') || partyHost.startsWith('127.0.0.1')
+  const protocol = isLocal ? 'http' : 'https'
+  fetch(`${protocol}://${partyHost}/parties/main/${noteId}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type: 'title', title }),
+  }).catch(() => {})
+}
+
 async function verifyOwnership(noteId: string, userId: string) {
   const note = await prisma.note.findUnique({ where: { id: noteId } })
   if (!note) return null
@@ -35,6 +46,11 @@ export async function PATCH(
       ...(body.tags !== undefined && { tags: JSON.stringify(body.tags) }),
     },
   })
+
+  // If the title changed, broadcast to the PartyKit room so collaborators' editors update
+  if (body.title !== undefined && body.title !== owned.title) {
+    broadcastTitleToParty(params.id, body.title)
+  }
 
   return NextResponse.json({ ...note, tags: parseTags(note.tags) })
 }
