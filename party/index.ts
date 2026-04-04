@@ -1,7 +1,7 @@
 import type * as Party from 'partykit/server'
 
 type ClientMessage =
-  | { type: 'update'; content: string; title: string }
+  | { type: 'update'; content: string; title: string; ts?: number }
   | { type: 'cursor'; from: number; to: number; name: string; color: string; imageUrl?: string; mx?: number; my?: number }
 
 type CursorState = { id: string; from: number; to: number; name: string; color: string; imageUrl?: string; mx?: number; my?: number }
