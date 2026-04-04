@@ -154,8 +154,10 @@ export default function EditorComponent({
 
     socket.addEventListener('message', (evt) => {
       type Msg = {
-        type: 'sync' | 'update' | 'presence' | 'cursor' | 'cursor-leave'
+        type: 'sync' | 'update' | 'presence' | 'cursor' | 'cursor-leave' | 'tags'
         content?: string
+        title?: string
+        tags?: Tag[]
         cursors?: RemoteCursor[]
         id?: string; from?: number; to?: number; name?: string; color?: string; ts?: number
       }
@@ -166,15 +168,17 @@ export default function EditorComponent({
         if (msg.content && msg.content !== '') {
           const safeToApply = ed && (msg.type === 'sync' || !isLocallyEditingRef.current)
           if (safeToApply) {
-            const current = ed!.getHTML()
-            if (current !== msg.content) {
-              const { from, to } = ed!.state.selection
-              ed!.commands.setContent(msg.content, { emitUpdate: false })
-              const maxPos = ed!.state.doc.content.size
-              try {
-                ed!.commands.setTextSelection({ from: Math.min(from, maxPos), to: Math.min(to, maxPos) })
-              } catch { /* position no longer valid */ }
-            }
+            // Don't use getHTML() comparison — trailing spaces are stripped by the HTML
+            // serializer, causing space keystrokes to be silently dropped on the receiver side.
+            // Always apply; setContent with { emitUpdate: false } is safe and cheap.
+            const { from, to } = ed!.state.selection
+            ed!.commands.setContent(msg.content, { emitUpdate: false })
+            const maxPos = ed!.state.doc.content.size
+            try {
+              ed!.commands.setTextSelection({ from: Math.min(from, maxPos), to: Math.min(to, maxPos) })
+            } catch { /* position no longer valid */ }
+            // Keep sidebar title in sync with remote content changes
+            if (msg.title) onLocalChange(msg.title, msg.content)
           }
         }
         if (msg.type === 'sync' && msg.cursors) {
@@ -182,6 +186,11 @@ export default function EditorComponent({
           for (const c of msg.cursors) remoteCursorsRef.current.set(c.id, c)
           if (ed) setCursors(ed, [...remoteCursorsRef.current.values()])
         }
+      }
+
+      // Tags sync — apply remote tag changes to local state
+      if (msg.type === 'tags' && msg.tags) {
+        onTagsChange(msg.tags)
       }
 
       if (msg.type === 'cursor' && msg.id && msg.from !== undefined && msg.to !== undefined) {
@@ -250,6 +259,12 @@ export default function EditorComponent({
     return () => window.removeEventListener('barrapad:save', handler)
   }, [handleManualSave])
 
+  // ── Tags sync ─────────────────────────────────────────────────────────────
+  const handleTagsChangeWithSync = useCallback((tags: Tag[]) => {
+    onTagsChange(tags)
+    socketRef.current?.send(JSON.stringify({ type: 'tags', tags }))
+  }, [onTagsChange])
+
   // ── Render ────────────────────────────────────────────────────────────────
   const editable = !note.sharedToken || note.sharedPermission === 'EDIT'
 
@@ -268,7 +283,7 @@ export default function EditorComponent({
         { label: 'Updated', value: formatDate(note.updatedAt) },
       ]}
       bottomSlot={
-        <TagInput tags={note.tags ?? []} allTags={allTags} onChange={onTagsChange} />
+        <TagInput tags={note.tags ?? []} allTags={allTags} onChange={handleTagsChangeWithSync} />
       }
     />
   )

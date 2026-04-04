@@ -242,9 +242,14 @@ export default function Sidebar({
                   }}
                 />
               ) : (
-                <p className="text-xs font-medium text-[#1A1A1A] truncate leading-tight">
-                  {note.title || 'Untitled'}
-                </p>
+                <div className="flex items-center gap-1 min-w-0">
+                  {note.sharedToken && (
+                    <Users size={9} className="flex-shrink-0" style={{ color: '#D4550A' }} />
+                  )}
+                  <p className="text-xs font-medium text-[#1A1A1A] truncate leading-tight">
+                    {note.title || 'Untitled'}
+                  </p>
+                </div>
               )}
               <p className="text-[10px] text-[#8A8178] leading-tight mt-0.5 line-clamp-2">
                 {getContentPreview(note)}
