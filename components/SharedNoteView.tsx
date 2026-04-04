@@ -661,7 +661,7 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '0 1rem 5rem' }}>
         <div className="editor-anim-border" style={{ marginTop: '1.5rem', position: 'relative' }}>
           {/* ⓘ Info button — snapped to left border of editor, popover opens right */}
-          <div style={{ position: 'absolute', top: 10, left: 0, transform: 'translateX(-50%)', zIndex: 60 }}>
+          <div style={{ position: 'absolute', top: 10, left: -16, transform: 'translateX(-50%)', zIndex: 60 }}>
             <button
               ref={infoRef}
               onClick={() => setShowInfo((v) => !v)}

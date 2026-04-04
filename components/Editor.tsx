@@ -775,7 +775,7 @@ export default function EditorComponent({
       >
         <div ref={editorContainerRef} className="editor-anim-border" style={{ maxWidth: 900, margin: '0 auto', position: 'relative' }}>
           {/* Info button — snapped to the left border of the editor, popover opens right */}
-          <div style={{ position: 'absolute', top: 10, left: 0, transform: 'translateX(-50%)', zIndex: 20 }}>
+          <div style={{ position: 'absolute', top: 10, left: -16, transform: 'translateX(-50%)', zIndex: 20 }}>
             <motion.button
               ref={infoButtonRef}
               onClick={() => setShowInfo((v) => !v)}
