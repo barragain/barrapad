@@ -20,15 +20,15 @@ function ResizableImageView({ node, updateAttributes, selected }: NodeViewProps)
   const startX = useRef(0)
   const startW = useRef(0)
   const imgRef = useRef<HTMLImageElement>(null)
-  const dragHandleRef = useRef<HTMLDivElement>(null)
-
-  // Register at document level (bubbling) so our ghost wins over Tiptap's setDragImage.
+  // Use data-image-view + closest() so we don't depend on ref forwarding.
+  // Registered at document level (last bubbling stop) to win over Tiptap's own
+  // setDragImage call which fires on the editor-div bubbling phase.
   useEffect(() => {
-    const el = dragHandleRef.current
-    if (!el) return
     const handler = (e: DragEvent) => {
-      if (!el.contains(e.target as globalThis.Node) && e.target !== el) return
-      const label = alt || title || 'Image'
+      const target = e.target as HTMLElement | null
+      const nodeEl = target?.closest<HTMLElement>('[data-image-view]')
+      if (!nodeEl) return
+      const label = (nodeEl.dataset.imageLabel ?? 'Image')
       const ghost = document.createElement('div')
       ghost.textContent = label.length > 28 ? label.slice(0, 28) + '…' : label
       ghost.style.cssText = [
@@ -45,7 +45,7 @@ function ResizableImageView({ node, updateAttributes, selected }: NodeViewProps)
     }
     document.addEventListener('dragstart', handler)
     return () => document.removeEventListener('dragstart', handler)
-  }, [alt, title])
+  }, [])
 
   const onResizeStart = useCallback(
     (e: React.MouseEvent) => {
@@ -78,8 +78,9 @@ function ResizableImageView({ node, updateAttributes, selected }: NodeViewProps)
   return (
     <NodeViewWrapper contentEditable={false}>
       <div
-        ref={dragHandleRef}
         data-drag-handle
+        data-image-view
+        data-image-label={alt || title || 'Image'}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         style={{
@@ -184,7 +185,11 @@ export const ResizableImage = Node.create({
   },
 
   addNodeView() {
-    return ReactNodeViewRenderer(ResizableImageView)
+    return ReactNodeViewRenderer(ResizableImageView, {
+      // Make Tiptap's outer wrapper div inline-block so it doesn't span the full
+      // editor width when the browser uses it as the default drag image.
+      attrs: { style: 'display: inline-block' },
+    })
   },
 
   addCommands() {

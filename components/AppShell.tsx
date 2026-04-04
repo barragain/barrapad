@@ -138,17 +138,23 @@ export default function AppShell() {
   const handleLocalChange = useCallback((title: string, content: string) => {
     if (!activeNoteId || activeNoteId.startsWith('temp-')) return
     updateNotes((prev) =>
-      prev.map((n) =>
-        n.id === activeNoteId
-          ? { ...n, title, content, updatedAt: new Date().toISOString() }
-          : n
-      )
+      prev.map((n) => {
+        if (n.id !== activeNoteId) return n
+        // Only auto-update title from content if the note hasn't been manually
+        // renamed (i.e. title is still the default 'Untitled' or blank).
+        const useTitle = !n.title || n.title === 'Untitled' ? title : n.title
+        return { ...n, title: useTitle, content, updatedAt: new Date().toISOString() }
+      })
     )
   }, [activeNoteId, updateNotes])
 
   /** Background sync to API — triggered by blur / tab switch / 30s idle */
-  const handleAutoSave = useCallback(async (title: string, content: string) => {
+  const handleAutoSave = useCallback(async (contentTitle: string, content: string) => {
     if (!activeNoteId || activeNoteId.startsWith('temp-')) return
+    // Use the note's stored title if it was manually renamed; fall back to
+    // the content-derived title only for new (Untitled) notes.
+    const storedTitle = notes.find(n => n.id === activeNoteId)?.title
+    const title = storedTitle && storedTitle !== 'Untitled' ? storedTitle : contentTitle
     setAutoSaving(true)
     try {
       await fetch(`/api/notes/${activeNoteId}`, {
@@ -158,7 +164,7 @@ export default function AppShell() {
       })
     } catch {}
     setAutoSaving(false)
-  }, [activeNoteId])
+  }, [activeNoteId, notes])
 
   /** Deduplicated list of all tags across all notes — passed to TagInput for suggestions */
   const allTags = useMemo<Tag[]>(() => {

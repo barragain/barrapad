@@ -437,6 +437,25 @@ export default function EditorComponent({
     return () => document.removeEventListener('visibilitychange', handler)
   }, [flushAutoSave])
 
+  // Save synchronously before the page unloads (reload, close, navigate away).
+  // Regular async fetch is cancelled on unload; synchronous XHR still completes.
+  useEffect(() => {
+    const handler = () => {
+      if (!pendingRef.current || note.id.startsWith('temp-')) return
+      const { title, html } = pendingRef.current
+      try {
+        const xhr = new XMLHttpRequest()
+        xhr.open('PATCH', `/api/notes/${note.id}`, false) // false = synchronous
+        xhr.setRequestHeader('Content-Type', 'application/json')
+        xhr.send(JSON.stringify({ title, content: html }))
+      } catch { /* best-effort */ }
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  // note.id is stable; pendingRef is a ref (no re-subscribe needed)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [note.id])
+
   // Manual save — triggered by the Save button
   const handleManualSave = useCallback(() => {
     if (!editor) return
@@ -775,12 +794,13 @@ export default function EditorComponent({
       >
         <div ref={editorContainerRef} className="editor-anim-border" style={{ maxWidth: 900, margin: '0 auto', position: 'relative' }}>
           {/* Info button — snapped to the left border of the editor, popover opens right */}
-          <div style={{ position: 'absolute', top: 10, left: -16, transform: 'translateX(-50%)', zIndex: 20 }}>
+          <div style={{ position: 'absolute', top: 10, left: -28, transform: 'translateX(-50%)', zIndex: 20 }}>
             <motion.button
               ref={infoButtonRef}
               onClick={() => setShowInfo((v) => !v)}
               className="p-2 rounded-xl"
               style={{ color: showInfo ? '#7A2C06' : '#D4550A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              initial={{ rotate: 0, backgroundColor: 'rgba(0,0,0,0)' }}
               animate={{
                 rotate: showInfo ? 22 : 0,
                 backgroundColor: showInfo ? 'rgba(212, 85, 10, 0.13)' : 'rgba(0,0,0,0)',
@@ -792,25 +812,29 @@ export default function EditorComponent({
             >
               <Info size={22} />
             </motion.button>
-            <AnimatePresence>
-              {showInfo && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.88, x: -8 }}
-                  animate={{ opacity: 1, scale: 1, x: 0 }}
-                  exit={{ opacity: 0, scale: 0.9, x: -6, transition: { duration: 0.13, ease: [0.4, 0, 1, 1] } }}
-                  transition={{ type: 'spring', stiffness: 480, damping: 26, mass: 0.55 }}
-                  style={{ transformOrigin: 'top left' }}
-                >
-                  <InfoPopover
-                    note={note}
-                    wordCount={wordCount}
-                    charCount={charCount}
-                    onClose={() => setShowInfo(false)}
-                    anchorRef={infoButtonRef}
-                  />
-                </motion.div>
-              )}
-            </AnimatePresence>
+            {/* Popover is positioned absolutely so it never participates in flow
+                and cannot cause the button above to shift position */}
+            <div style={{ position: 'absolute', top: 0, left: '100%', paddingLeft: 12, zIndex: 50 }}>
+              <AnimatePresence>
+                {showInfo && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.92 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.94, transition: { duration: 0.12 } }}
+                    transition={{ type: 'spring', stiffness: 480, damping: 26, mass: 0.55 }}
+                    style={{ transformOrigin: 'top left' }}
+                  >
+                    <InfoPopover
+                      note={note}
+                      wordCount={wordCount}
+                      charCount={charCount}
+                      onClose={() => setShowInfo(false)}
+                      anchorRef={infoButtonRef}
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
           <div
             id="barrapad-editor-content"

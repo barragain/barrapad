@@ -78,7 +78,11 @@ export const FileAttachment = Node.create<FileAttachmentOptions>({
     // Dynamic import to avoid SSR issues
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { default: FileAttachmentView } = require('../components/FileAttachmentView')
-    return ReactNodeViewRenderer(FileAttachmentView as Parameters<typeof ReactNodeViewRenderer>[0])
+    return ReactNodeViewRenderer(FileAttachmentView as Parameters<typeof ReactNodeViewRenderer>[0], {
+      // Make Tiptap's outer wrapper div inline-flex so it doesn't span the full
+      // editor width when the browser uses it as the default drag image.
+      attrs: { style: 'display: inline-flex' },
+    })
   },
 
   addCommands() {

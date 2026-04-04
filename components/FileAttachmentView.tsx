@@ -238,22 +238,23 @@ export default function FileAttachmentView({ node, updateAttributes, selected }:
   }
 
   const isAudio = mimeType.startsWith('audio/')
-  const wrapperRef = useRef<HTMLElement>(null)
 
-  // Register at document level (bubbling) so our ghost wins over Tiptap's
-  // setDragImage call, which fires in the editor-div bubbling phase before us.
+  // Use data-file-attachment-view + closest() so we don't depend on ref forwarding.
+  // Registered at document level (last bubbling stop) to win over Tiptap's own
+  // setDragImage call which fires on the editor-div bubbling phase.
   useEffect(() => {
-    const el = wrapperRef.current
-    if (!el) return
     const handler = (e: DragEvent) => {
-      if (!el.contains(e.target as globalThis.Node) && e.target !== el) return
-      const ghost = makeDragGhost(name)
+      const target = e.target as HTMLElement | null
+      const nodeEl = target?.closest<HTMLElement>('[data-file-attachment-view]')
+      if (!nodeEl) return
+      const fileName = nodeEl.dataset.fileName ?? 'File'
+      const ghost = makeDragGhost(fileName)
       e.dataTransfer?.setDragImage(ghost, 0, Math.max(ghost.offsetHeight / 2, 8))
       setTimeout(() => ghost.remove(), 0)
     }
     document.addEventListener('dragstart', handler)
     return () => document.removeEventListener('dragstart', handler)
-  }, [name])
+  }, [])
 
   const handleRename = (newName: string) => updateAttributes({ name: newName })
 
@@ -268,10 +269,9 @@ export default function FileAttachmentView({ node, updateAttributes, selected }:
 
   return (
     <NodeViewWrapper
-      ref={wrapperRef}
       as="div"
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      {...({ 'data-drag-handle': true } as any)}
+      {...({ 'data-drag-handle': true, 'data-file-attachment-view': true, 'data-file-name': name } as any)}
       contentEditable={false}
       style={{ display: 'inline-flex', alignItems: 'center', margin: '4px 0', cursor: 'grab', width: 'fit-content' }}
     >
