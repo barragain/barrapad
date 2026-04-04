@@ -443,12 +443,17 @@ export default function NoteEditorCore({
             spellItems.push({
               type: 'item', label: s, icon: <Wand2 size={13} />,
               onClick: () => {
+                const { from } = ed.state.selection
                 ed.chain().focus().setTextSelection({ from: wordResult.from, to: wordResult.to }).insertContent(s).run()
                 setContextMenu(null)
-                // Force browser spell-check to re-evaluate the whole document
+                // Blur then refocus — the only reliable way to make the browser
+                // re-evaluate spell-check after a programmatic text change
                 const dom = ed.view.dom as HTMLElement
-                dom.spellcheck = false
-                requestAnimationFrame(() => { dom.spellcheck = true })
+                dom.blur()
+                setTimeout(() => {
+                  dom.focus()
+                  try { ed.commands.setTextSelection(from) } catch {}
+                }, 0)
               },
             })
           })
