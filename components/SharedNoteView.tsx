@@ -680,7 +680,7 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
             <div onContextMenu={handleContextMenu}>
               <EditorContent editor={editor} style={{ padding: '2rem', minHeight: '70vh' }} />
             </div>
-            <div style={{ padding: '0 2rem 1rem' }}>
+            <div style={{ padding: '0.5rem 2rem 2rem' }}>
               <TagInput
                 tags={tags}
                 allTags={tags}

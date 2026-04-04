@@ -854,7 +854,7 @@ export default function EditorComponent({
               }}
             />
           </div>
-          <div style={{ padding: '0 2rem 1rem' }}>
+          <div style={{ padding: '0.5rem 2rem 2rem' }}>
             <TagInput
               tags={note.tags ?? []}
               allTags={allTags}
