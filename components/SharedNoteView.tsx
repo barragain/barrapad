@@ -38,7 +38,7 @@ import Toolbar from './Toolbar'
 const lowlight = createLowlight(common)
 
 const EXTENSIONS = [
-  StarterKit.configure({ codeBlock: false }),
+  StarterKit.configure({ codeBlock: false, dropcursor: { color: '#D4550A', width: 4 } }),
   Underline,
   Link.configure({ openOnClick: true, autolink: true }),
   TextStyle,

@@ -49,18 +49,37 @@ function ResizableImageView({ node, updateAttributes, selected }: NodeViewProps)
   const justify = align === 'center' ? 'center' : align === 'right' ? 'flex-end' : 'flex-start'
   const showHandle = selected || hovered || resizing
 
+  const handleDragStart = (e: React.DragEvent) => {
+    // Compact pill ghost so the drop cursor stays visible
+    const label = alt || title || 'Image'
+    const ghost = document.createElement('div')
+    ghost.textContent = label.length > 28 ? label.slice(0, 28) + '…' : label
+    ghost.style.cssText = [
+      'position:fixed', 'top:-1000px', 'left:-1000px',
+      'background:#D4550A', 'color:white',
+      'font:600 12px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
+      'padding:5px 10px', 'border-radius:99px',
+      'white-space:nowrap', 'pointer-events:none',
+      'box-shadow:0 2px 8px rgba(212,85,10,0.35)',
+    ].join(';')
+    document.body.appendChild(ghost)
+    e.dataTransfer.setDragImage(ghost, -12, ghost.offsetHeight / 2 + 4)
+    setTimeout(() => ghost.remove(), 100)
+  }
+
   return (
     <NodeViewWrapper contentEditable={false}>
       <div
         data-drag-handle
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
+        onDragStart={handleDragStart}
         style={{
           display: 'flex',
           justifyContent: justify,
           paddingBlock: '2px',
           userSelect: 'none',
-          cursor: resizing ? 'ew-resize' : 'default',
+          cursor: resizing ? 'ew-resize' : 'grab',
         }}
       >
         <div style={{ position: 'relative', display: 'inline-block' }}>

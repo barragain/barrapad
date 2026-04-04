@@ -3,7 +3,22 @@
 import { useState, useRef } from 'react'
 import { NodeViewWrapper } from '@tiptap/react'
 import type { NodeViewProps } from '@tiptap/react'
-import { FileText, Archive, File, GripVertical, Mic, Play, Pause, Download, Pencil } from 'lucide-react'
+import { FileText, Archive, File, Mic, Play, Pause, Download, Pencil } from 'lucide-react'
+
+function makeDragGhost(label: string): HTMLElement {
+  const el = document.createElement('div')
+  el.textContent = label.length > 28 ? label.slice(0, 28) + '…' : label
+  el.style.cssText = [
+    'position:fixed', 'top:-1000px', 'left:-1000px',
+    'background:#D4550A', 'color:white',
+    'font:600 12px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
+    'padding:5px 10px', 'border-radius:99px',
+    'white-space:nowrap', 'pointer-events:none',
+    'box-shadow:0 2px 8px rgba(212,85,10,0.35)',
+  ].join(';')
+  document.body.appendChild(el)
+  return el
+}
 
 function formatSize(bytes: number): string {
   if (bytes >= 1024 * 1024) {
@@ -234,26 +249,22 @@ export default function FileAttachmentView({ node, updateAttributes, selected }:
     document.body.removeChild(a)
   }
 
+  const handleDragStart = (e: React.DragEvent) => {
+    const ghost = makeDragGhost(name)
+    e.dataTransfer.setDragImage(ghost, -12, ghost.offsetHeight / 2 + 4)
+    // Clean up ghost after drag ends (small delay to ensure browser captured it)
+    setTimeout(() => ghost.remove(), 100)
+  }
+
   return (
     <NodeViewWrapper
       as="div"
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      {...({ 'data-drag-handle': true } as any)}
       contentEditable={false}
-      style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: '4px 0' }}
+      onDragStart={handleDragStart}
+      style={{ display: 'inline-flex', alignItems: 'center', margin: '4px 0', cursor: 'grab' }}
     >
-      <div
-        data-drag-handle
-        style={{
-          cursor: 'grab',
-          color: 'var(--muted)',
-          display: 'flex',
-          alignItems: 'center',
-          flexShrink: 0,
-          padding: '2px',
-        }}
-      >
-        <GripVertical size={16} />
-      </div>
-
       {isAudio ? (
         <AudioPlayer name={name} size={size} dataUrl={dataUrl} onRename={handleRename} selected={selected} />
       ) : (

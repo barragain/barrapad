@@ -159,7 +159,10 @@ export default function EditorComponent({
 
   const editor = useEditor({
     extensions: [
-      StarterKit.configure({ codeBlock: false }),
+      StarterKit.configure({
+        codeBlock: false,
+        dropcursor: { color: '#D4550A', width: 4 },
+      }),
       Underline,
       Link.configure({ openOnClick: false, autolink: true }),
       TextStyle,
