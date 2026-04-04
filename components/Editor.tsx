@@ -85,6 +85,8 @@ export default function EditorComponent({
   const socketRef = useRef<PartySocket | null>(null)
   const sendTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const sendCursorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Tracks when the user last made a local edit — used to reject stale remote content
+  const lastLocalChangeTimeRef = useRef(0)
   const prevNoteIdRef = useRef<string>(note.id)
   const remoteCursorsRef = useRef<Map<string, RemoteCursor>>(new Map())
   const myColorRef = useRef(pickColor(Math.random().toString()))
@@ -242,10 +244,13 @@ export default function EditorComponent({
       // Immediate: update localStorage, no network
       onLocalChange(title, html)
 
+      // Record when this local change happened — used to reject stale remote content
+      lastLocalChangeTimeRef.current = Date.now()
+
       // Broadcast to PartyKit for real-time sync with share-link viewers
       if (sendTimerRef.current) clearTimeout(sendTimerRef.current)
       sendTimerRef.current = setTimeout(() => {
-        socketRef.current?.send(JSON.stringify({ type: 'update', content: html, title }))
+        socketRef.current?.send(JSON.stringify({ type: 'update', content: html, title, ts: lastLocalChangeTimeRef.current }))
       }, 50)
 
       // Track what needs to be synced
@@ -298,6 +303,7 @@ export default function EditorComponent({
     }
     // Reset pending state when switching notes
     pendingRef.current = null
+    lastLocalChangeTimeRef.current = 0
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [note.id])
@@ -316,15 +322,27 @@ export default function EditorComponent({
         cursors?: RemoteCursor[]
         id?: string
         from?: number; to?: number; name?: string; color?: string
+        ts?: number
       }
       const msg = JSON.parse(evt.data as string) as Msg
       const ed = editorRef.current
 
       if (msg.type === 'sync' || msg.type === 'update') {
         if (msg.content && msg.content !== '') {
-          if (ed && !ed.isFocused) {
-            const current = ed.getHTML()
-            if (current !== msg.content) ed.commands.setContent(msg.content, { emitUpdate: false })
+          const msgTs = msg.ts ?? 0
+          // Only apply remote content when ALL of these are true:
+          // 1. Editor is not focused (user isn't actively typing)
+          // 2. No unsaved local changes (pendingRef would be set if user typed recently)
+          // 3. The remote message is not older than the last local edit
+          //    (prevents a stale phone version from wiping out newer desktop edits)
+          const safeToApply =
+            ed &&
+            !ed.isFocused &&
+            !pendingRef.current &&
+            msgTs >= lastLocalChangeTimeRef.current
+          if (safeToApply) {
+            const current = ed!.getHTML()
+            if (current !== msg.content) ed!.commands.setContent(msg.content, { emitUpdate: false })
           }
         }
         // Initialise cursors from sync snapshot
