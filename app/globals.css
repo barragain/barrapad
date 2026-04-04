@@ -85,6 +85,11 @@ body {
   background: var(--editor-bg);
 }
 
+/* Drop cursor — keep the indicator above dragged node views */
+.ProseMirror-dropcursor {
+  z-index: 100;
+}
+
 /* Tiptap editor styles */
 .ProseMirror {
   outline: none;

@@ -42,7 +42,7 @@ export default function InfoPopover({ note, wordCount, charCount, onClose, ancho
   return (
     <div
       ref={popoverRef}
-      className="absolute top-full left-0 mt-2 z-50 rounded-xl shadow-xl w-72 text-sm"
+      className="absolute top-0 left-full ml-3 z-50 rounded-xl shadow-xl w-64 text-sm"
       style={{ background: 'var(--editor-bg)', border: '1px solid var(--border)' }}
     >
       <div className="p-4 space-y-2">

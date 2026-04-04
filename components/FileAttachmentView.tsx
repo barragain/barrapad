@@ -9,7 +9,8 @@ function makeDragGhost(label: string): HTMLElement {
   const el = document.createElement('div')
   el.textContent = label.length > 28 ? label.slice(0, 28) + '…' : label
   el.style.cssText = [
-    'position:fixed', 'top:-1000px', 'left:-1000px',
+    // Must be in viewport for offsetHeight to compute and setDragImage to work
+    'position:fixed', 'top:0', 'left:-9999px',
     'background:#D4550A', 'color:white',
     'font:600 12px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
     'padding:5px 10px', 'border-radius:99px',
@@ -251,9 +252,9 @@ export default function FileAttachmentView({ node, updateAttributes, selected }:
 
   const handleDragStart = (e: React.DragEvent) => {
     const ghost = makeDragGhost(name)
-    e.dataTransfer.setDragImage(ghost, -12, ghost.offsetHeight / 2 + 4)
-    // Clean up ghost after drag ends (small delay to ensure browser captured it)
-    setTimeout(() => ghost.remove(), 100)
+    // offsetHeight is synchronous after append; cursor sits at mid-left of pill
+    e.dataTransfer.setDragImage(ghost, 0, Math.max(ghost.offsetHeight / 2, 8))
+    setTimeout(() => ghost.remove(), 0)
   }
 
   return (

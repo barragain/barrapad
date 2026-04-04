@@ -506,6 +506,8 @@ export default function EditorComponent({
 
     // Find editor position at click
     const coords = editor.view.posAtCoords({ left: x, top: y })
+    // editorPos uses `inside` (node position) for node operations like setNodeSelection.
+    // textPos uses `pos` (text cursor position) for spell-check word detection.
     contextClickRef.current = { x, y, editorPos: coords?.inside ?? coords?.pos }
 
     // Context: blockquote / quote
@@ -631,9 +633,12 @@ export default function EditorComponent({
       return
     }
 
-    // Context 3: empty cursor / no selection — show spell suggestions if word is misspelled
-    const wordResult = contextClickRef.current.editorPos !== undefined
-      ? getWordAtPos(contextClickRef.current.editorPos)
+    // Context 3: empty cursor / no selection — show spell suggestions if word is misspelled.
+    // Use coords.pos (text cursor position), NOT coords.inside (node position) — inside
+    // returns the paragraph node's start position which resolves to the doc root and
+    // fails the node-type check in getWordAtPos.
+    const wordResult = coords?.pos !== undefined
+      ? getWordAtPos(coords.pos)
       : null
 
     const spellItems: ContextMenuItem[] = []
@@ -754,7 +759,7 @@ export default function EditorComponent({
             animate={{ opacity: 1, y: 0, scaleY: 1 }}
             exit={{ opacity: 0, y: -20, scaleY: 0.88, transition: { duration: 0.18, ease: [0.4, 0, 1, 1] } }}
             transition={{ type: 'spring', stiffness: 520, damping: 30, mass: 0.65 }}
-            style={{ transformOrigin: 'top', overflow: 'hidden' }}
+            style={{ transformOrigin: 'top', overflow: 'visible' }}
           >
             <Toolbar editor={editor} />
           </motion.div>
@@ -792,46 +797,45 @@ export default function EditorComponent({
         onDrop={handleOuterDrop}
         onDragOver={(e) => e.preventDefault()}
       >
-        {/* Info button — sits in the top-left padding area, never touching the border */}
-        <div style={{ position: 'absolute', top: 10, left: 10, zIndex: 20 }}>
-          <motion.button
-            ref={infoButtonRef}
-            onClick={() => setShowInfo((v) => !v)}
-            className="p-2 rounded-xl"
-            style={{ color: showInfo ? '#7A2C06' : '#D4550A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-            animate={{
-              rotate: showInfo ? 22 : 0,
-              backgroundColor: showInfo ? 'rgba(212, 85, 10, 0.13)' : 'rgba(0,0,0,0)',
-            }}
-            whileHover={{ scale: 1.15, backgroundColor: 'rgba(212, 85, 10, 0.09)' }}
-            whileTap={{ scale: 0.78, rotate: showInfo ? 0 : 30 }}
-            transition={{ type: 'spring', stiffness: 460, damping: 18, mass: 0.6 }}
-            title="Note info"
-          >
-            <Info size={22} />
-          </motion.button>
-          <AnimatePresence>
-            {showInfo && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.88, y: -8 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.9, y: -6, transition: { duration: 0.13, ease: [0.4, 0, 1, 1] } }}
-                transition={{ type: 'spring', stiffness: 480, damping: 26, mass: 0.55 }}
-                style={{ transformOrigin: 'top left' }}
-              >
-                <InfoPopover
-                  note={note}
-                  wordCount={wordCount}
-                  charCount={charCount}
-                  onClose={() => setShowInfo(false)}
-                  anchorRef={infoButtonRef}
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
         <div ref={editorContainerRef} className="editor-anim-border" style={{ maxWidth: 900, margin: '0 auto', position: 'relative' }} onMouseMove={handleMouseMove}>
+          {/* Info button — snapped to the left border of the editor, popover opens right */}
+          <div style={{ position: 'absolute', top: 10, left: 0, transform: 'translateX(-50%)', zIndex: 20 }}>
+            <motion.button
+              ref={infoButtonRef}
+              onClick={() => setShowInfo((v) => !v)}
+              className="p-2 rounded-xl"
+              style={{ color: showInfo ? '#7A2C06' : '#D4550A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              animate={{
+                rotate: showInfo ? 22 : 0,
+                backgroundColor: showInfo ? 'rgba(212, 85, 10, 0.13)' : 'rgba(0,0,0,0)',
+              }}
+              whileHover={{ scale: 1.15, backgroundColor: 'rgba(212, 85, 10, 0.09)' }}
+              whileTap={{ scale: 0.78, rotate: showInfo ? 0 : 30 }}
+              transition={{ type: 'spring', stiffness: 460, damping: 18, mass: 0.6 }}
+              title="Note info"
+            >
+              <Info size={22} />
+            </motion.button>
+            <AnimatePresence>
+              {showInfo && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.88, x: -8 }}
+                  animate={{ opacity: 1, scale: 1, x: 0 }}
+                  exit={{ opacity: 0, scale: 0.9, x: -6, transition: { duration: 0.13, ease: [0.4, 0, 1, 1] } }}
+                  transition={{ type: 'spring', stiffness: 480, damping: 26, mass: 0.55 }}
+                  style={{ transformOrigin: 'top left' }}
+                >
+                  <InfoPopover
+                    note={note}
+                    wordCount={wordCount}
+                    charCount={charCount}
+                    onClose={() => setShowInfo(false)}
+                    anchorRef={infoButtonRef}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
           {/* Remote mouse cursors */}
           {remoteMouseCursors.some(p => p.mx !== undefined) && (
             <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'visible', zIndex: 50 }}>
