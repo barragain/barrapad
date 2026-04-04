@@ -14,9 +14,15 @@ export async function GET() {
   const notes = await prisma.note.findMany({
     where: { userId },
     orderBy: { updatedAt: 'desc' },
+    include: { _count: { select: { shareLinks: { where: { revokedAt: null } } } } },
   })
 
-  return NextResponse.json(notes.map(n => ({ ...n, tags: parseTags(n.tags) })))
+  return NextResponse.json(notes.map(n => ({
+    ...n,
+    tags: parseTags(n.tags),
+    isShared: n._count.shareLinks > 0,
+    _count: undefined,
+  })))
 }
 
 export async function POST() {

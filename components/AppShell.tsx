@@ -647,7 +647,13 @@ export default function AppShell() {
 
       {/* Modals */}
       {showShare && activeNote && (
-        <ShareModal note={activeNote} onClose={() => setShowShare(false)} />
+        <ShareModal
+          note={activeNote}
+          onClose={() => setShowShare(false)}
+          onIsSharedChange={(hasLinks) =>
+            updateNotes(prev => prev.map(n => n.id === activeNote.id ? { ...n, isShared: hasLinks } : n))
+          }
+        />
       )}
       {showAppearance && (
         <AppearanceModal

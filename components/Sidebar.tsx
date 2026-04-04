@@ -12,7 +12,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import dynamic from 'next/dynamic'
-import { Users } from 'lucide-react'
+import { Users, Link2 } from 'lucide-react'
 import type { Note, Tag, SharedAccessRecord } from '@/types'
 import ContextMenu from './ContextMenu'
 
@@ -251,8 +251,8 @@ export default function Sidebar({
                 />
               ) : (
                 <div className="flex items-center gap-1 min-w-0">
-                  {note.sharedToken && (
-                    <Users size={9} className="flex-shrink-0" style={{ color: '#D4550A' }} />
+                  {note.isShared && (
+                    <Link2 size={9} className="flex-shrink-0" style={{ color: '#D4550A' }} />
                   )}
                   <p className="text-xs font-medium text-[#1A1A1A] truncate leading-tight">
                     {note.title || 'Untitled'}

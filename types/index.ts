@@ -12,6 +12,7 @@ export interface Note {
   tags: Tag[]
   createdAt: string
   updatedAt: string
+  isShared?: boolean        // owner's note that has at least one active share link
   // Set on shared notes opened inside the main editor (not present on own notes)
   sharedToken?: string
   sharedPermission?: 'READ' | 'EDIT'

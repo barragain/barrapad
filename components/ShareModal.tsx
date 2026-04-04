@@ -14,9 +14,10 @@ interface ShareLink {
 interface ShareModalProps {
   note: Note
   onClose: () => void
+  onIsSharedChange?: (hasLinks: boolean) => void
 }
 
-export default function ShareModal({ note, onClose }: ShareModalProps) {
+export default function ShareModal({ note, onClose, onIsSharedChange }: ShareModalProps) {
   const [links, setLinks] = useState<{ READ: ShareLink | null; EDIT: ShareLink | null }>({ READ: null, EDIT: null })
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState<'READ' | 'EDIT' | null>(null)
@@ -78,7 +79,11 @@ export default function ShareModal({ note, onClose }: ShareModalProps) {
       })
       if (!res.ok) return
       const link = (await res.json()) as ShareLink
-      setLinks((prev) => ({ ...prev, [permission]: link }))
+      setLinks((prev) => {
+        const next = { ...prev, [permission]: link }
+        onIsSharedChange?.(!!next.READ || !!next.EDIT)
+        return next
+      })
     } finally {
       setGenerating(null)
     }
@@ -90,7 +95,11 @@ export default function ShareModal({ note, onClose }: ShareModalProps) {
     setRevoking(link.token)
     try {
       await fetch(`/api/share/${link.token}`, { method: 'DELETE' })
-      setLinks((prev) => ({ ...prev, [permission]: null }))
+      setLinks((prev) => {
+        const next = { ...prev, [permission]: null }
+        onIsSharedChange?.(!!next.READ || !!next.EDIT)
+        return next
+      })
       if (activeQr === permission) setActiveQr(null)
     } finally {
       setRevoking(null)
