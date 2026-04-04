@@ -59,8 +59,8 @@ function loadCachedNotes(): Note[] {
 
 function saveCachedNotes(notes: Note[]) {
   try {
-    // Don't cache temp notes
-    const real = notes.filter((n) => !n.id.startsWith('temp-'))
+    // Don't cache temp notes or shared notes (they're not the user's own)
+    const real = notes.filter((n) => !n.id.startsWith('temp-') && !n.sharedToken)
     localStorage.setItem('barrapad_notes', JSON.stringify(real))
   } catch {}
 }
@@ -116,7 +116,7 @@ export default function AppShell() {
         setNotes(data)
         saveCachedNotes(data)
         setActiveNoteId((prev) => {
-          if (prev && data.some((n) => n.id === prev)) return prev
+          if (prev && (prev.startsWith('shared-') || data.some((n) => n.id === prev))) return prev
           return data[0]?.id ?? null
         })
       }
@@ -125,6 +125,57 @@ export default function AppShell() {
       }
     } catch {}
   }
+
+  /** Open a shared note in the main editor by token */
+  const openSharedNote = useCallback(async (token: string) => {
+    const virtualId = `shared-${token}`
+    // Already loaded — just switch to it
+    setNotes((prev) => {
+      if (prev.some((n) => n.id === virtualId)) return prev
+      return prev // will be populated after fetch below
+    })
+    const existing = notes.find((n) => n.id === virtualId)
+    if (existing) { setActiveNoteId(virtualId); return }
+
+    try {
+      const res = await fetch(`/api/share/${token}`)
+      if (!res.ok) return
+      const data = await res.json() as {
+        noteId: string; title: string; content: string
+        tags: import('@/types').Tag[]; permission: string; updatedAt: string
+      }
+      const note: Note = {
+        id: virtualId,
+        userId: '',
+        title: data.title,
+        content: data.content,
+        tags: data.tags ?? [],
+        createdAt: data.updatedAt,
+        updatedAt: data.updatedAt,
+        sharedToken: token,
+        sharedPermission: data.permission as 'READ' | 'EDIT',
+        sharedNoteId: data.noteId,
+      }
+      setNotes((prev) => {
+        if (prev.some((n) => n.id === virtualId)) return prev
+        return [...prev, note]
+      })
+      setActiveNoteId(virtualId)
+    } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notes])
+
+  // Open a shared note from ?shared=<token> URL param on first load
+  useEffect(() => {
+    if (!isLoaded) return
+    const params = new URLSearchParams(window.location.search)
+    const token = params.get('shared')
+    if (token) {
+      window.history.replaceState({}, '', '/')
+      openSharedNote(token)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoaded])
 
   const updateNotes = useCallback((updater: (prev: Note[]) => Note[]) => {
     setNotes((prev) => {
@@ -151,10 +202,25 @@ export default function AppShell() {
   /** Background sync to API — triggered by blur / tab switch / 30s idle */
   const handleAutoSave = useCallback(async (contentTitle: string, content: string) => {
     if (!activeNoteId || activeNoteId.startsWith('temp-')) return
-    // Use the note's stored title if it was manually renamed; fall back to
-    // the content-derived title only for new (Untitled) notes.
-    const storedTitle = notes.find(n => n.id === activeNoteId)?.title
+    const activeNote = notes.find(n => n.id === activeNoteId)
+    if (!activeNote) return
+
+    const storedTitle = activeNote.title
     const title = storedTitle && storedTitle !== 'Untitled' ? storedTitle : contentTitle
+
+    // Shared note — save via share API
+    if (activeNote.sharedToken) {
+      if (activeNote.sharedPermission !== 'EDIT') return
+      try {
+        await fetch(`/api/share/${activeNote.sharedToken}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title, content }),
+        })
+      } catch {}
+      return
+    }
+
     setAutoSaving(true)
     try {
       await fetch(`/api/notes/${activeNoteId}`, {
@@ -180,7 +246,19 @@ export default function AppShell() {
   /** Save tags for the active note — fires immediately (no debounce, discrete operation) */
   const handleTagsChange = useCallback(async (tags: Tag[]) => {
     if (!activeNoteId || activeNoteId.startsWith('temp-')) return
+    const activeNote = notes.find(n => n.id === activeNoteId)
     updateNotes(prev => prev.map(n => n.id === activeNoteId ? { ...n, tags } : n))
+    if (activeNote?.sharedToken) {
+      if (activeNote.sharedPermission !== 'EDIT') return
+      try {
+        await fetch(`/api/share/${activeNote.sharedToken}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tags }),
+        })
+      } catch {}
+      return
+    }
     try {
       await fetch(`/api/notes/${activeNoteId}`, {
         method: 'PATCH',
@@ -188,11 +266,23 @@ export default function AppShell() {
         body: JSON.stringify({ tags }),
       })
     } catch {}
-  }, [activeNoteId, updateNotes])
+  }, [activeNoteId, notes, updateNotes])
 
   /** Manual save — triggered by the Save button */
   const handleManualSaveContent = useCallback(async (title: string, content: string) => {
     if (!activeNoteId || activeNoteId.startsWith('temp-')) return
+    const activeNote = notes.find(n => n.id === activeNoteId)
+    if (activeNote?.sharedToken) {
+      if (activeNote.sharedPermission !== 'EDIT') return
+      try {
+        await fetch(`/api/share/${activeNote.sharedToken}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title, content }),
+        })
+      } catch {}
+      return
+    }
     setManualSaving(true)
     try {
       await fetch(`/api/notes/${activeNoteId}`, {
@@ -202,7 +292,7 @@ export default function AppShell() {
       })
     } catch {}
     setManualSaving(false)
-  }, [activeNoteId])
+  }, [activeNoteId, notes])
 
   const handleNewNote = async () => {
     const tempId = `temp-${Date.now()}`
@@ -329,6 +419,7 @@ export default function AppShell() {
           onDeleteNote={handleDeleteNote}
           onOpenSettings={() => setShowAppearance(true)}
           onRenameNote={handleRenameNote}
+          onOpenSharedNote={openSharedNote}
         />
       </div>
 
@@ -351,6 +442,7 @@ export default function AppShell() {
               onDeleteNote={handleDeleteNote}
               onOpenSettings={() => { setShowAppearance(true); setSidebarOpen(false) }}
               onRenameNote={handleRenameNote}
+              onOpenSharedNote={(token) => { openSharedNote(token); setSidebarOpen(false) }}
             />
           </motion.div>
         )}
@@ -441,7 +533,7 @@ export default function AppShell() {
             </div>
           )}
 
-          {activeNote && (
+          {activeNote && !activeNote.sharedToken && (
             <button
               onClick={() => setShowShare(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-lg hover:bg-black/5 transition-colors"
