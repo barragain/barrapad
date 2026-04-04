@@ -102,6 +102,8 @@ export default function EditorComponent({
       userImageRef.current = user.imageUrl || undefined
     }
   }, [user])
+  const editorAreaRef = useRef<HTMLDivElement>(null)
+  const [isEditorFocused, setIsEditorFocused] = useState(true)
   const infoButtonRef = useRef<HTMLButtonElement>(null)
   const [showInfo, setShowInfo] = useState(false)
   const [wordCount, setWordCount] = useState(0)
@@ -383,6 +385,20 @@ export default function EditorComponent({
     return () => window.removeEventListener('barrapad:save', handler)
   }, [handleManualSave])
 
+  // Show toolbar when clicking anywhere inside the editor area;
+  // hide it when clicking outside (e.g. sidebar)
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (editorAreaRef.current?.contains(e.target as Node)) {
+        setIsEditorFocused(true)
+      } else {
+        setIsEditorFocused(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     if (!editor) return
     e.preventDefault()
@@ -591,16 +607,16 @@ export default function EditorComponent({
   }, [])
 
   return (
-    <div className="flex flex-col h-full overflow-hidden" style={{ background: 'var(--editor-bg)' }}>
+    <div ref={editorAreaRef} className="flex flex-col h-full overflow-hidden" style={{ background: 'var(--editor-bg)' }}>
       <AnimatePresence>
-        {editor && (
+        {editor && isEditorFocused && (
           <motion.div
             key="toolbar"
-            initial={{ opacity: 0, y: -10, scaleY: 0.92 }}
+            initial={{ opacity: 0, y: -24, scaleY: 0.84 }}
             animate={{ opacity: 1, y: 0, scaleY: 1 }}
-            exit={{ opacity: 0, y: -10, scaleY: 0.92 }}
-            transition={{ type: 'spring', stiffness: 420, damping: 30, mass: 0.8 }}
-            style={{ transformOrigin: 'top' }}
+            exit={{ opacity: 0, y: -20, scaleY: 0.88, transition: { duration: 0.18, ease: [0.4, 0, 1, 1] } }}
+            transition={{ type: 'spring', stiffness: 520, damping: 30, mass: 0.65 }}
+            style={{ transformOrigin: 'top', overflow: 'hidden' }}
           >
             <Toolbar editor={editor} />
           </motion.div>
@@ -641,26 +657,41 @@ export default function EditorComponent({
         <div className="editor-anim-border" style={{ maxWidth: 900, margin: '0 auto', position: 'relative' }}>
           {/* Info button — top-left of the writing area */}
           <div style={{ position: 'absolute', top: 4, left: 4, zIndex: 20 }}>
-            <button
+            <motion.button
               ref={infoButtonRef}
               onClick={() => setShowInfo((v) => !v)}
-              className="p-2 rounded-xl transition-all"
-              style={{ color: showInfo ? '#7A2C06' : '#D4550A' }}
-              onMouseEnter={(e) => { e.currentTarget.style.color = '#7A2C06' }}
-              onMouseLeave={(e) => { if (!showInfo) e.currentTarget.style.color = '#D4550A' }}
+              className="p-2 rounded-xl"
+              style={{ color: showInfo ? '#7A2C06' : '#D4550A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              animate={{
+                rotate: showInfo ? 22 : 0,
+                backgroundColor: showInfo ? 'rgba(212, 85, 10, 0.13)' : 'rgba(0,0,0,0)',
+              }}
+              whileHover={{ scale: 1.15, backgroundColor: 'rgba(212, 85, 10, 0.09)' }}
+              whileTap={{ scale: 0.78, rotate: showInfo ? 0 : 30 }}
+              transition={{ type: 'spring', stiffness: 460, damping: 18, mass: 0.6 }}
               title="Note info"
             >
               <Info size={22} />
-            </button>
-            {showInfo && (
-              <InfoPopover
-                note={note}
-                wordCount={wordCount}
-                charCount={charCount}
-                onClose={() => setShowInfo(false)}
-                anchorRef={infoButtonRef}
-              />
-            )}
+            </motion.button>
+            <AnimatePresence>
+              {showInfo && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.88, y: -8 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.9, y: -6, transition: { duration: 0.13, ease: [0.4, 0, 1, 1] } }}
+                  transition={{ type: 'spring', stiffness: 480, damping: 26, mass: 0.55 }}
+                  style={{ transformOrigin: 'top left' }}
+                >
+                  <InfoPopover
+                    note={note}
+                    wordCount={wordCount}
+                    charCount={charCount}
+                    onClose={() => setShowInfo(false)}
+                    anchorRef={infoButtonRef}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           <div
