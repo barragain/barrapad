@@ -522,6 +522,7 @@ export default function AppShell() {
               onOpenSharedNote={(token) => { openSharedNote(token); setSidebarOpen(false) }}
               onRemoveSharedNote={handleRemoveSharedNote}
               onRenameSharedNote={handleRenameSharedNote}
+              onDeleteSharedNote={handleDeleteSharedNote}
             />
           </motion.div>
         )}
