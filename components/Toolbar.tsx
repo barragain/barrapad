@@ -26,6 +26,10 @@ import {
   Paperclip,
   Mic,
   MicOff,
+  Quote,
+  SeparatorHorizontal,
+  Superscript,
+  BarChart2,
 } from 'lucide-react'
 import TablePicker from './TablePicker'
 import ColorPicker from './ColorPicker'
@@ -41,6 +45,7 @@ const TEXT_STYLES = [
   { label: 'Heading 1', action: (e: Editor) => e.chain().focus().toggleHeading({ level: 1 }).run() },
   { label: 'Heading 2', action: (e: Editor) => e.chain().focus().toggleHeading({ level: 2 }).run() },
   { label: 'Heading 3', action: (e: Editor) => e.chain().focus().toggleHeading({ level: 3 }).run() },
+  { label: 'Quote', action: (e: Editor) => e.chain().focus().toggleBlockquote().run() },
 ]
 
 function useIsMac() {
@@ -256,6 +261,7 @@ export default function Toolbar({ editor }: ToolbarProps) {
         isOrderedList: ctx.editor.isActive('orderedList'),
         isTaskList: ctx.editor.isActive('taskList'),
         isCodeBlock: ctx.editor.isActive('codeBlock'),
+        isBlockquote: ctx.editor.isActive('blockquote'),
         isH1: ctx.editor.isActive('heading', { level: 1 }),
         isH2: ctx.editor.isActive('heading', { level: 2 }),
         isH3: ctx.editor.isActive('heading', { level: 3 }),
@@ -275,6 +281,7 @@ export default function Toolbar({ editor }: ToolbarProps) {
     if (editorState.isH1) return 'Heading 1'
     if (editorState.isH2) return 'Heading 2'
     if (editorState.isH3) return 'Heading 3'
+    if (editorState.isBlockquote) return 'Quote'
     return 'Normal Text'
   }
 
@@ -609,6 +616,30 @@ export default function Toolbar({ editor }: ToolbarProps) {
         <TBtn onClick={() => editor.chain().focus().toggleCodeBlock().run()} active={editorState.isCodeBlock} label="Code block">
           <Code2 size={iconSize} />
         </TBtn>
+
+        {/* Divider */}
+        <TBtn
+          onClick={() => editor.chain().focus().setHorizontalRule().run()}
+          label="Divider"
+        >
+          <SeparatorHorizontal size={iconSize} />
+        </TBtn>
+
+        {/* Footnote */}
+        <TBtn
+          onClick={() => editor.chain().focus().insertContent({ type: 'footnote' }).run()}
+          label="Footnote"
+        >
+          <Superscript size={iconSize} />
+        </TBtn>
+
+        {/* Poll */}
+        <TBtn
+          onClick={() => editor.chain().focus().insertContent({ type: 'poll' }).run()}
+          label="Poll"
+        >
+          <BarChart2 size={iconSize} />
+        </TBtn>
       </div>
 
       {/* ── Mobile bottom sheets ── */}
@@ -644,10 +675,10 @@ export default function Toolbar({ editor }: ToolbarProps) {
         <MobileSheet onClose={closeAll} title="Text color">
           <ColorPicker
             value={editor.getAttributes('textStyle').color as string ?? '#000000'}
-            onChange={(color) => editor.chain().focus().setColor(color).run()}
+            onChange={(color) => editor.chain().setColor(color).run()}
             mode="color"
           />
-          <button onClick={() => { editor.chain().focus().unsetColor().run(); closeAll() }} style={{ marginTop: 12, width: '100%', padding: '10px 0', fontSize: 13, color: '#9b9b9b', background: 'var(--sidebar-bg)', border: '1px solid var(--border)', borderRadius: 8, cursor: 'pointer' }}>
+          <button onClick={() => { editor.chain().unsetColor().run(); closeAll() }} style={{ marginTop: 12, width: '100%', padding: '10px 0', fontSize: 13, color: '#9b9b9b', background: 'var(--sidebar-bg)', border: '1px solid var(--border)', borderRadius: 8, cursor: 'pointer' }}>
             Unset color
           </button>
         </MobileSheet>
@@ -657,10 +688,10 @@ export default function Toolbar({ editor }: ToolbarProps) {
         <MobileSheet onClose={closeAll} title="Highlight">
           <ColorPicker
             value={editor.getAttributes('highlight').color as string ?? '#fef08a'}
-            onChange={(color) => editor.chain().focus().setHighlight({ color }).run()}
+            onChange={(color) => editor.chain().setHighlight({ color }).run()}
             mode="color"
           />
-          <button onClick={() => { editor.chain().focus().unsetHighlight().run(); closeAll() }} style={{ marginTop: 12, width: '100%', padding: '10px 0', fontSize: 13, color: '#9b9b9b', background: 'var(--sidebar-bg)', border: '1px solid var(--border)', borderRadius: 8, cursor: 'pointer' }}>
+          <button onClick={() => { editor.chain().unsetHighlight().run(); closeAll() }} style={{ marginTop: 12, width: '100%', padding: '10px 0', fontSize: 13, color: '#9b9b9b', background: 'var(--sidebar-bg)', border: '1px solid var(--border)', borderRadius: 8, cursor: 'pointer' }}>
             Unset highlight
           </button>
         </MobileSheet>
@@ -670,11 +701,11 @@ export default function Toolbar({ editor }: ToolbarProps) {
         <MobileSheet onClose={closeAll} title="Gradient">
           <ColorPicker
             value={editorState.isGradient ? (editor.getAttributes('gradientText').gradient as string ?? 'linear-gradient(90deg, #D4550A, #3b82f6)') : 'linear-gradient(90deg, #D4550A, #3b82f6)'}
-            onChange={(gradient) => editor.chain().focus().setGradientText(gradient).run()}
+            onChange={(gradient) => editor.chain().setGradientText(gradient).run()}
             mode="gradient"
           />
           {editorState.isGradient && (
-            <button onClick={() => { editor.chain().focus().unsetGradientText().run(); closeAll() }} style={{ marginTop: 12, width: '100%', padding: '10px 0', fontSize: 13, color: '#9b9b9b', background: 'var(--sidebar-bg)', border: '1px solid var(--border)', borderRadius: 8, cursor: 'pointer' }}>
+            <button onClick={() => { editor.chain().unsetGradientText().run(); closeAll() }} style={{ marginTop: 12, width: '100%', padding: '10px 0', fontSize: 13, color: '#9b9b9b', background: 'var(--sidebar-bg)', border: '1px solid var(--border)', borderRadius: 8, cursor: 'pointer' }}>
               Unset gradient
             </button>
           )}

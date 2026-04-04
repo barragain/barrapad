@@ -20,6 +20,14 @@ export const LoremIpsum = Extension.create({
   addKeyboardShortcuts() {
     return {
       'Shift-Tab': () => {
+        // Lift list/task items first — supports repeated presses at every nesting level
+        if (this.editor.can().liftListItem('listItem')) {
+          return this.editor.commands.liftListItem('listItem')
+        }
+        if (this.editor.can().liftListItem('taskItem')) {
+          return this.editor.commands.liftListItem('taskItem')
+        }
+
         const { state, dispatch } = this.editor.view
         const { selection } = state
         if (!selection.empty) return false

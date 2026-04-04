@@ -22,6 +22,8 @@ import { GradientText } from '@/extensions/gradient-text'
 import { LoremIpsum } from '@/extensions/lorem-ipsum'
 import { FileAttachment } from '@/extensions/file-attachment'
 import { ResizableImage } from '@/extensions/resizable-image'
+import { Footnote } from '@/extensions/footnote'
+import { Poll } from '@/extensions/poll'
 import Toolbar from './Toolbar'
 import InfoPopover from './InfoPopover'
 import LinkPopover from './LinkPopover'
@@ -47,6 +49,10 @@ import {
   Pencil,
   Trash2,
   Download,
+  Quote as QuoteIcon,
+  Minus,
+  Superscript,
+  BarChart2,
 } from 'lucide-react'
 import PartySocket from 'partysocket'
 import { CollabCursor, setCursors, pickColor } from '@/extensions/collab-cursor'
@@ -140,6 +146,8 @@ export default function EditorComponent({
       Placeholder.configure({ placeholder: 'Start typing to get started...' }),
       GradientText,
       FileAttachment,
+      Footnote,
+      Poll,
       LoremIpsum,
       CollabCursor,
     ],
@@ -387,6 +395,67 @@ export default function EditorComponent({
     const coords = editor.view.posAtCoords({ left: x, top: y })
     contextClickRef.current = { x, y, editorPos: coords?.inside ?? coords?.pos }
 
+    // Context: blockquote / quote
+    const bqEl = target.closest('blockquote')
+    if (bqEl) {
+      setContextMenu({ x, y, items: [
+        { type: 'item', label: 'Remove quote', icon: <QuoteIcon size={13} />, danger: true, onClick: () => {
+          editor.chain().focus().toggleBlockquote().run()
+          setContextMenu(null)
+        }},
+      ]})
+      return
+    }
+
+    // Context: horizontal rule / divider
+    if (target.tagName === 'HR') {
+      setContextMenu({ x, y, items: [
+        { type: 'item', label: 'Remove divider', icon: <Minus size={13} />, danger: true, onClick: () => {
+          const pos = contextClickRef.current.editorPos
+          if (pos !== undefined) editor.chain().focus().setNodeSelection(pos).deleteSelection().run()
+          setContextMenu(null)
+        }},
+      ]})
+      return
+    }
+
+    // Context: footnote
+    if (target.closest('.barrapad-fn-wrap')) {
+      setContextMenu({ x, y, items: [
+        { type: 'item', label: 'Edit footnote', icon: <Superscript size={13} />, onClick: () => {
+          // Click on the marker to open popover
+          const marker = target.closest('.barrapad-fn-wrap')?.querySelector('.barrapad-fn-marker') as HTMLElement | null
+          marker?.click()
+          setContextMenu(null)
+        }},
+        { type: 'separator' },
+        { type: 'item', label: 'Remove footnote', icon: <Trash2 size={13} />, danger: true, onClick: () => {
+          const pos = contextClickRef.current.editorPos
+          if (pos !== undefined) editor.chain().focus().setNodeSelection(pos).deleteSelection().run()
+          setContextMenu(null)
+        }},
+      ]})
+      return
+    }
+
+    // Context: poll
+    if (target.closest('.barrapad-poll')) {
+      setContextMenu({ x, y, items: [
+        { type: 'item', label: 'Edit poll', icon: <BarChart2 size={13} />, onClick: () => {
+          const editBtn = target.closest('.barrapad-poll')?.querySelector('.barrapad-poll-editbtn') as HTMLElement | null
+          editBtn?.click()
+          setContextMenu(null)
+        }},
+        { type: 'separator' },
+        { type: 'item', label: 'Remove poll', icon: <Trash2 size={13} />, danger: true, onClick: () => {
+          const pos = contextClickRef.current.editorPos
+          if (pos !== undefined) editor.chain().focus().setNodeSelection(pos).deleteSelection().run()
+          setContextMenu(null)
+        }},
+      ]})
+      return
+    }
+
     // Context 4: image
     const imgEl = target.tagName === 'IMG' ? target as HTMLImageElement : target.closest('img') as HTMLImageElement | null
     if (imgEl) {
@@ -596,7 +665,7 @@ export default function EditorComponent({
 
           <div
             id="barrapad-editor-content"
-            style={{ background: 'var(--editor-bg)', borderRadius: 11 }}
+            style={{ background: 'var(--editor-bg)', borderRadius: 11, WebkitTouchCallout: 'none' } as React.CSSProperties}
             onClick={() => editor?.commands.focus()}
             onContextMenu={handleContextMenu}
           >

@@ -147,10 +147,323 @@ body {
 }
 
 .ProseMirror blockquote {
-  border-left: 3px solid var(--accent);
-  padding-left: 1em;
+  border-left: 4px solid var(--accent);
+  padding: 0.75em 1em 0.75em 1.25em;
+  margin: 0.75em 0;
+  background: rgba(212, 85, 10, 0.04);
+  border-radius: 0 8px 8px 0;
+  color: var(--ink);
+  font-style: italic;
+  position: relative;
+}
+
+.ProseMirror hr {
+  border: none;
+  margin: 1.5em 0;
+  height: 2px;
+  border-radius: 1px;
+  background: linear-gradient(to right, transparent, var(--accent) 20%, var(--accent) 80%, transparent);
+  opacity: 0.4;
+}
+
+/* ── Footnote ── */
+.barrapad-fn-wrap { display: inline; }
+
+.barrapad-fn-marker {
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 0.72em;
+  background: rgba(212, 85, 10, 0.1);
+  border-radius: 4px;
+  padding: 1px 4px;
+  cursor: pointer;
+  user-select: none;
+  line-height: 1;
+  transition: background 150ms ease;
+  vertical-align: super;
+}
+.barrapad-fn-marker:hover { background: rgba(212, 85, 10, 0.22); }
+
+.barrapad-fn-popover {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--editor-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.14);
+  padding: 12px;
+  z-index: 200;
+  min-width: 220px;
+  max-width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  white-space: normal;
+}
+
+.barrapad-fn-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.barrapad-fn-textarea {
+  width: 100%;
+  resize: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 12.5px;
+  font-family: inherit;
+  color: var(--ink);
+  background: var(--editor-bg);
+  outline: none;
+  line-height: 1.5;
+}
+.barrapad-fn-textarea:focus { border-color: var(--accent); }
+
+.barrapad-fn-save {
+  padding: 6px 0;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: opacity 150ms ease;
+}
+.barrapad-fn-save:hover { opacity: 0.85; }
+
+/* ── Poll ── */
+.barrapad-poll {
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  margin: 12px 0;
+  background: var(--editor-bg);
+  transition: border-color 200ms ease, box-shadow 200ms ease;
+}
+.barrapad-poll.is-selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(212, 85, 10, 0.1);
+}
+
+.barrapad-poll-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+  color: var(--accent);
+}
+.barrapad-poll-tag {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  flex: 1;
+}
+.barrapad-poll-editbtn {
+  background: none;
+  border: none;
+  cursor: pointer;
   color: var(--muted);
-  margin: 0.5em 0;
+  padding: 3px 5px;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  transition: color 150ms ease, background 150ms ease;
+}
+.barrapad-poll-editbtn:hover { color: var(--accent); background: rgba(212, 85, 10, 0.08); }
+
+.barrapad-poll-editor { display: flex; flex-direction: column; gap: 10px; }
+
+.barrapad-poll-q-input {
+  width: 100%;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 12px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--ink);
+  background: var(--editor-bg);
+  outline: none;
+}
+.barrapad-poll-q-input:focus { border-color: var(--accent); }
+.barrapad-poll-q-input::placeholder { font-weight: 400; color: var(--muted); }
+
+.barrapad-poll-opts-edit { display: flex; flex-direction: column; gap: 6px; }
+
+.barrapad-poll-opt-row { display: flex; align-items: center; gap: 7px; }
+
+.barrapad-poll-opt-bullet {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1.5px solid var(--muted);
+  flex-shrink: 0;
+}
+
+.barrapad-poll-opt-input {
+  flex: 1;
+  border: 1.5px solid var(--border);
+  border-radius: 7px;
+  padding: 7px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--ink);
+  background: var(--editor-bg);
+  outline: none;
+}
+.barrapad-poll-opt-input:focus { border-color: var(--accent); }
+
+.barrapad-poll-rm {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1;
+  padding: 0 4px;
+  transition: color 150ms ease;
+}
+.barrapad-poll-rm:hover { color: #ef4444; }
+
+.barrapad-poll-addopt {
+  background: none;
+  border: 1.5px dashed var(--border);
+  border-radius: 7px;
+  padding: 7px 10px;
+  font-size: 12.5px;
+  color: var(--muted);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition: border-color 150ms ease, color 150ms ease;
+}
+.barrapad-poll-addopt:hover { border-color: var(--accent); color: var(--accent); }
+
+.barrapad-poll-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 2px; }
+
+.barrapad-poll-cancel {
+  background: none;
+  border: 1.5px solid var(--border);
+  border-radius: 7px;
+  padding: 7px 14px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  font-family: inherit;
+}
+.barrapad-poll-save {
+  background: var(--accent);
+  border: none;
+  border-radius: 7px;
+  padding: 7px 16px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #fff;
+  cursor: pointer;
+  font-family: inherit;
+  transition: opacity 150ms ease;
+}
+.barrapad-poll-save:hover { opacity: 0.88; }
+
+.barrapad-poll-view { display: flex; flex-direction: column; gap: 8px; }
+
+.barrapad-poll-question {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0 0 4px;
+  line-height: 1.4;
+}
+
+.barrapad-poll-options { display: flex; flex-direction: column; gap: 6px; }
+
+.barrapad-poll-opt {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13.5px;
+  color: var(--ink);
+  text-align: left;
+  overflow: hidden;
+  transition: border-color 200ms ease, background 200ms ease;
+}
+.barrapad-poll-opt:hover:not(:disabled) { border-color: var(--accent); background: rgba(212, 85, 10, 0.03); }
+.barrapad-poll-opt.is-voted { border-color: var(--accent); }
+.barrapad-poll-opt.is-revealed:not(.is-voted) { opacity: 0.7; }
+.barrapad-poll-opt:disabled { cursor: default; }
+
+.barrapad-poll-opt-marker {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  flex-shrink: 0;
+  transition: border-color 200ms ease, background 200ms ease;
+}
+.barrapad-poll-opt.is-voted .barrapad-poll-opt-marker {
+  border-color: var(--accent);
+  background: var(--accent);
+  box-shadow: 0 0 0 3px rgba(212, 85, 10, 0.15);
+}
+
+.barrapad-poll-opt-label { flex: 1; z-index: 1; position: relative; }
+
+.barrapad-poll-opt-pct {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  z-index: 1;
+  position: relative;
+}
+
+.barrapad-poll-opt-bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  background: rgba(212, 85, 10, 0.07);
+  border-radius: 6px;
+  transition: width 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  pointer-events: none;
+}
+
+.barrapad-poll-votes {
+  font-size: 11px;
+  color: var(--muted);
+  margin: 0;
+  text-align: right;
+}
+
+/* ── Mobile text selection fix ── */
+.ProseMirror {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Suppress iOS callout popup (the native Copy/Define/Share overlay)
+   while keeping the text selection handles working */
+#barrapad-editor-content {
+  -webkit-touch-callout: none;
 }
 
 .ProseMirror table {
