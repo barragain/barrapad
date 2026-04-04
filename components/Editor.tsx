@@ -54,6 +54,12 @@ export default function EditorComponent({
   const isLocallyEditingRef = useRef(false)
   const localEditTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // Keep latest callback refs so the long-lived PartyKit effect never has a stale closure
+  const onLocalChangeRef = useRef(onLocalChange)
+  const onTagsChangeRef = useRef(onTagsChange)
+  useEffect(() => { onLocalChangeRef.current = onLocalChange }, [onLocalChange])
+  useEffect(() => { onTagsChangeRef.current = onTagsChange }, [onTagsChange])
+
   const lastLocalChangeTimeRef = useRef(0)
   const prevNoteIdRef = useRef<string>(note.id)
   const remoteCursorsRef = useRef<Map<string, RemoteCursor>>(new Map())
@@ -157,7 +163,7 @@ export default function EditorComponent({
 
     socket.addEventListener('message', (evt) => {
       type Msg = {
-        type: 'sync' | 'update' | 'presence' | 'cursor' | 'cursor-leave' | 'tags'
+        type: 'sync' | 'update' | 'presence' | 'cursor' | 'cursor-leave' | 'tags' | 'title'
         content?: string
         contentJson?: Record<string, unknown>
         title?: string
@@ -180,7 +186,7 @@ export default function EditorComponent({
             try {
               ed!.commands.setTextSelection({ from: Math.min(from, maxPos), to: Math.min(to, maxPos) })
             } catch { /* position no longer valid */ }
-            if (msg.title) onLocalChange(msg.title, msg.content!)
+            if (msg.title) onLocalChangeRef.current(msg.title, msg.content!)
           }
         }
         if (msg.type === 'sync' && msg.cursors) {
@@ -190,9 +196,16 @@ export default function EditorComponent({
         }
       }
 
-      // Tags sync — apply remote tag changes to local state
+      // Tags sync — use ref so we always call the latest AppShell callback
       if (msg.type === 'tags' && msg.tags) {
-        onTagsChange(msg.tags)
+        onTagsChangeRef.current(msg.tags)
+      }
+
+      // Title-only sync (rename) — bypass the content-derived title guard in AppShell
+      if (msg.type === 'title' && msg.title) {
+        window.dispatchEvent(new CustomEvent('barrapad:remote-rename', {
+          detail: { id: note.id, title: msg.title },
+        }))
       }
 
       if (msg.type === 'cursor' && msg.id && msg.from !== undefined && msg.to !== undefined) {
@@ -260,6 +273,16 @@ export default function EditorComponent({
     window.addEventListener('barrapad:save', handler)
     return () => window.removeEventListener('barrapad:save', handler)
   }, [handleManualSave])
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const { id, title } = (e as CustomEvent<{ id: string; title: string }>).detail
+      if (id !== note.id) return
+      socketRef.current?.send(JSON.stringify({ type: 'title', title }))
+    }
+    window.addEventListener('barrapad:rename', handler)
+    return () => window.removeEventListener('barrapad:rename', handler)
+  }, [note.id])
 
   // ── Tags sync ─────────────────────────────────────────────────────────────
   const handleTagsChangeWithSync = useCallback((tags: Tag[]) => {

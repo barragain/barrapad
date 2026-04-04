@@ -327,8 +327,19 @@ export default function AppShell() {
     }
   }
 
+  // Remote rename — bypasses the content-derived title guard in handleLocalChange
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const { id, title } = (e as CustomEvent<{ id: string; title: string }>).detail
+      updateNotes(prev => prev.map(n => n.id === id ? { ...n, title } : n))
+    }
+    window.addEventListener('barrapad:remote-rename', handler)
+    return () => window.removeEventListener('barrapad:remote-rename', handler)
+  }, [updateNotes])
+
   const handleRenameNote = useCallback(async (id: string, newTitle: string) => {
     updateNotes((prev) => prev.map((n) => n.id === id ? { ...n, title: newTitle, updatedAt: new Date().toISOString() } : n))
+    window.dispatchEvent(new CustomEvent('barrapad:rename', { detail: { id, title: newTitle } }))
     try {
       await fetch(`/api/notes/${id}`, {
         method: 'PATCH',
