@@ -86,13 +86,14 @@ export default function Sidebar({
     return n.title.toLowerCase().includes(q) || plainContent.includes(q)
   })
 
-  const filtered = activeTagLabels.length === 0
+  const filtered = (activeTagLabels.length === 0
     ? searchFiltered
     : searchFiltered.filter(n =>
         activeTagLabels.some(label =>
           (n.tags ?? []).some(t => t.label.toLowerCase() === label.toLowerCase())
         )
       )
+  ).filter(n => !n.sharedToken)  // shared notes live only in the "Shared with me" section
 
   const getContentPreview = (note: Note): React.ReactNode => {
     const plain = stripHtml(note.content)
@@ -188,7 +189,7 @@ export default function Sidebar({
 
       {/* Notes section label */}
       <div className="px-3 py-1">
-        <span className="text-[10px] font-semibold text-[#8A8178] uppercase tracking-widest">Notes</span>
+        <span className="text-[10px] font-semibold text-[#8A8178] uppercase tracking-widest">My Notes</span>
       </div>
 
       {/* Notes list */}

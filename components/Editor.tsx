@@ -49,6 +49,8 @@ export default function EditorComponent({
   const socketRef = useRef<PartySocket | null>(null)
   const sendTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const sendCursorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // True between a note-switch and the first sync from the server — blocks stale broadcasts
+  const pendingSyncRef = useRef(false)
 
   // Passed to NoteEditorCore so the sync guard can be read here in the PartyKit handler
   const isLocallyEditingRef = useRef(false)
@@ -100,6 +102,10 @@ export default function EditorComponent({
   const handleUpdate = useCallback((html: string, _text: string, title: string) => {
     onLocalChange(title, html)
 
+    // Don't broadcast while waiting for the initial sync after a note-switch —
+    // sending stale content would overwrite remote edits made while we were away.
+    if (pendingSyncRef.current) return
+
     lastLocalChangeTimeRef.current = Date.now()
 
     if (sendTimerRef.current) clearTimeout(sendTimerRef.current)
@@ -148,6 +154,7 @@ export default function EditorComponent({
     pendingRef.current = null
     lastLocalChangeTimeRef.current = 0
     isLocallyEditingRef.current = false
+    pendingSyncRef.current = true  // block broadcasts until the server sync arrives
     if (localEditTimeoutRef.current) clearTimeout(localEditTimeoutRef.current)
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
     if (sendTimerRef.current) { clearTimeout(sendTimerRef.current); sendTimerRef.current = null }
@@ -177,6 +184,7 @@ export default function EditorComponent({
       const ed = editorRef.current
 
       if (msg.type === 'sync' || msg.type === 'update') {
+        if (msg.type === 'sync') pendingSyncRef.current = false  // server state received — safe to broadcast again
         if (msg.content && msg.content !== '') {
           const safeToApply = ed && (msg.type === 'sync' || !isLocallyEditingRef.current)
           if (safeToApply) {
