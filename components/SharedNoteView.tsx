@@ -100,6 +100,9 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const sendTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const sendCursorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Mirrors Editor.tsx sync guards: tracks unsaved local edits and last-edit time
+  const pendingRef = useRef(false)
+  const lastLocalChangeTimeRef = useRef(0)
   const remoteCursorsRef = useRef<Map<string, RemoteCursor>>(new Map())
   const myColorRef = useRef(pickColor(Math.random().toString()))
   const canEditRef = useRef(canEdit)
@@ -161,16 +164,20 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
       const title = text.split('\n')[0]?.trim().slice(0, 100) || 'Untitled'
       titleRef.current = title
 
+      pendingRef.current = true
+      lastLocalChangeTimeRef.current = Date.now()
+
       // 1. Send to PartyKit immediately for real-time sync
       if (sendTimerRef.current) clearTimeout(sendTimerRef.current)
       sendTimerRef.current = setTimeout(() => {
-        socketRef.current?.send(JSON.stringify({ type: 'update', content: html, title }))
+        socketRef.current?.send(JSON.stringify({ type: 'update', content: html, title, ts: lastLocalChangeTimeRef.current }))
       }, 50) // tiny debounce to avoid per-keystroke sends
 
       // 2. Persist to DB with a longer debounce
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
       setSaveStatus('saving')
       saveTimerRef.current = setTimeout(async () => {
+        pendingRef.current = false
         try {
           const res = await fetch(`/api/share/${token}`, {
             method: 'PATCH',
@@ -261,9 +268,30 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
 
       if (msg.type === 'sync' || msg.type === 'update') {
         if ('connections' in msg) setConnections(msg.connections)
-        if (msg.content !== '' && ed && (!canEditRef.current || !ed.isFocused)) {
-          const current = ed.getHTML()
-          if (current !== msg.content) ed.commands.setContent(msg.content, { emitUpdate: false })
+        if (msg.content !== '' && ed) {
+          const msgTs = (msg as ServerMessage & { ts?: number }).ts ?? 0
+          // Read-only viewers always apply remote content.
+          // Edit-permission viewers: same guards as Editor.tsx — apply only when
+          // there are no unsaved local edits and the message is not stale.
+          // We do NOT gate on ed.isFocused; that was preventing all updates when
+          // the editor was focused during read-only viewing.
+          const safeToApply =
+            !canEditRef.current ||
+            (!pendingRef.current && msgTs >= lastLocalChangeTimeRef.current)
+          if (safeToApply) {
+            const current = ed.getHTML()
+            if (current !== msg.content) {
+              const { from, to } = ed.state.selection
+              ed.commands.setContent(msg.content, { emitUpdate: false })
+              const maxPos = ed.state.doc.content.size
+              try {
+                ed.commands.setTextSelection({
+                  from: Math.min(from, maxPos),
+                  to: Math.min(to, maxPos),
+                })
+              } catch { /* position no longer valid */ }
+            }
+          }
         }
         if (msg.content !== '') setLastUpdated(msg.updatedAt)
         // Initialise cursors from sync snapshot

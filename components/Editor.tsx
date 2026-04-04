@@ -335,14 +335,28 @@ export default function EditorComponent({
           // 2. No unsaved local changes (pendingRef would be set if user typed recently)
           // 3. The remote message is not older than the last local edit
           //    (prevents a stale phone version from wiping out newer desktop edits)
+          // Apply remote content when there are no unsaved local edits and the
+          // message is not older than our last edit (prevents stale overwrites).
+          // We intentionally do NOT gate on ed.isFocused — that was blocking all
+          // updates whenever the editor was focused, even during read-only viewing.
           const safeToApply =
             ed &&
-            !ed.isFocused &&
             !pendingRef.current &&
             msgTs >= lastLocalChangeTimeRef.current
           if (safeToApply) {
             const current = ed!.getHTML()
-            if (current !== msg.content) ed!.commands.setContent(msg.content, { emitUpdate: false })
+            if (current !== msg.content) {
+              // Preserve cursor position so the view doesn't jump
+              const { from, to } = ed!.state.selection
+              ed!.commands.setContent(msg.content, { emitUpdate: false })
+              const maxPos = ed!.state.doc.content.size
+              try {
+                ed!.commands.setTextSelection({
+                  from: Math.min(from, maxPos),
+                  to: Math.min(to, maxPos),
+                })
+              } catch { /* position no longer valid in new doc */ }
+            }
           }
         }
         // Initialise cursors from sync snapshot
