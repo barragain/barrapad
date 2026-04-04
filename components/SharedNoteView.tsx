@@ -11,6 +11,7 @@ import {
   Strikethrough, Link2, Copy, Scissors, ExternalLink, Pencil, Trash2,
   Tag as TagIcon, Wand2,
 } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { isCorrectSync, suggestSync } from '@/utils/spellcheck'
 import TagInput from './TagInput'
 import AppearanceModal from './AppearanceModal'
@@ -156,11 +157,26 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
   const aboutAudioRef = useRef<HTMLAudioElement | null>(null)
   const sendPointerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const editorContainerRef = useRef<HTMLDivElement>(null)
+  const editorAreaRef = useRef<HTMLDivElement>(null)
+  const [isEditorFocused, setIsEditorFocused] = useState(true)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; items: ContextMenuItem[] } | null>(null)
   const contextClickRef = useRef<{ x: number; y: number; editorPos?: number }>({ x: 0, y: 0 })
 
   // Keep a ref of initialTitle for use inside the editor update handler
   const titleRef = useRef(initialTitle)
+
+  // Show/hide toolbar based on whether the user clicks inside/outside the editor area
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (editorAreaRef.current?.contains(e.target as Node)) {
+        setIsEditorFocused(true)
+      } else {
+        setIsEditorFocused(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
 
   // Load & apply appearance on mount
   useEffect(() => {
@@ -658,43 +674,74 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
         />
       )}
 
-      {canEdit && editor && <Toolbar editor={editor} />}
+      <div ref={editorAreaRef}>
+        <AnimatePresence>
+          {canEdit && editor && isEditorFocused && (
+            <motion.div
+              key="toolbar"
+              initial={{ opacity: 0, y: -24, scaleY: 0.84 }}
+              animate={{ opacity: 1, y: 0, scaleY: 1 }}
+              exit={{ opacity: 0, y: -20, scaleY: 0.88, transition: { duration: 0.18, ease: [0.4, 0, 1, 1] } }}
+              transition={{ type: 'spring', stiffness: 520, damping: 30, mass: 0.65 }}
+              style={{ transformOrigin: 'top', overflow: 'visible' }}
+            >
+              <Toolbar editor={editor} />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '0 1rem 5rem' }}>
         <div className="editor-anim-border" style={{ marginTop: '1.5rem', position: 'relative' }}>
           {/* ⓘ Info button — snapped to left border of editor, popover opens right */}
           <div style={{ position: 'absolute', top: 10, left: -28, transform: 'translateX(-50%)', zIndex: 60 }}>
-            <button
+            <motion.button
               ref={infoRef}
               onClick={() => setShowInfo((v) => !v)}
-              className="p-2 rounded-xl transition-all"
-              style={{ color: showInfo ? '#7A2C06' : '#D4550A', cursor: 'pointer', background: 'none', border: 'none' }}
-              onMouseEnter={(e) => { e.currentTarget.style.color = '#7A2C06' }}
-              onMouseLeave={(e) => { if (!showInfo) e.currentTarget.style.color = '#D4550A' }}
+              className="p-2 rounded-xl"
+              style={{ color: showInfo ? '#7A2C06' : '#D4550A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              initial={{ rotate: 0, backgroundColor: 'rgba(0,0,0,0)' }}
+              animate={{
+                rotate: showInfo ? 22 : 0,
+                backgroundColor: showInfo ? 'rgba(212, 85, 10, 0.13)' : 'rgba(0,0,0,0)',
+              }}
+              whileHover={{ scale: 1.15, backgroundColor: 'rgba(212, 85, 10, 0.09)' }}
+              whileTap={{ scale: 0.78, rotate: showInfo ? 0 : 30 }}
+              transition={{ type: 'spring', stiffness: 460, damping: 18, mass: 0.6 }}
               title="Note info"
             >
               <Info size={22} />
-            </button>
-            {showInfo && (
-              <div style={{
-                position: 'absolute', top: 0, left: 'calc(100% + 8px)', zIndex: 60,
-                background: 'var(--editor-bg, #fff)', border: '1px solid #E5E0D8',
-                borderRadius: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.10)',
-                width: 220, padding: '12px 16px',
-              }}>
-                {[
-                  { label: 'Words', value: wordCount },
-                  { label: 'Characters', value: charCount },
-                  { label: 'Permission', value: permission === 'EDIT' ? 'Can edit' : 'View only' },
-                  { label: 'Updated', value: new Date(lastUpdated).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) },
-                ].map(({ label, value }) => (
-                  <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 12 }}>
-                    <span style={{ color: '#8A8178' }}>{label}</span>
-                    <span style={{ fontWeight: 600, color: '#1A1A1A', textAlign: 'right', maxWidth: 120 }}>{String(value)}</span>
-                  </div>
-                ))}
-              </div>
-            )}
+            </motion.button>
+            <div style={{ position: 'absolute', top: 0, left: '100%', paddingLeft: 12, zIndex: 50 }}>
+              <AnimatePresence>
+                {showInfo && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.92 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.94, transition: { duration: 0.12 } }}
+                    transition={{ type: 'spring', stiffness: 480, damping: 26, mass: 0.55 }}
+                    style={{ transformOrigin: 'top left' }}
+                  >
+                    <div style={{
+                      background: 'var(--editor-bg, #fff)', border: '1px solid #E5E0D8',
+                      borderRadius: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.10)',
+                      width: 220, padding: '12px 16px',
+                    }}>
+                      {[
+                        { label: 'Words', value: wordCount },
+                        { label: 'Characters', value: charCount },
+                        { label: 'Permission', value: permission === 'EDIT' ? 'Can edit' : 'View only' },
+                        { label: 'Updated', value: new Date(lastUpdated).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) },
+                      ].map(({ label, value }) => (
+                        <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 12 }}>
+                          <span style={{ color: '#8A8178' }}>{label}</span>
+                          <span style={{ fontWeight: 600, color: '#1A1A1A', textAlign: 'right', maxWidth: 120 }}>{String(value)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
 
           <div
@@ -715,6 +762,7 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
           </div>
         </div>
       </div>
+      </div>{/* /editorAreaRef */}
 
       {contextMenu && (
         <ContextMenu
