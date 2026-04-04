@@ -454,14 +454,7 @@ export default function NoteEditorCore({
                 const { from } = ed.state.selection
                 ed.chain().focus().setTextSelection({ from: wordResult.from, to: wordResult.to }).insertContent(s).run()
                 setContextMenu(null)
-                // Blur then refocus — the only reliable way to make the browser
-                // re-evaluate spell-check after a programmatic text change
-                const dom = ed.view.dom as HTMLElement
-                dom.blur()
-                setTimeout(() => {
-                  dom.focus()
-                  try { ed.commands.setTextSelection(from) } catch {}
-                }, 0)
+                try { ed.commands.setTextSelection(from) } catch {}
               },
             })
           })
@@ -656,7 +649,7 @@ export default function NoteEditorCore({
                       ].map(({ label, value }) => (
                         <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 12 }}>
                           <span style={{ color: 'var(--muted)' }}>{label}</span>
-                          <span style={{ fontWeight: 600, color: 'var(--ink)', textAlign: 'right', maxWidth: 130 }}>{String(value)}</span>
+                          <span style={{ fontWeight: 600, color: 'var(--ink)', textAlign: 'right', maxWidth: 130, whiteSpace: 'pre-line' }}>{String(value)}</span>
                         </div>
                       ))}
                     </div>

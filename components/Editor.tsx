@@ -13,10 +13,10 @@ import type { Note, Tag } from '@/types'
 const PARTYKIT_HOST = process.env.NEXT_PUBLIC_PARTYKIT_HOST ?? 'barrapad.barragain.partykit.dev'
 
 function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleString(undefined, {
-    year: 'numeric', month: 'short', day: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-  })
+  const d = new Date(dateStr)
+  const date = d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+  const time = d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+  return `${date}\n${time}`
 }
 
 interface EditorProps {
