@@ -45,6 +45,7 @@ export default function EditorComponent({
   // ── Refs ──────────────────────────────────────────────────────────────────
   const editorRef = useRef<Editor | null>(null)
   const [editorReady, setEditorReady] = useState(false)
+  const [deleted, setDeleted] = useState(false)
 
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pendingRef = useRef<{ title: string; html: string } | null>(null)
@@ -139,6 +140,9 @@ export default function EditorComponent({
       }))
     }, 50)
   }, [])
+
+  // Reset deleted state whenever we switch to a different note
+  useEffect(() => { setDeleted(false) }, [note.id])
 
   // ── Note-switching ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -238,7 +242,7 @@ export default function EditorComponent({
       }
 
       if (msg.type === 'delete') {
-        onNoteDeletedRef.current?.(note.id)
+        setDeleted(true)
       }
     })
 
@@ -312,6 +316,34 @@ export default function EditorComponent({
 
   // ── Render ────────────────────────────────────────────────────────────────
   const editable = !note.sharedToken || note.sharedPermission === 'EDIT'
+
+  if (deleted) {
+    return (
+      <div style={{
+        height: '100%', display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+        background: 'var(--editor-bg)', gap: 8, textAlign: 'center', padding: '0 2rem',
+      }}>
+        <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink)', margin: 0 }}>
+          This note has been deleted
+        </p>
+        <p style={{ fontSize: 13, color: 'var(--muted)', margin: 0 }}>
+          Someone removed this note.
+        </p>
+        <button
+          onClick={() => onNoteDeleted?.(note.id)}
+          style={{
+            marginTop: 12, fontSize: 13, fontWeight: 600,
+            padding: '8px 20px', borderRadius: 10,
+            background: '#D4550A', color: '#fff',
+            border: 'none', cursor: 'pointer',
+          }}
+        >
+          Remove from my view
+        </button>
+      </div>
+    )
+  }
 
   return (
     <NoteEditorCore

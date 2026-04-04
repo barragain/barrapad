@@ -451,15 +451,13 @@ export default function NoteEditorCore({
             spellItems.push({
               type: 'item', label: s, icon: <Wand2 size={13} />,
               onClick: () => {
-                const { from } = ed.state.selection
-                ed.chain().focus().setTextSelection({ from: wordResult.from, to: wordResult.to }).insertContent(s).run()
+                // Select the misspelled word, then replace via execCommand so the
+                // browser treats it as native user input and keeps all other
+                // spell-check underlines alive. insertContent() is programmatic and
+                // causes the browser to discard its spell-check state.
+                ed.chain().focus().setTextSelection({ from: wordResult.from, to: wordResult.to }).run()
                 setContextMenu(null)
-                try { ed.commands.setTextSelection(from) } catch {}
-                // Toggle spellcheck off then on so the browser re-evaluates
-                // all remaining underlines — programmatic insertContent() clears them.
-                const dom = ed.view.dom as HTMLElement
-                dom.spellcheck = false
-                requestAnimationFrame(() => { dom.spellcheck = true })
+                document.execCommand('insertText', false, s)
               },
             })
           })
