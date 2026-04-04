@@ -584,7 +584,7 @@ export default function AppShell() {
             </div>
           )}
 
-          {activeNote && !activeNote.sharedToken && (
+          {activeNote && (!activeNote.sharedToken || activeNote.sharedPermission === 'EDIT') && (
             <button
               onClick={() => setShowShare(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-lg hover:bg-black/5 transition-colors"

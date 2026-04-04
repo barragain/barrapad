@@ -78,6 +78,19 @@ export default class NoteParty implements Party.Server {
     }
   }
 
+  async onRequest(request: Party.Request) {
+    if (request.method === 'POST') {
+      try {
+        const data = await request.json() as ClientMessage
+        if (data.type === 'title') {
+          await this.room.storage.put('title', data.title)
+          this.room.broadcast(JSON.stringify({ type: 'title', title: data.title } satisfies ServerMessage))
+        }
+      } catch {}
+    }
+    return new Response('ok')
+  }
+
   private broadcastPresence() {
     const connections = [...this.room.getConnections()].length
     this.room.broadcast(JSON.stringify({ type: 'presence', connections } satisfies ServerMessage))

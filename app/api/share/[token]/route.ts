@@ -57,6 +57,16 @@ export async function PATCH(
     },
   })
 
+  // If the title changed, broadcast to the PartyKit room so the owner's open editor updates
+  if (body.title !== undefined && body.title !== link.note.title) {
+    const partyHost = process.env.NEXT_PUBLIC_PARTYKIT_HOST ?? 'barrapad.barragain.partykit.dev'
+    fetch(`https://${partyHost}/parties/main/${link.noteId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'title', title: body.title }),
+    }).catch(() => {}) // best-effort
+  }
+
   return NextResponse.json({ title: note.title, content: note.content, updatedAt: note.updatedAt })
 }
 

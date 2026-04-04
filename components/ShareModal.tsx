@@ -29,10 +29,16 @@ export default function ShareModal({ note, onClose }: ShareModalProps) {
 
   const shareUrl = (token: string) => `${origin}/s/${token}`
 
+  // true when the current user accessed this note via a share link (not the owner)
+  const isSharedView = !!note.sharedToken
+
   // Load existing share links
   const loadLinks = useCallback(async () => {
     try {
-      const res = await fetch(`/api/notes/${note.id}/share`)
+      const url = isSharedView
+        ? `/api/share/${note.sharedToken}/links`
+        : `/api/notes/${note.id}/share`
+      const res = await fetch(url)
       if (!res.ok) return
       const data = (await res.json()) as ShareLink[]
       const read = data.find((l) => l.permission === 'READ') ?? null
@@ -41,7 +47,7 @@ export default function ShareModal({ note, onClose }: ShareModalProps) {
     } finally {
       setLoading(false)
     }
-  }, [note.id])
+  }, [note.id, note.sharedToken, isSharedView])
 
   useEffect(() => { loadLinks() }, [loadLinks])
 
@@ -143,12 +149,19 @@ export default function ShareModal({ note, onClose }: ShareModalProps) {
             </div>
           ) : (
             <>
+              {isSharedView && (
+                <p className="text-xs text-[#8A8178] bg-[#F5F2ED] rounded-lg px-3 py-2">
+                  You can share these links. Only the note owner can generate or revoke them.
+                </p>
+              )}
+
               {/* View-only link */}
               <LinkRow
                 label="View only"
                 description="Anyone with this link can read"
                 permission="READ"
                 link={links.READ}
+                readOnly={isSharedView}
                 generating={generating === 'READ'}
                 revoking={revoking === links.READ?.token}
                 copied={copied === 'READ'}
@@ -169,6 +182,7 @@ export default function ShareModal({ note, onClose }: ShareModalProps) {
                 description="Signed-in users can make changes"
                 permission="EDIT"
                 link={links.EDIT}
+                readOnly={isSharedView}
                 generating={generating === 'EDIT'}
                 revoking={revoking === links.EDIT?.token}
                 copied={copied === 'EDIT'}
@@ -220,6 +234,7 @@ interface LinkRowProps {
   description: string
   permission: 'READ' | 'EDIT'
   link: ShareLink | null
+  readOnly?: boolean
   generating: boolean
   revoking: boolean
   copied: boolean
@@ -233,7 +248,7 @@ interface LinkRowProps {
 }
 
 function LinkRow({
-  label, description, link, generating, revoking, copied,
+  label, description, link, readOnly, generating, revoking, copied,
   isActiveQr, onGenerate, onRevoke, onCopy, onShare, onSelectQr, shareUrl,
 }: LinkRowProps) {
   const urlRef = useRef<HTMLInputElement>(null)
@@ -245,7 +260,7 @@ function LinkRow({
           <p className="text-sm font-medium text-[#1A1A1A]">{label}</p>
           <p className="text-xs text-[#C4BFB6]">{description}</p>
         </div>
-        {!link ? (
+        {!readOnly && !link && (
           <button
             onClick={onGenerate}
             disabled={generating}
@@ -258,7 +273,8 @@ function LinkRow({
             )}
             Generate link
           </button>
-        ) : (
+        )}
+        {!readOnly && link && (
           <div className="flex items-center gap-1">
             <button
               onClick={onGenerate}
