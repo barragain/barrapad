@@ -60,7 +60,8 @@ export const LoremIpsum = Extension.create({
             if (!selection.empty) return DecorationSet.empty
 
             const $from = selection.$from
-            if ($from.parent.type.name !== 'paragraph') {
+            // Only show hint on a completely empty paragraph (new line with no text)
+            if ($from.parent.type.name !== 'paragraph' || $from.parent.textContent !== '') {
               return DecorationSet.empty
             }
 

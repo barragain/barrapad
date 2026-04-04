@@ -9,8 +9,9 @@ import {
   Clipboard, MousePointer2, Table as TableIconLucide, Type,
   Bold as BoldIcon, Italic as ItalicIcon, Underline as UnderlineIcon,
   Strikethrough, Link2, Copy, Scissors, ExternalLink, Pencil, Trash2,
-  Tag as TagIcon,
+  Tag as TagIcon, Wand2,
 } from 'lucide-react'
+import { isCorrectSync, suggestSync } from '@/utils/spellcheck'
 import TagInput from './TagInput'
 import AppearanceModal from './AppearanceModal'
 import AboutModal from './AboutModal'
@@ -416,39 +417,38 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
       return
     }
 
-    // Empty cursor — show word actions if cursor is in a word
+    // Empty cursor — show spell suggestions if word is misspelled
     const wordResult = contextClickRef.current.editorPos !== undefined
       ? getWordAtPos(contextClickRef.current.editorPos)
       : null
 
-    const wordItems: ContextMenuItem[] = wordResult ? [
-      {
-        type: 'item', label: `Select "${wordResult.word.length > 16 ? wordResult.word.slice(0, 16) + '…' : wordResult.word}"`,
-        icon: <MousePointer2 size={13} />,
-        onClick: () => { editor.commands.setTextSelection({ from: wordResult.from, to: wordResult.to }); setContextMenu(null) },
-      },
-      {
-        type: 'item', label: 'Copy word', icon: <Copy size={13} />,
-        onClick: () => { navigator.clipboard.writeText(wordResult.word); setContextMenu(null) },
-      },
-      {
-        type: 'item', label: 'Replace word…', icon: <Pencil size={13} />,
-        onClick: () => {
-          setContextMenu(null)
-          const replacement = window.prompt(`Replace "${wordResult.word}" with:`, wordResult.word)
-          if (replacement !== null && replacement !== wordResult.word) {
-            editor.chain().focus()
-              .setTextSelection({ from: wordResult.from, to: wordResult.to })
-              .insertContent(replacement)
-              .run()
-          }
-        },
-      },
-      { type: 'separator' },
-    ] : []
+    const spellItems: ContextMenuItem[] = []
+    if (wordResult) {
+      const correct = isCorrectSync(wordResult.word)
+      if (correct === false) {
+        const suggestions = suggestSync(wordResult.word)
+        if (suggestions && suggestions.length > 0) {
+          suggestions.forEach((s) => {
+            spellItems.push({
+              type: 'item',
+              label: s,
+              icon: <Wand2 size={13} />,
+              onClick: () => {
+                editor.chain().focus()
+                  .setTextSelection({ from: wordResult.from, to: wordResult.to })
+                  .insertContent(s)
+                  .run()
+                setContextMenu(null)
+              },
+            })
+          })
+          spellItems.push({ type: 'separator' })
+        }
+      }
+    }
 
     setContextMenu({ x, y, items: [
-      ...wordItems,
+      ...spellItems,
       { type: 'item', label: 'Paste', icon: <Clipboard size={13} />, onClick: () => {
         navigator.clipboard.readText().then(text => { if (text) editor.chain().focus().insertContent(text).run() }); setContextMenu(null)
       }},
