@@ -553,21 +553,18 @@ export default function NoteEditorCore({
       className={`flex flex-col h-full overflow-hidden${className ? ` ${className}` : ''}`}
       style={{ background: 'var(--editor-bg)', ...rootStyle }}
     >
-      {/* Toolbar — slides in/out when focus enters/leaves the editor area */}
-      <AnimatePresence>
-        {editor && isEditorFocused && editable && (
-          <motion.div
-            key="toolbar"
-            initial={{ opacity: 0, y: -24, scaleY: 0.84 }}
-            animate={{ opacity: 1, y: 0, scaleY: 1 }}
-            exit={{ opacity: 0, y: -20, scaleY: 0.88, transition: { duration: 0.18, ease: [0.4, 0, 1, 1] } }}
-            transition={{ type: 'spring', stiffness: 520, damping: 30, mass: 0.65 }}
-            style={{ transformOrigin: 'top', overflow: 'visible' }}
-          >
-            <Toolbar editor={editor} />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Toolbar — always in flow to prevent layout shift; fades in/out */}
+      {editor && editable && (
+        <div
+          style={{
+            opacity: isEditorFocused ? 1 : 0,
+            pointerEvents: isEditorFocused ? 'auto' : 'none',
+            transition: 'opacity 0.15s ease',
+          }}
+        >
+          <Toolbar editor={editor} />
+        </div>
+      )}
 
       {/* Context-menu voice recording banner */}
       {ctxIsRecording && (
