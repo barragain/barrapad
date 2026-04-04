@@ -123,6 +123,7 @@ export default function NoteEditorCore({
   // UI state
   const editorAreaRef = useRef<HTMLDivElement>(null)
   const editorContainerRef = useRef<HTMLDivElement>(null)
+  const toolbarRef = useRef<HTMLDivElement>(null)
   const [isEditorFocused, setIsEditorFocused] = useState(true)
   const infoButtonRef = useRef<HTMLButtonElement>(null)
   const [showInfo, setShowInfo] = useState(false)
@@ -140,7 +141,11 @@ export default function NoteEditorCore({
   // ── Toolbar focus tracking ────────────────────────────────────────────────
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      setIsEditorFocused(!!editorAreaRef.current?.contains(e.target as Node))
+      const t = e.target as Node
+      setIsEditorFocused(
+        !!editorContainerRef.current?.contains(t) ||
+        !!toolbarRef.current?.contains(t)
+      )
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
@@ -556,6 +561,7 @@ export default function NoteEditorCore({
       {/* Toolbar — always in flow to prevent layout shift; fades in/out */}
       {editor && editable && (
         <div
+          ref={toolbarRef}
           style={{
             opacity: isEditorFocused ? 1 : 0,
             pointerEvents: isEditorFocused ? 'auto' : 'none',
