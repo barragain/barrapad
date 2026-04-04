@@ -29,6 +29,7 @@ import InfoPopover from './InfoPopover'
 import LinkPopover from './LinkPopover'
 import ContextMenu from './ContextMenu'
 import type { ContextMenuItem } from './ContextMenu'
+import TagInput from './TagInput'
 import {
   Info,
   Clipboard,
@@ -53,11 +54,12 @@ import {
   Minus,
   Superscript,
   BarChart2,
+  Tag as TagIcon,
 } from 'lucide-react'
 import PartySocket from 'partysocket'
 import { CollabCursor, setCursors, pickColor } from '@/extensions/collab-cursor'
 import type { RemoteCursor } from '@/extensions/collab-cursor'
-import type { Note } from '@/types'
+import type { Note, Tag } from '@/types'
 
 const lowlight = createLowlight(common)
 
@@ -65,19 +67,23 @@ const PARTYKIT_HOST = process.env.NEXT_PUBLIC_PARTYKIT_HOST ?? 'barrapad.barraga
 
 interface EditorProps {
   note: Note
+  allTags: Tag[]
   /** Called immediately on every change — updates localStorage only, no API */
   onLocalChange: (title: string, content: string) => void
-  /** Called after 30s idle, blur, or tab switch — syncs to API */
+  /** Called after 1s idle, blur, or tab switch — syncs to API */
   onAutoSave: (title: string, content: string) => void
   /** Called when the user explicitly presses Save */
   onManualSave: (title: string, content: string) => void
+  onTagsChange: (tags: Tag[]) => void
 }
 
 export default function EditorComponent({
   note,
+  allTags,
   onLocalChange,
   onAutoSave,
   onManualSave,
+  onTagsChange,
 }: EditorProps) {
   const editorRef = useRef<Editor | null>(null)
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -130,6 +136,25 @@ export default function EditorComponent({
     onAutoSave(title, html)
   }, [onAutoSave])
 
+  const getWordAtPos = useCallback((pos: number): { word: string; from: number; to: number } | null => {
+    if (!editor) return null
+    try {
+      const $pos = editor.state.doc.resolve(pos)
+      const parent = $pos.parent
+      if (!['paragraph', 'heading', 'listItem', 'taskItem', 'blockquote'].includes(parent.type.name)) return null
+      const text = parent.textContent
+      const offset = $pos.parentOffset
+      let start = offset
+      let end = offset
+      while (start > 0 && /[\w'-]/.test(text[start - 1])) start--
+      while (end < text.length && /[\w'-]/.test(text[end])) end++
+      const word = text.slice(start, end)
+      if (word.length < 2) return null
+      return { word, from: $pos.start() + start, to: $pos.start() + end }
+    } catch { return null }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editor])
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ codeBlock: false }),
@@ -156,6 +181,7 @@ export default function EditorComponent({
       CollabCursor,
     ],
     editorProps: {
+      attributes: { spellcheck: 'true' },
       handleDrop(view, event, _slice, moved) {
         if (moved) return false
         const files = event.dataTransfer?.files
@@ -539,6 +565,13 @@ export default function EditorComponent({
       return
     }
 
+    const addTagItem: ContextMenuItem = {
+      type: 'item', label: 'Add tag…', icon: <TagIcon size={13} />, onClick: () => {
+        setContextMenu(null)
+        window.dispatchEvent(new Event('barrapad:focus-tags'))
+      },
+    }
+
     // Context 2: text selection
     if (!editor.state.selection.empty) {
       const { from, to } = editor.state.selection
@@ -553,12 +586,45 @@ export default function EditorComponent({
         { type: 'separator' },
         { type: 'item', label: 'Copy', icon: <Copy size={13} />, onClick: () => { navigator.clipboard.writeText(selectedText); setContextMenu(null) }},
         { type: 'item', label: 'Cut', icon: <Scissors size={13} />, onClick: () => { navigator.clipboard.writeText(selectedText); editor.chain().focus().deleteSelection().run(); setContextMenu(null) }},
+        { type: 'separator' },
+        addTagItem,
       ]})
       return
     }
 
-    // Context 3: empty cursor / no selection
+    // Context 3: empty cursor / no selection — show word actions if cursor is in a word
+    const wordResult = contextClickRef.current.editorPos !== undefined
+      ? getWordAtPos(contextClickRef.current.editorPos)
+      : null
+
+    const wordItems: ContextMenuItem[] = wordResult ? [
+      {
+        type: 'item', label: `Select "${wordResult.word.length > 16 ? wordResult.word.slice(0, 16) + '…' : wordResult.word}"`,
+        icon: <MousePointer2 size={13} />,
+        onClick: () => { editor.commands.setTextSelection({ from: wordResult.from, to: wordResult.to }); setContextMenu(null) },
+      },
+      {
+        type: 'item', label: 'Copy word', icon: <Copy size={13} />,
+        onClick: () => { navigator.clipboard.writeText(wordResult.word); setContextMenu(null) },
+      },
+      {
+        type: 'item', label: 'Replace word…', icon: <Pencil size={13} />,
+        onClick: () => {
+          setContextMenu(null)
+          const replacement = window.prompt(`Replace "${wordResult.word}" with:`, wordResult.word)
+          if (replacement !== null && replacement !== wordResult.word) {
+            editor.chain().focus()
+              .setTextSelection({ from: wordResult.from, to: wordResult.to })
+              .insertContent(replacement)
+              .run()
+          }
+        },
+      },
+      { type: 'separator' },
+    ] : []
+
     setContextMenu({ x, y, items: [
+      ...wordItems,
       { type: 'item', label: 'Paste', icon: <Clipboard size={13} />, onClick: () => {
         navigator.clipboard.readText().then(text => { if (text) editor.chain().focus().insertContent(text).run() }); setContextMenu(null)
       }},
@@ -571,8 +637,10 @@ export default function EditorComponent({
       { type: 'item', label: 'Insert lorem ipsum', icon: <Type size={13} />, onClick: () => {
         editor.chain().focus().insertContent('Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.').run(); setContextMenu(null)
       }},
+      { type: 'separator' },
+      addTagItem,
     ]})
-  }, [editor])
+  }, [editor, getWordAtPos])
 
   const startCtxVoiceMemo = useCallback(async () => {
     try {
@@ -784,6 +852,13 @@ export default function EditorComponent({
                 reader.readAsDataURL(file)
                 e.target.value = ''
               }}
+            />
+          </div>
+          <div style={{ padding: '0 2rem 1rem' }}>
+            <TagInput
+              tags={note.tags ?? []}
+              allTags={allTags}
+              onChange={onTagsChange}
             />
           </div>
           {linkPopover && (

@@ -1,6 +1,11 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import type { Tag } from '@/types'
+
+function parseTags(raw: string): Tag[] {
+  try { return JSON.parse(raw || '[]') } catch { return [] }
+}
 
 async function verifyOwnership(noteId: string, userId: string) {
   const note = await prisma.note.findUnique({ where: { id: noteId } })
@@ -20,17 +25,18 @@ export async function PATCH(
   if (owned === null) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   if (owned === false) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const body = (await request.json()) as { title?: string; content?: string }
+  const body = (await request.json()) as { title?: string; content?: string; tags?: Tag[] }
 
   const note = await prisma.note.update({
     where: { id: params.id },
     data: {
       title: body.title ?? owned.title,
       content: body.content ?? owned.content,
+      ...(body.tags !== undefined && { tags: JSON.stringify(body.tags) }),
     },
   })
 
-  return NextResponse.json(note)
+  return NextResponse.json({ ...note, tags: parseTags(note.tags) })
 }
 
 export async function DELETE(

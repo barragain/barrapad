@@ -9,12 +9,14 @@ import {
   Clipboard, MousePointer2, Table as TableIconLucide, Type,
   Bold as BoldIcon, Italic as ItalicIcon, Underline as UnderlineIcon,
   Strikethrough, Link2, Copy, Scissors, ExternalLink, Pencil, Trash2,
+  Tag as TagIcon,
 } from 'lucide-react'
+import TagInput from './TagInput'
 import AppearanceModal from './AppearanceModal'
 import AboutModal from './AboutModal'
 import ContextMenu from './ContextMenu'
 import type { ContextMenuItem } from './ContextMenu'
-import type { AppearanceSettings } from '@/types'
+import type { AppearanceSettings, Tag } from '@/types'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
 import Link from '@tiptap/extension-link'
@@ -65,6 +67,7 @@ interface Props {
   noteId: string
   initialTitle: string
   initialContent: string
+  initialTags: Tag[]
   permission: 'READ' | 'EDIT'
   updatedAt: string
 }
@@ -92,9 +95,21 @@ function applyAppearance(s: AppearanceSettings) {
   root.style.setProperty('--editor-size', `${s.zoom}px`)
 }
 
-export default function SharedNoteView({ token, noteId, initialTitle, initialContent, permission, updatedAt }: Props) {
+export default function SharedNoteView({ token, noteId, initialTitle, initialContent, initialTags, permission, updatedAt }: Props) {
   const { isSignedIn, isLoaded, user } = useUser()
   const canEdit = permission === 'EDIT' && !!isSignedIn
+  const [tags, setTags] = useState<Tag[]>(initialTags)
+
+  const handleTagsChange = useCallback(async (newTags: Tag[]) => {
+    setTags(newTags)
+    try {
+      await fetch(`/api/share/${token}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tags: newTags }),
+      })
+    } catch {}
+  }, [token])
 
   const socketRef = useRef<PartySocket | null>(null)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -155,7 +170,7 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
     content: initialContent,
     editable: canEdit,
     editorProps: {
-      attributes: { style: 'padding: 2rem; min-height: 70vh; outline: none;' },
+      attributes: { style: 'padding: 2rem; min-height: 70vh; outline: none;', spellcheck: 'true' },
     },
     onUpdate: ({ editor }) => {
       if (!canEdit) return
@@ -331,6 +346,25 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, editor])
 
+  const getWordAtPos = useCallback((pos: number): { word: string; from: number; to: number } | null => {
+    if (!editor) return null
+    try {
+      const $pos = editor.state.doc.resolve(pos)
+      const parent = $pos.parent
+      if (!['paragraph', 'heading', 'listItem', 'taskItem', 'blockquote'].includes(parent.type.name)) return null
+      const text = parent.textContent
+      const offset = $pos.parentOffset
+      let start = offset
+      let end = offset
+      while (start > 0 && /[\w'-]/.test(text[start - 1])) start--
+      while (end < text.length && /[\w'-]/.test(text[end])) end++
+      const word = text.slice(start, end)
+      if (word.length < 2) return null
+      return { word, from: $pos.start() + start, to: $pos.start() + end }
+    } catch { return null }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editor])
+
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     if (!editor || !canEditRef.current) return
     e.preventDefault()
@@ -341,6 +375,13 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
 
     const coords = editor.view.posAtCoords({ left: x, top: y })
     contextClickRef.current = { x, y, editorPos: coords?.inside ?? coords?.pos }
+
+    const addTagItem: ContextMenuItem = {
+      type: 'item', label: 'Add tag…', icon: <TagIcon size={13} />, onClick: () => {
+        setContextMenu(null)
+        window.dispatchEvent(new Event('barrapad:focus-tags'))
+      },
+    }
 
     // Link context menu
     const linkEl = (target.tagName === 'A' ? target : target.closest('a')) as HTMLAnchorElement | null
@@ -369,12 +410,45 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
         { type: 'separator' },
         { type: 'item', label: 'Copy', icon: <Copy size={13} />, onClick: () => { navigator.clipboard.writeText(selectedText); setContextMenu(null) }},
         { type: 'item', label: 'Cut', icon: <Scissors size={13} />, onClick: () => { navigator.clipboard.writeText(selectedText); editor.chain().focus().deleteSelection().run(); setContextMenu(null) }},
+        { type: 'separator' },
+        addTagItem,
       ]})
       return
     }
 
-    // Empty cursor context menu
+    // Empty cursor — show word actions if cursor is in a word
+    const wordResult = contextClickRef.current.editorPos !== undefined
+      ? getWordAtPos(contextClickRef.current.editorPos)
+      : null
+
+    const wordItems: ContextMenuItem[] = wordResult ? [
+      {
+        type: 'item', label: `Select "${wordResult.word.length > 16 ? wordResult.word.slice(0, 16) + '…' : wordResult.word}"`,
+        icon: <MousePointer2 size={13} />,
+        onClick: () => { editor.commands.setTextSelection({ from: wordResult.from, to: wordResult.to }); setContextMenu(null) },
+      },
+      {
+        type: 'item', label: 'Copy word', icon: <Copy size={13} />,
+        onClick: () => { navigator.clipboard.writeText(wordResult.word); setContextMenu(null) },
+      },
+      {
+        type: 'item', label: 'Replace word…', icon: <Pencil size={13} />,
+        onClick: () => {
+          setContextMenu(null)
+          const replacement = window.prompt(`Replace "${wordResult.word}" with:`, wordResult.word)
+          if (replacement !== null && replacement !== wordResult.word) {
+            editor.chain().focus()
+              .setTextSelection({ from: wordResult.from, to: wordResult.to })
+              .insertContent(replacement)
+              .run()
+          }
+        },
+      },
+      { type: 'separator' },
+    ] : []
+
     setContextMenu({ x, y, items: [
+      ...wordItems,
       { type: 'item', label: 'Paste', icon: <Clipboard size={13} />, onClick: () => {
         navigator.clipboard.readText().then(text => { if (text) editor.chain().focus().insertContent(text).run() }); setContextMenu(null)
       }},
@@ -384,8 +458,10 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
       { type: 'item', label: 'Insert lorem ipsum', icon: <Type size={13} />, onClick: () => {
         editor.chain().focus().insertContent('Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.').run(); setContextMenu(null)
       }},
+      { type: 'separator' },
+      addTagItem,
     ]})
-  }, [editor])
+  }, [editor, getWordAtPos])
 
   const formattedDate = new Date(lastUpdated).toLocaleString(undefined, {
     dateStyle: 'medium',
@@ -603,6 +679,14 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
 
             <div onContextMenu={handleContextMenu}>
               <EditorContent editor={editor} style={{ padding: '2rem', minHeight: '70vh' }} />
+            </div>
+            <div style={{ padding: '0 2rem 1rem' }}>
+              <TagInput
+                tags={tags}
+                allTags={tags}
+                onChange={canEdit ? handleTagsChange : () => {}}
+                readOnly={!canEdit}
+              />
             </div>
           </div>
         </div>

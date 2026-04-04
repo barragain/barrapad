@@ -2,6 +2,7 @@ import { notFound, redirect } from 'next/navigation'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
 import type { Metadata } from 'next'
+import type { Tag } from '@/types'
 import SharedNoteView from '@/components/SharedNoteView'
 
 interface Props {
@@ -78,12 +79,16 @@ export default async function SharedNotePage({ params }: Props) {
     }
   }
 
+  let initialTags: Tag[] = []
+  try { initialTags = JSON.parse(link.note.tags || '[]') } catch {}
+
   return (
     <SharedNoteView
       token={params.token}
       noteId={link.noteId}
       initialTitle={link.note.title}
       initialContent={link.note.content}
+      initialTags={initialTags}
       permission={link.permission as 'READ' | 'EDIT'}
       updatedAt={link.note.updatedAt.toISOString()}
     />

@@ -643,4 +643,144 @@ body {
 [data-font="sans"] .ProseMirror { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
 [data-font="serif"] .ProseMirror { font-family: Georgia, 'Times New Roman', serif; }
 [data-font="mono"] .ProseMirror { font-family: 'DM Mono', 'Courier New', monospace; }
+
+/* ===== TAGS ===== */
+.barrapad-tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.barrapad-tag-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 8px;
+  border-radius: 20px;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.barrapad-tag-remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  opacity: 0.55;
+  transition: opacity 0.15s;
+  padding: 0;
+}
+.barrapad-tag-remove:hover { opacity: 1; }
+
+.barrapad-tag-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 8px;
+  border-radius: 20px;
+  border: 1px dashed var(--border);
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.barrapad-tag-add:hover { border-color: #D4550A; color: #D4550A; }
+
+.barrapad-tag-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 200;
+  background: var(--editor-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.12);
+  padding: 10px;
+  min-width: 210px;
+}
+
+.barrapad-tag-input {
+  width: 100%;
+  box-sizing: border-box;
+  font-size: 12px;
+  font-family: inherit;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  outline: none;
+  margin-bottom: 8px;
+}
+.barrapad-tag-input:focus { border-color: #D4550A; }
+.barrapad-tag-input::placeholder { color: var(--muted); }
+
+.barrapad-tag-colors {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.barrapad-tag-color-swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.1s;
+  flex-shrink: 0;
+}
+.barrapad-tag-color-swatch:hover { transform: scale(1.22); }
+
+.barrapad-tag-suggestions {
+  border-top: 1px solid var(--border);
+  padding-top: 5px;
+  margin-top: 2px;
+}
+
+.barrapad-tag-suggestion {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  text-align: left;
+  padding: 5px 6px;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  color: var(--ink);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.barrapad-tag-suggestion:hover { background: var(--border); }
+
+.barrapad-tag-create {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 6px 6px 5px;
+  border-radius: 7px;
+  border: none;
+  border-top: 1px solid var(--border);
+  background: transparent;
+  color: #D4550A;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  margin-top: 4px;
+  transition: background 0.1s;
+}
+.barrapad-tag-create:hover { background: rgba(212,85,10,0.07); }
 [data-font="comic"] .ProseMirror { font-family: 'Comic Sans MS', 'Chalkboard SE', cursive; }

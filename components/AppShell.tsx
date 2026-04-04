@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { Save, Share2, X, CloudUpload, Download, ChevronDown, Menu } from 'lucide-react'
 import { useAuth, useUser } from '@clerk/nextjs'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -10,7 +10,7 @@ import EditorWrapper from './EditorWrapper'
 import ShareModal from './ShareModal'
 import AppearanceModal from './AppearanceModal'
 import OnboardingModal from './OnboardingModal'
-import type { Note, AppearanceSettings, SharedAccessRecord } from '@/types'
+import type { Note, Tag, AppearanceSettings, SharedAccessRecord } from '@/types'
 
 const DEFAULT_APPEARANCE: AppearanceSettings = {
   mode: 'light',
@@ -48,7 +48,11 @@ function loadCachedNotes(): Note[] {
   if (typeof window === 'undefined') return []
   try {
     const raw = localStorage.getItem('barrapad_notes')
-    if (raw) return JSON.parse(raw) as Note[]
+    if (raw) {
+      const notes = JSON.parse(raw) as Note[]
+      // Ensure tags is always an array (old cached notes won't have it)
+      return notes.map(n => ({ ...n, tags: Array.isArray(n.tags) ? n.tags : [] }))
+    }
   } catch {}
   return []
 }
@@ -107,7 +111,8 @@ export default function AppShell() {
         fetch('/api/shared-notes'),
       ])
       if (notesRes.ok) {
-        const data = (await notesRes.json()) as Note[]
+        const raw = (await notesRes.json()) as Note[]
+        const data = raw.map(n => ({ ...n, tags: Array.isArray(n.tags) ? n.tags : [] }))
         setNotes(data)
         saveCachedNotes(data)
         setActiveNoteId((prev) => {
@@ -154,6 +159,30 @@ export default function AppShell() {
     } catch {}
     setAutoSaving(false)
   }, [activeNoteId])
+
+  /** Deduplicated list of all tags across all notes — passed to TagInput for suggestions */
+  const allTags = useMemo<Tag[]>(() => {
+    const seen = new Map<string, Tag>()
+    for (const note of notes) {
+      for (const tag of (note.tags ?? [])) {
+        if (!seen.has(tag.label.toLowerCase())) seen.set(tag.label.toLowerCase(), tag)
+      }
+    }
+    return [...seen.values()]
+  }, [notes])
+
+  /** Save tags for the active note — fires immediately (no debounce, discrete operation) */
+  const handleTagsChange = useCallback(async (tags: Tag[]) => {
+    if (!activeNoteId || activeNoteId.startsWith('temp-')) return
+    updateNotes(prev => prev.map(n => n.id === activeNoteId ? { ...n, tags } : n))
+    try {
+      await fetch(`/api/notes/${activeNoteId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tags }),
+      })
+    } catch {}
+  }, [activeNoteId, updateNotes])
 
   /** Manual save — triggered by the Save button */
   const handleManualSaveContent = useCallback(async (title: string, content: string) => {
@@ -430,9 +459,11 @@ export default function AppShell() {
           {activeNote ? (
             <EditorWrapper
               note={activeNote}
+              allTags={allTags}
               onLocalChange={handleLocalChange}
               onAutoSave={handleAutoSave}
               onManualSave={handleManualSaveContent}
+              onTagsChange={handleTagsChange}
             />
           ) : (
             <div className="flex h-full items-center justify-center">

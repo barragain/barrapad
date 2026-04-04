@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { useUser, UserButton } from '@clerk/nextjs'
 import {
@@ -13,7 +13,7 @@ import {
 } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import { Users } from 'lucide-react'
-import type { Note, SharedAccessRecord } from '@/types'
+import type { Note, Tag, SharedAccessRecord } from '@/types'
 import ContextMenu from './ContextMenu'
 
 const AboutModal = dynamic(() => import('./AboutModal'), { ssr: false })
@@ -41,6 +41,7 @@ export default function Sidebar({
 }: SidebarProps) {
   const { user, isSignedIn } = useUser()
   const [search, setSearch] = useState('')
+  const [activeTagLabels, setActiveTagLabels] = useState<string[]>([])
   const [showAbout, setShowAbout] = useState(false)
   const aboutAudioRef = useRef<HTMLAudioElement | null>(null)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; noteId: string } | null>(null)
@@ -60,12 +61,36 @@ export default function Sidebar({
     return div.textContent ?? ''
   }
 
-  const filtered = notes.filter((n) => {
+  const allSidebarTags = useMemo<Tag[]>(() => {
+    const seen = new Map<string, Tag>()
+    for (const note of notes) {
+      for (const tag of (note.tags ?? [])) {
+        if (!seen.has(tag.label.toLowerCase())) seen.set(tag.label.toLowerCase(), tag)
+      }
+    }
+    return [...seen.values()]
+  }, [notes])
+
+  const toggleTagFilter = (label: string) => {
+    setActiveTagLabels(prev =>
+      prev.includes(label) ? prev.filter(l => l !== label) : [...prev, label]
+    )
+  }
+
+  const searchFiltered = notes.filter((n) => {
     if (!search) return true
     const q = search.toLowerCase()
     const plainContent = stripHtml(n.content).toLowerCase()
     return n.title.toLowerCase().includes(q) || plainContent.includes(q)
   })
+
+  const filtered = activeTagLabels.length === 0
+    ? searchFiltered
+    : searchFiltered.filter(n =>
+        activeTagLabels.some(label =>
+          (n.tags ?? []).some(t => t.label.toLowerCase() === label.toLowerCase())
+        )
+      )
 
   const getContentPreview = (note: Note): React.ReactNode => {
     const plain = stripHtml(note.content)
@@ -121,6 +146,43 @@ export default function Sidebar({
           <Filter size={12} className="text-[#8A8178] flex-shrink-0" />
         </div>
       </div>
+
+      {/* Tag filter */}
+      {allSidebarTags.length > 0 && (
+        <div className="px-2 pb-1">
+          <div className="flex flex-wrap gap-1">
+            {allSidebarTags.map(tag => {
+              const isActive = activeTagLabels.includes(tag.label)
+              return (
+                <button
+                  key={tag.label}
+                  onClick={() => toggleTagFilter(tag.label)}
+                  style={{
+                    fontSize: 10, fontWeight: 500,
+                    padding: '2px 7px', borderRadius: 12,
+                    border: `1px solid ${tag.color}`,
+                    background: isActive ? tag.color : 'transparent',
+                    color: isActive ? '#fff' : tag.color,
+                    cursor: 'pointer',
+                    transition: 'all 0.12s',
+                    lineHeight: '1.5',
+                  }}
+                >
+                  {tag.label}
+                </button>
+              )
+            })}
+            {activeTagLabels.length > 0 && (
+              <button
+                onClick={() => setActiveTagLabels([])}
+                style={{ fontSize: 10, color: '#8A8178', cursor: 'pointer', background: 'none', border: 'none', padding: '2px 4px' }}
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Notes section label */}
       <div className="px-3 py-1">
@@ -242,6 +304,15 @@ export default function Sidebar({
               onClick: () => {
                 setRenamingId(contextMenu.noteId)
                 setContextMenu(null)
+              },
+            },
+            {
+              type: 'item',
+              label: 'Add tag…',
+              onClick: () => {
+                onSelectNote(contextMenu.noteId)
+                setContextMenu(null)
+                setTimeout(() => window.dispatchEvent(new Event('barrapad:focus-tags')), 120)
               },
             },
             { type: 'separator' },

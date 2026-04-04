@@ -1,6 +1,11 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import type { Tag } from '@/types'
+
+function parseTags(raw: string): Tag[] {
+  try { return JSON.parse(raw || '[]') } catch { return [] }
+}
 
 export async function GET() {
   const { userId } = await auth()
@@ -11,7 +16,7 @@ export async function GET() {
     orderBy: { updatedAt: 'desc' },
   })
 
-  return NextResponse.json(notes)
+  return NextResponse.json(notes.map(n => ({ ...n, tags: parseTags(n.tags) })))
 }
 
 export async function POST() {
@@ -26,5 +31,5 @@ export async function POST() {
     },
   })
 
-  return NextResponse.json(note)
+  return NextResponse.json({ ...note, tags: [] })
 }

@@ -1,6 +1,11 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import type { Tag } from '@/types'
+
+function parseTags(raw: string): Tag[] {
+  try { return JSON.parse(raw || '[]') } catch { return [] }
+}
 
 async function resolveToken(token: string) {
   const link = await prisma.shareLink.findUnique({
@@ -22,6 +27,7 @@ export async function GET(
   return NextResponse.json({
     title: link.note.title,
     content: link.note.content,
+    tags: parseTags(link.note.tags),
     permission: link.permission,
     updatedAt: link.note.updatedAt,
   })
@@ -39,13 +45,14 @@ export async function PATCH(
   if (!link) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   if (link.permission !== 'EDIT') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const body = (await request.json()) as { title?: string; content?: string }
+  const body = (await request.json()) as { title?: string; content?: string; tags?: Tag[] }
 
   const note = await prisma.note.update({
     where: { id: link.noteId },
     data: {
       title: body.title ?? link.note.title,
       content: body.content ?? link.note.content,
+      ...(body.tags !== undefined && { tags: JSON.stringify(body.tags) }),
     },
   })
 
@@ -63,7 +70,6 @@ export async function DELETE(
   const link = await resolveToken(params.token)
   if (!link) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  // Only the note owner can revoke
   if (link.note.userId !== userId) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }

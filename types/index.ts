@@ -1,8 +1,15 @@
+export interface Tag {
+  id: string
+  label: string
+  color: string
+}
+
 export interface Note {
   id: string
   userId: string
   title: string
   content: string
+  tags: Tag[]
   createdAt: string
   updatedAt: string
 }
