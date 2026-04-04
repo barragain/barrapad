@@ -324,10 +324,14 @@ export default function EditorComponent({
     if (sendPointerTimerRef.current) clearTimeout(sendPointerTimerRef.current)
     sendPointerTimerRef.current = setTimeout(() => {
       const ed = editorRef.current
-      const pos = ed?.view.posAtCoords({ left: e.clientX, top: e.clientY })
+      if (!ed) return
+      const pos = ed.view.posAtCoords({ left: e.clientX, top: e.clientY })
+      // Fall back to current selection so cursor doesn't snap to doc-start when
+      // the mouse is over non-text areas (padding, margins, etc.)
+      const docPos = pos?.pos ?? ed.state.selection.from
       socketRef.current?.send(JSON.stringify({
         type: 'cursor',
-        from: pos?.pos ?? 0, to: pos?.pos ?? 0,
+        from: docPos, to: docPos,
         name: userNameRef.current,
         color: myColorRef.current,
         imageUrl: userImageRef.current,
@@ -386,18 +390,12 @@ export default function EditorComponent({
       if (msg.type === 'sync' || msg.type === 'update') {
         if (msg.content && msg.content !== '') {
           const msgTs = msg.ts ?? 0
-          // Only apply remote content when ALL of these are true:
-          // 1. Editor is not focused (user isn't actively typing)
-          // 2. No unsaved local changes (pendingRef would be set if user typed recently)
-          // 3. The remote message is not older than the last local edit
-          //    (prevents a stale phone version from wiping out newer desktop edits)
-          // Apply remote content when there are no unsaved local edits and the
-          // message is not older than our last edit (prevents stale overwrites).
-          // We intentionally do NOT gate on ed.isFocused — that was blocking all
-          // updates whenever the editor was focused, even during read-only viewing.
+          // Apply remote content when the incoming message is at least as recent
+          // as our last local edit (timestamp-based LWW). The pendingRef check was
+          // removed — it blocked all remote edits for the entire 1s auto-save
+          // window after every local keystroke, breaking real-time collaboration.
           const safeToApply =
             ed &&
-            !pendingRef.current &&
             msgTs >= lastLocalChangeTimeRef.current
           if (safeToApply) {
             const current = ed!.getHTML()
@@ -419,7 +417,9 @@ export default function EditorComponent({
         if (msg.type === 'sync' && msg.cursors) {
           remoteCursorsRef.current.clear()
           for (const c of msg.cursors) remoteCursorsRef.current.set(c.id, c)
-          if (ed) setCursors(ed, [...remoteCursorsRef.current.values()])
+          const cursors = [...remoteCursorsRef.current.values()]
+          if (ed) setCursors(ed, cursors)
+          setRemoteMouseCursors(cursors)
         }
       }
 

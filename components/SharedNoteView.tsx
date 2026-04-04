@@ -249,9 +249,14 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
     }
     if (sendPointerTimerRef.current) clearTimeout(sendPointerTimerRef.current)
     sendPointerTimerRef.current = setTimeout(() => {
+      const ed2 = editorRef.current
+      if (!ed2) return
+      // Use the position under the mouse when it's over text; otherwise fall back
+      // to the current selection so the cursor doesn't snap to doc-start (pos 0).
+      const docPos = pos?.pos ?? ed2.state.selection.from
       socketRef.current?.send(JSON.stringify({
         type: 'cursor',
-        from: pos?.pos ?? 0, to: pos?.pos ?? 0,
+        from: docPos, to: docPos,
         name: userNameRef.current,
         color: myColorRef.current,
         imageUrl: userImageRef.current,
@@ -293,16 +298,16 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
 
       if (msg.type === 'sync' || msg.type === 'update') {
         if ('connections' in msg) setConnections(msg.connections)
-        if (msg.content !== '' && ed) {
+        if (msg.content && ed) {
           const msgTs = (msg as ServerMessage & { ts?: number }).ts ?? 0
           // Read-only viewers always apply remote content.
-          // Edit-permission viewers: same guards as Editor.tsx — apply only when
-          // there are no unsaved local edits and the message is not stale.
-          // We do NOT gate on ed.isFocused; that was preventing all updates when
-          // the editor was focused during read-only viewing.
+          // Edit-permission viewers: apply if the incoming message is at least as
+          // recent as our last local edit (timestamp-based LWW). The pendingRef
+          // check was removed — it caused edits from collaborators to be blocked
+          // for the entire 1s auto-save window after ANY local keystroke.
           const safeToApply =
             !canEditRef.current ||
-            (!pendingRef.current && msgTs >= lastLocalChangeTimeRef.current)
+            msgTs >= lastLocalChangeTimeRef.current
           if (safeToApply) {
             const current = ed.getHTML()
             if (current !== msg.content) {

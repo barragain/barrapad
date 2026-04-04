@@ -8,7 +8,7 @@ type CursorState = { id: string; from: number; to: number; name: string; color: 
 
 type ServerMessage =
   | { type: 'sync'; content: string; title: string; updatedAt: string; connections: number; cursors: CursorState[] }
-  | { type: 'update'; content: string; title: string; updatedAt: string }
+  | { type: 'update'; content: string; title: string; updatedAt: string; ts?: number }
   | { type: 'presence'; connections: number }
   | { type: 'cursor'; id: string; from: number; to: number; name: string; color: string; imageUrl?: string; mx?: number; my?: number }
   | { type: 'cursor-leave'; id: string }
@@ -51,7 +51,7 @@ export default class NoteParty implements Party.Server {
       await this.room.storage.put('title', data.title)
       await this.room.storage.put('updatedAt', updatedAt)
 
-      const outgoing: ServerMessage = { type: 'update', content: data.content, title: data.title, updatedAt }
+      const outgoing: ServerMessage = { type: 'update', content: data.content, title: data.title, updatedAt, ts: data.ts }
       this.room.broadcast(JSON.stringify(outgoing), [sender.id])
     }
 
