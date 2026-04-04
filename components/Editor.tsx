@@ -754,50 +754,50 @@ export default function EditorComponent({
 
       <div
         className="flex-1 overflow-y-auto"
-        style={{ padding: '2rem 2rem 4rem' }}
+        style={{ padding: '2rem 2rem 4rem', position: 'relative' }}
         onDrop={handleOuterDrop}
         onDragOver={(e) => e.preventDefault()}
       >
-        <div className="editor-anim-border" style={{ maxWidth: 900, margin: '0 auto', position: 'relative' }}>
-          {/* Info button — floats at the top-left corner of the border, outside the text canvas */}
-          <div style={{ position: 'absolute', top: -14, left: -14, zIndex: 20 }}>
-            <motion.button
-              ref={infoButtonRef}
-              onClick={() => setShowInfo((v) => !v)}
-              className="p-2 rounded-xl"
-              style={{ color: showInfo ? '#7A2C06' : '#D4550A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-              animate={{
-                rotate: showInfo ? 22 : 0,
-                backgroundColor: showInfo ? 'rgba(212, 85, 10, 0.13)' : 'rgba(0,0,0,0)',
-              }}
-              whileHover={{ scale: 1.15, backgroundColor: 'rgba(212, 85, 10, 0.09)' }}
-              whileTap={{ scale: 0.78, rotate: showInfo ? 0 : 30 }}
-              transition={{ type: 'spring', stiffness: 460, damping: 18, mass: 0.6 }}
-              title="Note info"
-            >
-              <Info size={22} />
-            </motion.button>
-            <AnimatePresence>
-              {showInfo && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.88, y: -8 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.9, y: -6, transition: { duration: 0.13, ease: [0.4, 0, 1, 1] } }}
-                  transition={{ type: 'spring', stiffness: 480, damping: 26, mass: 0.55 }}
-                  style={{ transformOrigin: 'top left' }}
-                >
-                  <InfoPopover
-                    note={note}
-                    wordCount={wordCount}
-                    charCount={charCount}
-                    onClose={() => setShowInfo(false)}
-                    anchorRef={infoButtonRef}
-                  />
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+        {/* Info button — sits in the top-left padding area, never touching the border */}
+        <div style={{ position: 'absolute', top: 10, left: 10, zIndex: 20 }}>
+          <motion.button
+            ref={infoButtonRef}
+            onClick={() => setShowInfo((v) => !v)}
+            className="p-2 rounded-xl"
+            style={{ color: showInfo ? '#7A2C06' : '#D4550A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            animate={{
+              rotate: showInfo ? 22 : 0,
+              backgroundColor: showInfo ? 'rgba(212, 85, 10, 0.13)' : 'rgba(0,0,0,0)',
+            }}
+            whileHover={{ scale: 1.15, backgroundColor: 'rgba(212, 85, 10, 0.09)' }}
+            whileTap={{ scale: 0.78, rotate: showInfo ? 0 : 30 }}
+            transition={{ type: 'spring', stiffness: 460, damping: 18, mass: 0.6 }}
+            title="Note info"
+          >
+            <Info size={22} />
+          </motion.button>
+          <AnimatePresence>
+            {showInfo && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.88, y: -8 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: -6, transition: { duration: 0.13, ease: [0.4, 0, 1, 1] } }}
+                transition={{ type: 'spring', stiffness: 480, damping: 26, mass: 0.55 }}
+                style={{ transformOrigin: 'top left' }}
+              >
+                <InfoPopover
+                  note={note}
+                  wordCount={wordCount}
+                  charCount={charCount}
+                  onClose={() => setShowInfo(false)}
+                  anchorRef={infoButtonRef}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
+        <div className="editor-anim-border" style={{ maxWidth: 900, margin: '0 auto', position: 'relative' }}>
           <div
             id="barrapad-editor-content"
             style={{ background: 'var(--editor-bg)', borderRadius: 11, WebkitTouchCallout: 'none' } as React.CSSProperties}

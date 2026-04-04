@@ -1,29 +1,32 @@
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let spell: any = null
-let loading = false
-let queue: Array<() => void> = []
+import type nspellType from 'nspell'
 
-async function load(): Promise<typeof spell> {
+type Spell = ReturnType<typeof nspellType>
+
+let spell: Spell | null = null
+let loading = false
+const queue: Array<() => void> = []
+
+async function load(): Promise<Spell> {
   if (spell) return spell
 
   if (loading) {
     return new Promise((resolve) => {
-      queue.push(() => resolve(spell))
+      queue.push(() => resolve(spell!))
     })
   }
 
   loading = true
 
-  const [{ default: nspell }, aff, dic] = await Promise.all([
-    import('nspell'),
+  const [nspell, aff, dic] = await Promise.all([
+    import('nspell').then((m) => m.default ?? m),
     fetch('/dict/en.aff').then((r) => r.text()),
     fetch('/dict/en.dic').then((r) => r.text()),
   ])
 
-  spell = nspell({ aff, dic })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  spell = (nspell as any)({ aff, dic }) as Spell
   loading = false
   queue.forEach((fn) => fn())
-  queue = []
   return spell
 }
 
@@ -35,7 +38,6 @@ if (typeof window !== 'undefined') {
 /** Returns false if misspelled, true if correct, null if dict not loaded yet */
 export function isCorrectSync(word: string): boolean | null {
   if (!spell) return null
-  // Try exact word first, then lowercase (handles sentence-start capitalisation)
   return spell.correct(word) || spell.correct(word.toLowerCase())
 }
 
@@ -44,7 +46,6 @@ export function suggestSync(word: string): string[] | null {
   if (!spell) return null
   const suggestions = spell.suggest(word)
   if (!suggestions.length) {
-    // Try lowercase if exact had no results
     return spell.suggest(word.toLowerCase()).slice(0, 5)
   }
   return suggestions.slice(0, 5)
