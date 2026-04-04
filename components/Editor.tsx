@@ -144,6 +144,26 @@ export default function EditorComponent({
   // Reset deleted state whenever we switch to a different note
   useEffect(() => { setDeleted(false) }, [note.id])
 
+  // Polling fallback: if the PartyKit delete broadcast was missed, detect deletion
+  // via a periodic API check. Covers race conditions where the socket wasn't
+  // connected when the broadcast fired.
+  useEffect(() => {
+    if (note.id.startsWith('temp-')) return
+
+    const check = async () => {
+      try {
+        const url = note.sharedToken
+          ? `/api/share/${note.sharedToken}`
+          : `/api/notes/${note.id}`
+        const res = await fetch(url, { method: 'GET' })
+        if (res.status === 404) setDeleted(true)
+      } catch {}
+    }
+
+    const interval = setInterval(check, 5_000)
+    return () => clearInterval(interval)
+  }, [note.id, note.sharedToken])
+
   // ── Note-switching ────────────────────────────────────────────────────────
   useEffect(() => {
     const ed = editorRef.current

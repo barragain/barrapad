@@ -55,7 +55,8 @@ import {
   Tag as TagIcon,
   Wand2,
 } from 'lucide-react'
-import { isCorrectSync, suggestSync } from '@/utils/spellcheck'
+import { isCorrectSync, suggestSync, ensureLoaded } from '@/utils/spellcheck'
+import { SpellCheck, SPELL_KEY } from '@/extensions/spell-check'
 
 const lowlight = createLowlight(common)
 
@@ -183,11 +184,14 @@ export default function NoteEditorCore({
       Poll,
       LoremIpsum,
       CollabCursor,
+      SpellCheck,
     ],
     content: initialContent,
     editable,
     editorProps: {
-      attributes: { spellcheck: 'true' },
+      // Native browser spell-check is disabled — our SpellCheck extension
+      // draws its own decorations via nspell so they survive programmatic edits.
+      attributes: { spellcheck: 'false' },
       handleDrop(_, event, _slice, moved) {
         if (moved) return false
         const files = event.dataTransfer?.files
@@ -285,6 +289,17 @@ export default function NoteEditorCore({
     editorRef.current = editor
     if (editor) onEditorReady?.(editor)
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editor])
+
+  // Once the nspell dictionary finishes loading, re-run decorations so that
+  // existing content (loaded before the dict was ready) gets underlines.
+  useEffect(() => {
+    if (!editor) return
+    ensureLoaded().then(() => {
+      if (!editor.isDestroyed) {
+        editor.view.dispatch(editor.view.state.tr.setMeta(SPELL_KEY, true))
+      }
+    })
   }, [editor])
 
   // ── Toolbar focus tracking ─────────────────────────────────────────────────
@@ -451,16 +466,14 @@ export default function NoteEditorCore({
             spellItems.push({
               type: 'item', label: s, icon: <Wand2 size={13} />,
               onClick: () => {
+                // Replace the misspelled word. The SpellCheck plugin automatically
+                // recomputes decorations on every document change, so underlines
+                // on all remaining misspelled words stay intact with no extra work.
                 ed.chain().focus()
                   .setTextSelection({ from: wordResult.from, to: wordResult.to })
                   .insertContent(s)
                   .run()
                 setContextMenu(null)
-                // insertContent() is a programmatic DOM change — the browser discards
-                // its spell-check markers for all other words. A blur→focus cycle
-                // (deferred so the DOM has settled) forces a full re-evaluation.
-                const dom = ed.view.dom as HTMLElement
-                setTimeout(() => { dom.blur(); dom.focus() }, 0)
               },
             })
           })

@@ -37,6 +37,19 @@ async function verifyOwnership(noteId: string, userId: string) {
   return note
 }
 
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const { userId } = await auth()
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const note = await prisma.note.findUnique({ where: { id: params.id } })
+  if (!note || note.userId !== userId) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+  return NextResponse.json({ id: note.id })
+}
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }

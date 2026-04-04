@@ -41,6 +41,11 @@ export function isCorrectSync(word: string): boolean | null {
   return spell.correct(word) || spell.correct(word.toLowerCase())
 }
 
+/** Resolves once the dictionary is fully loaded */
+export function ensureLoaded(): Promise<void> {
+  return load().then(() => {})
+}
+
 /** Returns up to 5 suggestions, or null if dict not loaded yet */
 export function suggestSync(word: string): string[] | null {
   if (!spell) return null
