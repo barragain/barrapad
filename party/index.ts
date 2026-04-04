@@ -2,15 +2,15 @@ import type * as Party from 'partykit/server'
 
 type ClientMessage =
   | { type: 'update'; content: string; title: string }
-  | { type: 'cursor'; from: number; to: number; name: string; color: string; imageUrl?: string }
+  | { type: 'cursor'; from: number; to: number; name: string; color: string; imageUrl?: string; mx?: number; my?: number }
 
-type CursorState = { id: string; from: number; to: number; name: string; color: string; imageUrl?: string }
+type CursorState = { id: string; from: number; to: number; name: string; color: string; imageUrl?: string; mx?: number; my?: number }
 
 type ServerMessage =
   | { type: 'sync'; content: string; title: string; updatedAt: string; connections: number; cursors: CursorState[] }
   | { type: 'update'; content: string; title: string; updatedAt: string }
   | { type: 'presence'; connections: number }
-  | { type: 'cursor'; id: string; from: number; to: number; name: string; color: string; imageUrl?: string }
+  | { type: 'cursor'; id: string; from: number; to: number; name: string; color: string; imageUrl?: string; mx?: number; my?: number }
   | { type: 'cursor-leave'; id: string }
 
 export default class NoteParty implements Party.Server {
@@ -56,7 +56,7 @@ export default class NoteParty implements Party.Server {
     }
 
     if (data.type === 'cursor') {
-      const cursorData = { from: data.from, to: data.to, name: data.name, color: data.color, imageUrl: data.imageUrl }
+      const cursorData = { from: data.from, to: data.to, name: data.name, color: data.color, imageUrl: data.imageUrl, mx: data.mx, my: data.my }
       this.cursors.set(sender.id, cursorData)
 
       const outgoing: ServerMessage = { type: 'cursor', id: sender.id, ...cursorData }

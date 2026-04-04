@@ -689,8 +689,8 @@ body {
   font-weight: 500;
   padding: 3px 8px;
   border-radius: 20px;
-  border: 1px dashed var(--border);
-  color: var(--muted);
+  border: 1px dashed color-mix(in srgb, var(--border) 60%, var(--ink) 40%);
+  color: color-mix(in srgb, var(--muted) 40%, var(--ink) 60%);
   background: var(--editor-bg);
   cursor: pointer;
   transition: border-color 0.15s, color 0.15s;

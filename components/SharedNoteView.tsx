@@ -60,7 +60,7 @@ type ServerMessage =
   | { type: 'sync'; content: string; title: string; updatedAt: string; connections: number }
   | { type: 'update'; content: string; title: string; updatedAt: string }
   | { type: 'presence'; connections: number }
-  | { type: 'cursor'; id: string; from: number; to: number; name: string; color: string; imageUrl?: string }
+  | { type: 'cursor'; id: string; from: number; to: number; name: string; color: string; imageUrl?: string; mx?: number; my?: number }
   | { type: 'cursor-leave'; id: string }
 
 interface Props {
@@ -150,6 +150,7 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
   const infoRef = useRef<HTMLButtonElement>(null)
   const aboutAudioRef = useRef<HTMLAudioElement | null>(null)
   const sendPointerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const editorContainerRef = useRef<HTMLDivElement>(null)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; items: ContextMenuItem[] } | null>(null)
   const contextClickRef = useRef<{ x: number; y: number; editorPos?: number }>({ x: 0, y: 0 })
 
@@ -238,15 +239,23 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
     const ed = editorRef.current
     if (!ed) return
     const pos = ed.view.posAtCoords({ left: clientX, top: clientY })
-    if (!pos) return
+    const container = editorContainerRef.current
+    let mx: number | undefined
+    let my: number | undefined
+    if (container) {
+      const rect = container.getBoundingClientRect()
+      mx = (clientX - rect.left) / rect.width
+      my = (clientY - rect.top) / rect.height
+    }
     if (sendPointerTimerRef.current) clearTimeout(sendPointerTimerRef.current)
     sendPointerTimerRef.current = setTimeout(() => {
       socketRef.current?.send(JSON.stringify({
         type: 'cursor',
-        from: pos.pos, to: pos.pos,
+        from: pos?.pos ?? 0, to: pos?.pos ?? 0,
         name: userNameRef.current,
         color: myColorRef.current,
         imageUrl: userImageRef.current,
+        mx, my,
       }))
     }, 80)
   }, [])
@@ -321,10 +330,13 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
       }
 
       if (msg.type === 'cursor' && msg.id && msg.from !== undefined && msg.to !== undefined) {
+        const existing = remoteCursorsRef.current.get(msg.id)
         const cursor: RemoteCursor = {
+          ...existing,
           id: msg.id, from: msg.from, to: msg.to,
           name: msg.name ?? 'Guest', color: msg.color ?? '#888',
           imageUrl: msg.imageUrl,
+          ...(msg.mx !== undefined ? { mx: msg.mx, my: msg.my } : {}),
         }
         remoteCursorsRef.current.set(msg.id, cursor)
         setPresenceList([...remoteCursorsRef.current.values()])
@@ -639,9 +651,37 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '0 1rem 5rem' }}>
         <div className="editor-anim-border" style={{ marginTop: '1.5rem' }}>
           <div
-            style={{ borderRadius: 11, overflow: 'hidden', background: 'var(--editor-bg, #F9F7F4)', position: 'relative' }}
+            ref={editorContainerRef}
+            style={{ borderRadius: 11, overflow: 'visible', background: 'var(--editor-bg, #F9F7F4)', position: 'relative' }}
             onMouseMove={(e) => sendPointerRef(e.clientX, e.clientY)}
           >
+            {/* Remote mouse cursors */}
+            {presenceList.some(p => p.mx !== undefined) && (
+              <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'visible', zIndex: 50 }}>
+                {presenceList.map((p) => {
+                  if (p.mx === undefined || p.my === undefined) return null
+                  return (
+                    <div key={p.id} style={{ position: 'absolute', left: `${p.mx * 100}%`, top: `${p.my * 100}%`, pointerEvents: 'none' }}>
+                      <svg width="16" height="20" viewBox="0 0 16 20" fill="none" style={{ display: 'block', filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.25))' }}>
+                        <path d="M1 1L6.5 17L9.5 10.5L16 8L1 1Z" fill={p.color} stroke="white" strokeWidth="1.5" strokeLinejoin="round" />
+                      </svg>
+                      <div style={{
+                        position: 'absolute', top: 14, left: 10,
+                        background: p.color, color: '#fff',
+                        fontSize: 10, fontWeight: 600,
+                        padding: '2px 6px', borderRadius: 4,
+                        whiteSpace: 'nowrap',
+                        fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                        lineHeight: 1.4,
+                        boxShadow: '0 1px 4px rgba(0,0,0,0.18)',
+                      }}>
+                        {p.name}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
             {/* ⓘ Info button — top-left of editor, same as main editor */}
             <div style={{ position: 'absolute', top: 4, left: 4, zIndex: 20 }}>
               <button

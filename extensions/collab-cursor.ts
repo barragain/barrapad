@@ -9,6 +9,8 @@ export interface RemoteCursor {
   name: string
   color: string
   imageUrl?: string
+  mx?: number  // mouse x as 0-1 ratio of editor container width
+  my?: number  // mouse y as 0-1 ratio of editor container height
 }
 
 export const collabCursorKey = new PluginKey<{ cursors: RemoteCursor[] }>('collabCursor')
