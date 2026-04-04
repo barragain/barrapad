@@ -225,6 +225,11 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
         return
       }
 
+      if (msg.type === 'tags' && msg.tags) {
+        setTags(msg.tags)
+        return
+      }
+
       if (msg.type === 'cursor' && msg.id && msg.from !== undefined && msg.to !== undefined) {
         const existing = remoteCursorsRef.current.get(msg.id)
         const cursor: RemoteCursor = {
