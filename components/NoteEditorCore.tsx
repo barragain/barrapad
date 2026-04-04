@@ -138,22 +138,6 @@ export default function NoteEditorCore({
   const ctxMediaRecorderRef = useRef<MediaRecorder | null>(null)
   const ctxChunksRef = useRef<BlobPart[]>([])
 
-  // ── Toolbar focus tracking ─────────────────────────────────────────────────
-  // Use Tiptap's own focus/blur events. The Toolbar has onMouseDown={e =>
-  // e.preventDefault()} which keeps the editor focused when clicking toolbar
-  // buttons, so onBlur only fires when clicking truly outside the editor.
-  useEffect(() => {
-    if (!editor) return
-    const onFocus = () => setIsEditorFocused(true)
-    const onBlur  = () => setIsEditorFocused(false)
-    editor.on('focus', onFocus)
-    editor.on('blur',  onBlur)
-    return () => {
-      editor.off('focus', onFocus)
-      editor.off('blur',  onBlur)
-    }
-  }, [editor])
-
   // ── Spell-check word lookup ───────────────────────────────────────────────
   const getWordAtPos = useCallback((pos: number): { word: string; from: number; to: number } | null => {
     const ed = editorRef.current
@@ -301,6 +285,22 @@ export default function NoteEditorCore({
     editorRef.current = editor
     if (editor) onEditorReady?.(editor)
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editor])
+
+  // ── Toolbar focus tracking ─────────────────────────────────────────────────
+  // Use Tiptap's own focus/blur events. The Toolbar has onMouseDown={e =>
+  // e.preventDefault()} which keeps the editor focused when clicking toolbar
+  // buttons, so onBlur only fires when clicking truly outside the editor.
+  useEffect(() => {
+    if (!editor) return
+    const onFocus = () => setIsEditorFocused(true)
+    const onBlur  = () => setIsEditorFocused(false)
+    editor.on('focus', onFocus)
+    editor.on('blur',  onBlur)
+    return () => {
+      editor.off('focus', onFocus)
+      editor.off('blur',  onBlur)
+    }
   }, [editor])
 
   // Respond to editable prop changes (e.g. SharedNoteView sign-in state resolves)

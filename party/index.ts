@@ -4,6 +4,7 @@ type ClientMessage =
   | { type: 'update'; content: string; contentJson?: object; title: string; ts?: number }
   | { type: 'tags'; tags: object[] }
   | { type: 'title'; title: string }
+  | { type: 'delete' }
   | { type: 'cursor'; from: number; to: number; name: string; color: string; imageUrl?: string; mx?: number; my?: number }
 
 type CursorState = { id: string; from: number; to: number; name: string; color: string; imageUrl?: string; mx?: number; my?: number }
@@ -13,6 +14,7 @@ type ServerMessage =
   | { type: 'update'; content: string; contentJson?: object; title: string; updatedAt: string; ts?: number }
   | { type: 'tags'; tags: object[] }
   | { type: 'title'; title: string }
+  | { type: 'delete' }
   | { type: 'presence'; connections: number }
   | { type: 'cursor'; id: string; from: number; to: number; name: string; color: string; imageUrl?: string; mx?: number; my?: number }
   | { type: 'cursor-leave'; id: string }
@@ -69,6 +71,10 @@ export default class NoteParty implements Party.Server {
       this.room.broadcast(JSON.stringify({ type: 'title', title: data.title } satisfies ServerMessage), [sender.id])
     }
 
+    if (data.type === 'delete') {
+      this.room.broadcast(JSON.stringify({ type: 'delete' } satisfies ServerMessage))
+    }
+
     if (data.type === 'cursor') {
       const cursorData = { from: data.from, to: data.to, name: data.name, color: data.color, imageUrl: data.imageUrl, mx: data.mx, my: data.my }
       this.cursors.set(sender.id, cursorData)
@@ -85,6 +91,9 @@ export default class NoteParty implements Party.Server {
         if (data.type === 'title') {
           await this.room.storage.put('title', data.title)
           this.room.broadcast(JSON.stringify({ type: 'title', title: data.title } satisfies ServerMessage))
+        }
+        if (data.type === 'delete') {
+          this.room.broadcast(JSON.stringify({ type: 'delete' } satisfies ServerMessage))
         }
       } catch {}
     }

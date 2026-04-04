@@ -7,14 +7,26 @@ function parseTags(raw: string): Tag[] {
   try { return JSON.parse(raw || '[]') } catch { return [] }
 }
 
-async function broadcastTitleToParty(noteId: string, title: string) {
+function partyUrl(noteId: string) {
   const partyHost = process.env.NEXT_PUBLIC_PARTYKIT_HOST ?? 'barrapad.barragain.partykit.dev'
   const isLocal = partyHost.startsWith('localhost') || partyHost.startsWith('127.0.0.1')
   const protocol = isLocal ? 'http' : 'https'
-  await fetch(`${protocol}://${partyHost}/parties/main/${noteId}`, {
+  return `${protocol}://${partyHost}/parties/main/${noteId}`
+}
+
+async function broadcastTitleToParty(noteId: string, title: string) {
+  await fetch(partyUrl(noteId), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ type: 'title', title }),
+  }).catch(() => {})
+}
+
+async function broadcastDeleteToParty(noteId: string) {
+  await fetch(partyUrl(noteId), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type: 'delete' }),
   }).catch(() => {})
 }
 
@@ -66,6 +78,9 @@ export async function DELETE(
   if (owned === null) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   if (owned === false) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
+  // Broadcast before deleting so the PartyKit room still exists to receive it
+  await broadcastDeleteToParty(params.id)
+  await prisma.sharedAccess.deleteMany({ where: { noteId: params.id } })
   await prisma.note.delete({ where: { id: params.id } })
 
   return NextResponse.json({ success: true })

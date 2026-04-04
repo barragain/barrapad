@@ -30,6 +30,7 @@ interface SidebarProps {
   onOpenSharedNote: (token: string) => void
   onRemoveSharedNote: (noteId: string, token: string) => void
   onRenameSharedNote: (token: string, noteId: string, newTitle: string) => void
+  onDeleteSharedNote: (noteId: string, token: string) => void
 }
 
 export default function Sidebar({
@@ -44,6 +45,7 @@ export default function Sidebar({
   onOpenSharedNote,
   onRemoveSharedNote,
   onRenameSharedNote,
+  onDeleteSharedNote,
 }: SidebarProps) {
   const { user, isSignedIn } = useUser()
   const [search, setSearch] = useState('')
@@ -347,35 +349,46 @@ export default function Sidebar({
         </div>
       </div>
 
-      {sharedContextMenu && (
-        <ContextMenu
-          x={sharedContextMenu.x}
-          y={sharedContextMenu.y}
-          items={[
-            {
-              type: 'item',
-              label: 'Rename',
-              onClick: () => {
-                const record = sharedNotes.find(r => r.token === sharedContextMenu.token)
-                setRenameSharedValue(record?.noteTitle || 'Untitled')
-                setRenamingSharedToken(sharedContextMenu.token)
-                setSharedContextMenu(null)
+      {sharedContextMenu && (() => {
+        const record = sharedNotes.find(r => r.token === sharedContextMenu.token)
+        return (
+          <ContextMenu
+            x={sharedContextMenu.x}
+            y={sharedContextMenu.y}
+            items={[
+              {
+                type: 'item',
+                label: 'Rename',
+                onClick: () => {
+                  setRenameSharedValue(record?.noteTitle || 'Untitled')
+                  setRenamingSharedToken(sharedContextMenu.token)
+                  setSharedContextMenu(null)
+                },
               },
-            },
-            { type: 'separator' },
-            {
-              type: 'item',
-              label: 'Remove',
-              danger: true,
-              onClick: () => {
-                onRemoveSharedNote(sharedContextMenu.noteId, sharedContextMenu.token)
-                setSharedContextMenu(null)
+              { type: 'separator' },
+              ...(record?.permission === 'EDIT' ? [{
+                type: 'item' as const,
+                label: 'Delete note for everyone',
+                danger: true,
+                onClick: () => {
+                  onDeleteSharedNote(sharedContextMenu.noteId, sharedContextMenu.token)
+                  setSharedContextMenu(null)
+                },
+              }, { type: 'separator' as const }] : []),
+              {
+                type: 'item',
+                label: 'Remove from my list',
+                danger: true,
+                onClick: () => {
+                  onRemoveSharedNote(sharedContextMenu.noteId, sharedContextMenu.token)
+                  setSharedContextMenu(null)
+                },
               },
-            },
-          ]}
-          onClose={() => setSharedContextMenu(null)}
-        />
-      )}
+            ]}
+            onClose={() => setSharedContextMenu(null)}
+          />
+        )
+      })()}
 
       {contextMenu && (
         <ContextMenu

@@ -400,6 +400,33 @@ export default function AppShell() {
     } catch {}
   }, [activeNoteId, notes, updateNotes])
 
+  // Called when a collaborator deletes a shared note (deletes it for everyone)
+  const handleDeleteSharedNote = useCallback(async (noteId: string, token: string) => {
+    const virtualId = `shared-${token}`
+    setSharedNotes((prev) => prev.filter((r) => r.noteId !== noteId))
+    updateNotes((prev) => prev.filter((n) => n.id !== virtualId))
+    if (activeNoteId === virtualId) {
+      setActiveNoteId(notes.filter((n) => n.id !== virtualId)[0]?.id ?? null)
+    }
+    try {
+      await fetch(`/api/share/${token}/delete-note`, { method: 'DELETE' })
+    } catch {}
+  }, [activeNoteId, notes, updateNotes])
+
+  // Called when a note is deleted by someone else via real-time broadcast
+  const handleNoteDeleted = useCallback((noteId: string) => {
+    if (noteId.startsWith('shared-')) {
+      const token = noteId.replace('shared-', '')
+      setSharedNotes((prev) => prev.filter((r) => r.token !== token))
+    }
+    updateNotes((prev) => prev.filter((n) => n.id !== noteId))
+    setActiveNoteId((prev) => {
+      if (prev !== noteId) return prev
+      const remaining = notes.filter((n) => n.id !== noteId && !n.sharedToken)
+      return remaining[0]?.id ?? null
+    })
+  }, [notes, updateNotes])
+
   const triggerManualSave = () => {
     window.dispatchEvent(new Event('barrapad:save'))
   }
@@ -469,6 +496,7 @@ export default function AppShell() {
           onOpenSharedNote={openSharedNote}
           onRemoveSharedNote={handleRemoveSharedNote}
           onRenameSharedNote={handleRenameSharedNote}
+          onDeleteSharedNote={handleDeleteSharedNote}
         />
       </div>
 
@@ -614,6 +642,7 @@ export default function AppShell() {
               onAutoSave={handleAutoSave}
               onManualSave={handleManualSaveContent}
               onTagsChange={handleTagsChange}
+              onNoteDeleted={handleNoteDeleted}
             />
           ) : (
             <div className="flex h-full items-center justify-center">

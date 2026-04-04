@@ -29,6 +29,8 @@ interface EditorProps {
   /** Called when the user explicitly presses Save */
   onManualSave: (title: string, content: string) => void
   onTagsChange: (tags: Tag[]) => void
+  /** Called when the note is deleted by any collaborator — remove it from state */
+  onNoteDeleted?: (noteId: string) => void
 }
 
 export default function EditorComponent({
@@ -38,6 +40,7 @@ export default function EditorComponent({
   onAutoSave,
   onManualSave,
   onTagsChange,
+  onNoteDeleted,
 }: EditorProps) {
   // ── Refs ──────────────────────────────────────────────────────────────────
   const editorRef = useRef<Editor | null>(null)
@@ -57,6 +60,9 @@ export default function EditorComponent({
   const localEditTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Keep latest callback refs so the long-lived PartyKit effect never has a stale closure
+  const onNoteDeletedRef = useRef(onNoteDeleted)
+  useEffect(() => { onNoteDeletedRef.current = onNoteDeleted }, [onNoteDeleted])
+
   const onLocalChangeRef = useRef(onLocalChange)
   const onTagsChangeRef = useRef(onTagsChange)
   useEffect(() => { onLocalChangeRef.current = onLocalChange }, [onLocalChange])
@@ -172,7 +178,7 @@ export default function EditorComponent({
 
     socket.addEventListener('message', (evt) => {
       type Msg = {
-        type: 'sync' | 'update' | 'presence' | 'cursor' | 'cursor-leave' | 'tags' | 'title'
+        type: 'sync' | 'update' | 'presence' | 'cursor' | 'cursor-leave' | 'tags' | 'title' | 'delete'
         content?: string
         contentJson?: Record<string, unknown>
         title?: string
@@ -229,6 +235,10 @@ export default function EditorComponent({
       if (msg.type === 'cursor-leave' && msg.id) {
         remoteCursorsRef.current.delete(msg.id)
         if (ed) setCursors(ed, [...remoteCursorsRef.current.values()])
+      }
+
+      if (msg.type === 'delete') {
+        onNoteDeletedRef.current?.(note.id)
       }
     })
 
