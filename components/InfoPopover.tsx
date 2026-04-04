@@ -13,13 +13,9 @@ interface InfoPopoverProps {
 
 function formatDate(dateStr: string) {
   const d = new Date(dateStr)
-  return d.toLocaleString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+  const date = d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+  const time = d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+  return { date, time }
 }
 
 export default function InfoPopover({ note, wordCount, charCount, onClose, anchorRef }: InfoPopoverProps) {
@@ -56,11 +52,17 @@ export default function InfoPopover({ note, wordCount, charCount, onClose, ancho
         </div>
         <div className="flex justify-between">
           <span style={{ color: 'var(--muted)' }}>Created</span>
-          <span className="font-medium text-right" style={{ color: 'var(--ink)' }}>{formatDate(note.createdAt)}</span>
+          <span className="font-medium text-right leading-tight" style={{ color: 'var(--ink)' }}>
+            <span className="block">{formatDate(note.createdAt).date}</span>
+            <span className="block">{formatDate(note.createdAt).time}</span>
+          </span>
         </div>
         <div className="flex justify-between">
           <span style={{ color: 'var(--muted)' }}>Updated</span>
-          <span className="font-medium text-right" style={{ color: 'var(--ink)' }}>{formatDate(note.updatedAt)}</span>
+          <span className="font-medium text-right leading-tight" style={{ color: 'var(--ink)' }}>
+            <span className="block">{formatDate(note.updatedAt).date}</span>
+            <span className="block">{formatDate(note.updatedAt).time}</span>
+          </span>
         </div>
 
       </div>
