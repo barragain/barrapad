@@ -1,5 +1,5 @@
 import { auth } from '@clerk/nextjs/server'
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
 export async function GET() {
@@ -13,4 +13,15 @@ export async function GET() {
   })
 
   return NextResponse.json(records)
+}
+
+export async function DELETE(req: NextRequest) {
+  const { userId } = await auth()
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { noteId } = await req.json() as { noteId: string }
+  if (!noteId) return NextResponse.json({ error: 'noteId required' }, { status: 400 })
+
+  await prisma.sharedAccess.deleteMany({ where: { userId, noteId } })
+  return NextResponse.json({ ok: true })
 }

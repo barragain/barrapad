@@ -369,6 +369,22 @@ export default function AppShell() {
     }
   }
 
+  const handleRemoveSharedNote = useCallback(async (noteId: string, token: string) => {
+    const virtualId = `shared-${token}`
+    setSharedNotes((prev) => prev.filter((r) => r.noteId !== noteId))
+    updateNotes((prev) => prev.filter((n) => n.id !== virtualId))
+    if (activeNoteId === virtualId) {
+      setActiveNoteId(notes.filter((n) => n.id !== virtualId)[0]?.id ?? null)
+    }
+    try {
+      await fetch('/api/shared-notes', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ noteId }),
+      })
+    } catch {}
+  }, [activeNoteId, notes, updateNotes])
+
   const triggerManualSave = () => {
     window.dispatchEvent(new Event('barrapad:save'))
   }
@@ -436,6 +452,7 @@ export default function AppShell() {
           onOpenSettings={() => setShowAppearance(true)}
           onRenameNote={handleRenameNote}
           onOpenSharedNote={openSharedNote}
+          onRemoveSharedNote={handleRemoveSharedNote}
         />
       </div>
 
@@ -459,6 +476,7 @@ export default function AppShell() {
               onOpenSettings={() => { setShowAppearance(true); setSidebarOpen(false) }}
               onRenameNote={handleRenameNote}
               onOpenSharedNote={(token) => { openSharedNote(token); setSidebarOpen(false) }}
+              onRemoveSharedNote={handleRemoveSharedNote}
             />
           </motion.div>
         )}

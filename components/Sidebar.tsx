@@ -28,6 +28,7 @@ interface SidebarProps {
   onOpenSettings: () => void
   onRenameNote: (id: string, newTitle: string) => void
   onOpenSharedNote: (token: string) => void
+  onRemoveSharedNote: (noteId: string, token: string) => void
 }
 
 export default function Sidebar({
@@ -40,6 +41,7 @@ export default function Sidebar({
   onOpenSettings,
   onRenameNote,
   onOpenSharedNote,
+  onRemoveSharedNote,
 }: SidebarProps) {
   const { user, isSignedIn } = useUser()
   const [search, setSearch] = useState('')
@@ -47,6 +49,7 @@ export default function Sidebar({
   const [showAbout, setShowAbout] = useState(false)
   const aboutAudioRef = useRef<HTMLAudioElement | null>(null)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; noteId: string } | null>(null)
+  const [sharedContextMenu, setSharedContextMenu] = useState<{ x: number; y: number; noteId: string; token: string } | null>(null)
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')
 
@@ -284,6 +287,10 @@ export default function Sidebar({
                 <button
                   key={record.id}
                   onClick={() => onOpenSharedNote(record.token)}
+                  onContextMenu={(e) => {
+                    e.preventDefault()
+                    setSharedContextMenu({ x: e.clientX, y: e.clientY, noteId: record.noteId, token: record.token })
+                  }}
                   className="w-full text-left flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors"
                   style={{
                     background: isActive ? '#D4550A1F' : 'transparent',
@@ -305,6 +312,34 @@ export default function Sidebar({
             })}
           </div>
         </div>
+      )}
+
+      {sharedContextMenu && (
+        <ContextMenu
+          x={sharedContextMenu.x}
+          y={sharedContextMenu.y}
+          items={[
+            {
+              type: 'item',
+              label: 'Open',
+              onClick: () => {
+                onOpenSharedNote(sharedContextMenu.token)
+                setSharedContextMenu(null)
+              },
+            },
+            { type: 'separator' },
+            {
+              type: 'item',
+              label: 'Remove',
+              danger: true,
+              onClick: () => {
+                onRemoveSharedNote(sharedContextMenu.noteId, sharedContextMenu.token)
+                setSharedContextMenu(null)
+              },
+            },
+          ]}
+          onClose={() => setSharedContextMenu(null)}
+        />
       )}
 
       {contextMenu && (
