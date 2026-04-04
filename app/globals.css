@@ -691,7 +691,7 @@ body {
   border-radius: 20px;
   border: 1px dashed var(--border);
   color: var(--muted);
-  background: transparent;
+  background: var(--editor-bg);
   cursor: pointer;
   transition: border-color 0.15s, color 0.15s;
 }

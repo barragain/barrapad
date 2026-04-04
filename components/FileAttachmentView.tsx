@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react'
 import { NodeViewWrapper } from '@tiptap/react'
 import type { NodeViewProps } from '@tiptap/react'
-import { FileText, Archive, File, GripVertical, Mic, Play, Pause, Download } from 'lucide-react'
+import { FileText, Archive, File, GripVertical, Mic, Play, Pause, Download, Pencil } from 'lucide-react'
 
 function formatSize(bytes: number): string {
   if (bytes >= 1024 * 1024) {
@@ -36,7 +36,63 @@ function getIcon(mimeType: string) {
   return <File size={20} className="text-[#6b6b6b] flex-shrink-0" />
 }
 
-function AudioPlayer({ name, size, dataUrl }: { name: string; size: number; dataUrl: string }) {
+function InlineNameEditor({ name, onRename }: { name: string; onRename: (n: string) => void }) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(name)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const commit = () => {
+    const trimmed = draft.trim()
+    if (trimmed && trimmed !== name) onRename(trimmed)
+    else setDraft(name)
+    setEditing(false)
+  }
+
+  if (editing) {
+    return (
+      <input
+        ref={inputRef}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') commit()
+          if (e.key === 'Escape') { setDraft(name); setEditing(false) }
+        }}
+        autoFocus
+        style={{
+          fontSize: 13, fontWeight: 500, color: 'var(--ink)',
+          border: '1px solid #D4550A', borderRadius: 4,
+          padding: '1px 4px', outline: 'none', width: '100%',
+          background: 'var(--editor-bg)',
+        }}
+      />
+    )
+  }
+
+  return (
+    <span
+      onDoubleClick={() => { setDraft(name); setEditing(true) }}
+      title="Double-click to rename"
+      style={{
+        display: 'flex', alignItems: 'center', gap: 4,
+        cursor: 'text', overflow: 'hidden',
+      }}
+    >
+      <span
+        style={{
+          fontSize: 13, fontWeight: 500, color: 'var(--ink)',
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}
+      >
+        {name}
+      </span>
+      <Pencil size={10} style={{ color: 'var(--muted)', flexShrink: 0, opacity: 0.5 }} />
+    </span>
+  )
+}
+
+function AudioPlayer({ name, size, dataUrl, onRename, selected }: { name: string; size: number; dataUrl: string; onRename: (n: string) => void; selected?: boolean }) {
   const [playing, setPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
@@ -68,11 +124,12 @@ function AudioPlayer({ name, size, dataUrl }: { name: string; size: number; data
         gap: 10,
         padding: '12px 14px',
         background: 'var(--editor-bg)',
-        border: '1px solid var(--border)',
+        border: selected ? '1px solid #D4550A' : '1px solid var(--border)',
         borderRadius: 14,
-        boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+        boxShadow: selected ? '0 0 0 3px rgba(212,85,10,0.15)' : '0 1px 3px rgba(0,0,0,0.06)',
         minWidth: 260,
         maxWidth: 340,
+        transition: 'border-color 0.15s, box-shadow 0.15s',
       }}
     >
       <audio
@@ -97,16 +154,7 @@ function AudioPlayer({ name, size, dataUrl }: { name: string; size: number; data
           <Mic size={14} style={{ color: '#D4550A' }} />
         </span>
         <span style={{ flex: 1, minWidth: 0 }}>
-          <span
-            style={{
-              display: 'block', fontSize: 13, fontWeight: 500,
-              color: 'var(--ink)', overflow: 'hidden',
-              textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-            }}
-            title={name}
-          >
-            {name}
-          </span>
+          <InlineNameEditor name={name} onRename={onRename} />
           <span style={{ display: 'block', fontSize: 11, color: 'var(--muted)', marginTop: 1 }}>
             {formatSize(size)}
           </span>
@@ -165,7 +213,7 @@ function AudioPlayer({ name, size, dataUrl }: { name: string; size: number; data
   )
 }
 
-export default function FileAttachmentView({ node }: NodeViewProps) {
+export default function FileAttachmentView({ node, updateAttributes, selected }: NodeViewProps) {
   const { name, size, mimeType, dataUrl } = node.attrs as {
     name: string
     size: number
@@ -174,6 +222,8 @@ export default function FileAttachmentView({ node }: NodeViewProps) {
   }
 
   const isAudio = mimeType.startsWith('audio/')
+
+  const handleRename = (newName: string) => updateAttributes({ name: newName })
 
   const handleDownload = () => {
     const a = document.createElement('a')
@@ -205,7 +255,7 @@ export default function FileAttachmentView({ node }: NodeViewProps) {
       </div>
 
       {isAudio ? (
-        <AudioPlayer name={name} size={size} dataUrl={dataUrl} />
+        <AudioPlayer name={name} size={size} dataUrl={dataUrl} onRename={handleRename} selected={selected} />
       ) : (
         <span
           style={{
@@ -214,29 +264,16 @@ export default function FileAttachmentView({ node }: NodeViewProps) {
             gap: '12px',
             padding: '10px 14px',
             background: 'var(--editor-bg)',
-            border: '1px solid var(--border)',
+            border: selected ? '1px solid #D4550A' : '1px solid var(--border)',
             borderRadius: '12px',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+            boxShadow: selected ? '0 0 0 3px rgba(212,85,10,0.15)' : '0 1px 3px rgba(0,0,0,0.06)',
             maxWidth: '320px',
+            transition: 'border-color 0.15s, box-shadow 0.15s',
           }}
         >
           {getIcon(mimeType)}
           <span style={{ flex: 1, minWidth: 0 }}>
-            <span
-              style={{
-                display: 'block',
-                fontSize: '13px',
-                fontWeight: 500,
-                color: '#1A1A1A',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                maxWidth: '180px',
-              }}
-              title={name}
-            >
-              {name}
-            </span>
+            <InlineNameEditor name={name} onRename={handleRename} />
             <span style={{ display: 'block', fontSize: '11px', color: '#9b9b9b', marginTop: '1px' }}>
               {formatSize(size)}
             </span>

@@ -25,7 +25,7 @@ import {
   AlignRight,
   Paperclip,
   Mic,
-  MicOff,
+  Square,
   Quote,
   SeparatorHorizontal,
   Superscript,
@@ -603,14 +603,46 @@ export default function Toolbar({ editor }: ToolbarProps) {
         <input ref={fileRef} type="file" className="hidden" onChange={handleFile} />
 
         {/* Voice memo */}
-        <TBtn
-          onClick={toggleRecording}
-          active={isRecording}
-          label={isRecording ? 'Stop recording' : 'Voice memo'}
-          className={isRecording ? 'animate-pulse' : ''}
-        >
-          {isRecording ? <MicOff size={iconSize} /> : <Mic size={iconSize} />}
-        </TBtn>
+        <div style={{ position: 'relative' }}>
+          <TBtn
+            onClick={toggleRecording}
+            active={isRecording}
+            label={isRecording ? 'Stop recording' : 'Voice memo'}
+          >
+            {isRecording ? <Square size={iconSize} fill="currentColor" /> : <Mic size={iconSize} />}
+          </TBtn>
+          {isRecording && (
+            <span
+              style={{
+                position: 'absolute',
+                bottom: 'calc(100% + 6px)',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                background: '#D4550A',
+                color: 'white',
+                fontSize: 11,
+                fontWeight: 600,
+                padding: '3px 8px',
+                borderRadius: 99,
+                whiteSpace: 'nowrap',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+                pointerEvents: 'none',
+                boxShadow: '0 2px 8px rgba(212,85,10,0.35)',
+              }}
+            >
+              <span
+                style={{
+                  width: 6, height: 6, borderRadius: '50%',
+                  background: 'white',
+                  animation: 'pulse 1.2s ease-in-out infinite',
+                }}
+              />
+              Recording
+            </span>
+          )}
+        </div>
 
         {/* Code block */}
         <TBtn onClick={() => editor.chain().focus().toggleCodeBlock().run()} active={editorState.isCodeBlock} label="Code block">
