@@ -59,6 +59,8 @@ export default function LinkPopover({ editor, onClose, pos }: LinkPopoverProps) 
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') handleApply()
+    // Prevent Tab/Shift+Tab from moving focus outside the popover
+    if (e.key === 'Tab') e.preventDefault()
   }
 
   // Use fixed positioning when coordinates are provided (floating near selection)

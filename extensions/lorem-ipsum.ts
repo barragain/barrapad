@@ -30,16 +30,21 @@ export const LoremIpsum = Extension.create({
 
         const { state, dispatch } = this.editor.view
         const { selection } = state
-        if (!selection.empty) return false
-
         const $from = selection.$from
-        if ($from.parent.type.name !== 'paragraph' || $from.parent.textContent !== '') {
-          return false
+
+        // Only insert lorem ipsum in paragraphs; for other node types just consume
+        // the event so focus never jumps out of the editor
+        if ($from.parent.type.name !== 'paragraph') {
+          return true
         }
 
         const text = LOREM_PARAGRAPHS[loremIndex % LOREM_PARAGRAPHS.length]
         loremIndex++
-        dispatch(state.tr.insertText(text, selection.from))
+        if (!selection.empty) {
+          dispatch(state.tr.replaceSelectionWith(state.schema.text(text)))
+        } else {
+          dispatch(state.tr.insertText(text, selection.from))
+        }
         return true
       },
     }
@@ -55,7 +60,7 @@ export const LoremIpsum = Extension.create({
             if (!selection.empty) return DecorationSet.empty
 
             const $from = selection.$from
-            if ($from.parent.type.name !== 'paragraph' || $from.parent.textContent !== '') {
+            if ($from.parent.type.name !== 'paragraph') {
               return DecorationSet.empty
             }
 
