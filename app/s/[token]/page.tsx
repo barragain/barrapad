@@ -67,8 +67,10 @@ export default async function SharedNotePage({ params }: Props) {
       update: { noteTitle: link.note.title, token: params.token, permission: link.permission, lastSeen: new Date() },
       create: { userId, noteId: link.noteId, noteTitle: link.note.title, token: params.token, permission: link.permission },
     })
+    // Redirect signed-in users to the main app with the shared note open
+    redirect(`/?shared=${params.token}`)
   } else {
-    // READ: record if signed in
+    // READ: record and redirect if signed in
     const { userId } = await auth()
     if (userId) {
       await prisma.sharedAccess.upsert({
@@ -76,6 +78,7 @@ export default async function SharedNotePage({ params }: Props) {
         update: { noteTitle: link.note.title, token: params.token, permission: link.permission, lastSeen: new Date() },
         create: { userId, noteId: link.noteId, noteTitle: link.note.title, token: params.token, permission: link.permission },
       })
+      redirect(`/?shared=${params.token}`)
     }
   }
 

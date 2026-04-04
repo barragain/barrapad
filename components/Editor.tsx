@@ -148,7 +148,8 @@ export default function EditorComponent({
   useEffect(() => {
     if (!editorReady || note.id.startsWith('temp-')) return
 
-    const socket = new PartySocket({ host: PARTYKIT_HOST, room: note.id })
+    const room = note.sharedNoteId ?? note.id
+    const socket = new PartySocket({ host: PARTYKIT_HOST, room })
     socketRef.current = socket
 
     socket.addEventListener('message', (evt) => {
@@ -215,10 +216,14 @@ export default function EditorComponent({
   useEffect(() => {
     const handler = () => {
       if (!pendingRef.current || note.id.startsWith('temp-')) return
+      if (note.sharedToken && note.sharedPermission === 'READ') return
       const { title, html } = pendingRef.current
       try {
         const xhr = new XMLHttpRequest()
-        xhr.open('PATCH', `/api/notes/${note.id}`, false)
+        const url = note.sharedToken
+          ? `/api/share/${note.sharedToken}`
+          : `/api/notes/${note.id}`
+        xhr.open('PATCH', url, false)
         xhr.setRequestHeader('Content-Type', 'application/json')
         xhr.send(JSON.stringify({ title, content: html }))
       } catch { /* best-effort */ }
@@ -246,10 +251,12 @@ export default function EditorComponent({
   }, [handleManualSave])
 
   // ── Render ────────────────────────────────────────────────────────────────
+  const editable = !note.sharedToken || note.sharedPermission === 'EDIT'
+
   return (
     <NoteEditorCore
       initialContent={note.content || ''}
-      editable
+      editable={editable}
       onEditorReady={handleEditorReady}
       onUpdate={handleUpdate}
       onBlur={flushAutoSave}
