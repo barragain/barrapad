@@ -445,6 +445,10 @@ export default function NoteEditorCore({
               onClick: () => {
                 ed.chain().focus().setTextSelection({ from: wordResult.from, to: wordResult.to }).insertContent(s).run()
                 setContextMenu(null)
+                // Force browser spell-check to re-evaluate the whole document
+                const dom = ed.view.dom as HTMLElement
+                dom.spellcheck = false
+                requestAnimationFrame(() => { dom.spellcheck = true })
               },
             })
           })
