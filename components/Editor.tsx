@@ -755,8 +755,8 @@ export default function EditorComponent({
         onDragOver={(e) => e.preventDefault()}
       >
         <div className="editor-anim-border" style={{ maxWidth: 900, margin: '0 auto', position: 'relative' }}>
-          {/* Info button — top-left of the writing area */}
-          <div style={{ position: 'absolute', top: 4, left: 4, zIndex: 20 }}>
+          {/* Info button — floats at the top-left corner of the border, outside the text canvas */}
+          <div style={{ position: 'absolute', top: -14, left: -14, zIndex: 20 }}>
             <motion.button
               ref={infoButtonRef}
               onClick={() => setShowInfo((v) => !v)}

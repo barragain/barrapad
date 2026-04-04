@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react'
 import { useEditorState } from '@tiptap/react'
 import type { Editor } from '@tiptap/react'
 import {
@@ -238,6 +238,8 @@ export default function Toolbar({ editor }: ToolbarProps) {
   const [isRecording, setIsRecording] = useState(false)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<BlobPart[]>([])
+  const micBtnRef = useRef<HTMLDivElement>(null)
+  const [pillPos, setPillPos] = useState<{ x: number; top: number } | null>(null)
   const [showTextStyle, setShowTextStyle] = useState(false)
   const [showColor, setShowColor] = useState(false)
   const [showHighlight, setShowHighlight] = useState(false)
@@ -245,6 +247,18 @@ export default function Toolbar({ editor }: ToolbarProps) {
   const [showTable, setShowTable] = useState(false)
   const [showLink, setShowLink] = useState(false)
   const [linkPos, setLinkPos] = useState<{ left: number; top: number } | null>(null)
+
+  useLayoutEffect(() => {
+    if (isRecording && micBtnRef.current) {
+      const rect = micBtnRef.current.getBoundingClientRect()
+      // Desktop: toolbar is at top → pill goes below the button
+      // Mobile: toolbar is at bottom → pill goes above the button
+      const top = isMobile ? rect.top - 32 : rect.bottom + 6
+      setPillPos({ x: rect.left + rect.width / 2, top })
+    } else {
+      setPillPos(null)
+    }
+  }, [isRecording, isMobile])
 
   const editorState = useEditorState({
     editor,
@@ -603,7 +617,7 @@ export default function Toolbar({ editor }: ToolbarProps) {
         <input ref={fileRef} type="file" className="hidden" onChange={handleFile} />
 
         {/* Voice memo */}
-        <div style={{ position: 'relative' }}>
+        <div ref={micBtnRef}>
           <TBtn
             onClick={toggleRecording}
             active={isRecording}
@@ -611,12 +625,12 @@ export default function Toolbar({ editor }: ToolbarProps) {
           >
             {isRecording ? <Square size={iconSize} fill="currentColor" /> : <Mic size={iconSize} />}
           </TBtn>
-          {isRecording && (
+          {isRecording && pillPos && (
             <span
               style={{
-                position: 'absolute',
-                bottom: 'calc(100% + 6px)',
-                left: '50%',
+                position: 'fixed',
+                top: pillPos.top,
+                left: pillPos.x,
                 transform: 'translateX(-50%)',
                 background: '#D4550A',
                 color: 'white',
@@ -630,6 +644,7 @@ export default function Toolbar({ editor }: ToolbarProps) {
                 gap: 5,
                 pointerEvents: 'none',
                 boxShadow: '0 2px 8px rgba(212,85,10,0.35)',
+                zIndex: 9999,
               }}
             >
               <span
