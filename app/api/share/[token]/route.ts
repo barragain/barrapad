@@ -7,11 +7,11 @@ function parseTags(raw: string): Tag[] {
   try { return JSON.parse(raw || '[]') } catch { return [] }
 }
 
-function broadcastTitleToParty(noteId: string, title: string) {
+async function broadcastTitleToParty(noteId: string, title: string) {
   const partyHost = process.env.NEXT_PUBLIC_PARTYKIT_HOST ?? 'barrapad.barragain.partykit.dev'
   const isLocal = partyHost.startsWith('localhost') || partyHost.startsWith('127.0.0.1')
   const protocol = isLocal ? 'http' : 'https'
-  fetch(`${protocol}://${partyHost}/parties/main/${noteId}`, {
+  await fetch(`${protocol}://${partyHost}/parties/main/${noteId}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ type: 'title', title }),
@@ -70,7 +70,7 @@ export async function PATCH(
 
   // If the title changed, broadcast to the PartyKit room so the owner's open editor updates
   if (body.title !== undefined && body.title !== link.note.title) {
-    broadcastTitleToParty(link.noteId, body.title)
+    await broadcastTitleToParty(link.noteId, body.title)
   }
 
   return NextResponse.json({ title: note.title, content: note.content, updatedAt: note.updatedAt })
