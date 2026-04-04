@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { NodeViewWrapper } from '@tiptap/react'
 import type { NodeViewProps } from '@tiptap/react'
 import { FileText, Archive, File, Mic, Play, Pause, Download, Pencil } from 'lucide-react'
@@ -238,6 +238,22 @@ export default function FileAttachmentView({ node, updateAttributes, selected }:
   }
 
   const isAudio = mimeType.startsWith('audio/')
+  const wrapperRef = useRef<HTMLElement>(null)
+
+  // Register at document level (bubbling) so our ghost wins over Tiptap's
+  // setDragImage call, which fires in the editor-div bubbling phase before us.
+  useEffect(() => {
+    const el = wrapperRef.current
+    if (!el) return
+    const handler = (e: DragEvent) => {
+      if (!el.contains(e.target as globalThis.Node) && e.target !== el) return
+      const ghost = makeDragGhost(name)
+      e.dataTransfer?.setDragImage(ghost, 0, Math.max(ghost.offsetHeight / 2, 8))
+      setTimeout(() => ghost.remove(), 0)
+    }
+    document.addEventListener('dragstart', handler)
+    return () => document.removeEventListener('dragstart', handler)
+  }, [name])
 
   const handleRename = (newName: string) => updateAttributes({ name: newName })
 
@@ -250,21 +266,14 @@ export default function FileAttachmentView({ node, updateAttributes, selected }:
     document.body.removeChild(a)
   }
 
-  const handleDragStart = (e: React.DragEvent) => {
-    const ghost = makeDragGhost(name)
-    // offsetHeight is synchronous after append; cursor sits at mid-left of pill
-    e.dataTransfer.setDragImage(ghost, 0, Math.max(ghost.offsetHeight / 2, 8))
-    setTimeout(() => ghost.remove(), 0)
-  }
-
   return (
     <NodeViewWrapper
+      ref={wrapperRef}
       as="div"
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       {...({ 'data-drag-handle': true } as any)}
       contentEditable={false}
-      onDragStart={handleDragStart}
-      style={{ display: 'inline-flex', alignItems: 'center', margin: '4px 0', cursor: 'grab' }}
+      style={{ display: 'inline-flex', alignItems: 'center', margin: '4px 0', cursor: 'grab', width: 'fit-content' }}
     >
       {isAudio ? (
         <AudioPlayer name={name} size={size} dataUrl={dataUrl} onRename={handleRename} selected={selected} />

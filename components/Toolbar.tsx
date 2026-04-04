@@ -315,6 +315,8 @@ export default function Toolbar({ editor }: ToolbarProps) {
     const reader = new FileReader()
     reader.onload = (ev) => {
       if (ev.target?.result) {
+        const sel = editor.state.selection
+        if ('node' in sel && sel.node) editor.commands.setTextSelection(sel.to)
         editor.chain().focus().setImage({ src: ev.target.result as string }).run()
       }
     }
@@ -329,6 +331,8 @@ export default function Toolbar({ editor }: ToolbarProps) {
     reader.onload = (ev) => {
       const result = ev.target?.result as string
       if (!result) return
+      const sel = editor.state.selection
+      if ('node' in sel && sel.node) editor.commands.setTextSelection(sel.to)
       editor.chain().focus().insertFileAttachment({
         name: file.name,
         size: file.size,
@@ -360,6 +364,8 @@ export default function Toolbar({ editor }: ToolbarProps) {
         fr.onload = (ev) => {
           const dataUrl = ev.target?.result as string
           if (!dataUrl) return
+          const sel = editor.state.selection
+          if ('node' in sel && sel.node) editor.commands.setTextSelection(sel.to)
           editor.chain().focus().insertFileAttachment({
             name, size: blob.size, mimeType: recorder.mimeType, dataUrl,
           }).run()

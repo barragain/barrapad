@@ -3,7 +3,7 @@
 import { Node, mergeAttributes } from '@tiptap/core'
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react'
 import type { NodeViewProps } from '@tiptap/react'
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { NodeSelection } from '@tiptap/pm/state'
 
 function ResizableImageView({ node, updateAttributes, selected }: NodeViewProps) {
@@ -20,6 +20,32 @@ function ResizableImageView({ node, updateAttributes, selected }: NodeViewProps)
   const startX = useRef(0)
   const startW = useRef(0)
   const imgRef = useRef<HTMLImageElement>(null)
+  const dragHandleRef = useRef<HTMLDivElement>(null)
+
+  // Register at document level (bubbling) so our ghost wins over Tiptap's setDragImage.
+  useEffect(() => {
+    const el = dragHandleRef.current
+    if (!el) return
+    const handler = (e: DragEvent) => {
+      if (!el.contains(e.target as globalThis.Node) && e.target !== el) return
+      const label = alt || title || 'Image'
+      const ghost = document.createElement('div')
+      ghost.textContent = label.length > 28 ? label.slice(0, 28) + '…' : label
+      ghost.style.cssText = [
+        'position:fixed', 'top:0', 'left:-9999px',
+        'background:#D4550A', 'color:white',
+        'font:600 12px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
+        'padding:5px 10px', 'border-radius:99px',
+        'white-space:nowrap', 'pointer-events:none',
+        'box-shadow:0 2px 8px rgba(212,85,10,0.35)',
+      ].join(';')
+      document.body.appendChild(ghost)
+      e.dataTransfer?.setDragImage(ghost, 0, Math.max(ghost.offsetHeight / 2, 8))
+      setTimeout(() => ghost.remove(), 0)
+    }
+    document.addEventListener('dragstart', handler)
+    return () => document.removeEventListener('dragstart', handler)
+  }, [alt, title])
 
   const onResizeStart = useCallback(
     (e: React.MouseEvent) => {
@@ -49,31 +75,13 @@ function ResizableImageView({ node, updateAttributes, selected }: NodeViewProps)
   const justify = align === 'center' ? 'center' : align === 'right' ? 'flex-end' : 'flex-start'
   const showHandle = selected || hovered || resizing
 
-  const handleDragStart = (e: React.DragEvent) => {
-    // Compact pill ghost so the drop cursor stays visible
-    const label = alt || title || 'Image'
-    const ghost = document.createElement('div')
-    ghost.textContent = label.length > 28 ? label.slice(0, 28) + '…' : label
-    ghost.style.cssText = [
-      'position:fixed', 'top:0', 'left:-9999px',
-      'background:#D4550A', 'color:white',
-      'font:600 12px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
-      'padding:5px 10px', 'border-radius:99px',
-      'white-space:nowrap', 'pointer-events:none',
-      'box-shadow:0 2px 8px rgba(212,85,10,0.35)',
-    ].join(';')
-    document.body.appendChild(ghost)
-    e.dataTransfer.setDragImage(ghost, 0, Math.max(ghost.offsetHeight / 2, 8))
-    setTimeout(() => ghost.remove(), 0)
-  }
-
   return (
     <NodeViewWrapper contentEditable={false}>
       <div
+        ref={dragHandleRef}
         data-drag-handle
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
-        onDragStart={handleDragStart}
         style={{
           display: 'flex',
           justifyContent: justify,
