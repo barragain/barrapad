@@ -106,6 +106,7 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
   const [showAbout, setShowAbout] = useState(false)
   const [showAppearance, setShowAppearance] = useState(false)
   const [appearance, setAppearance] = useState<AppearanceSettings>(DEFAULT_APPEARANCE)
+  const [deleted, setDeleted] = useState(false)
   const aboutAudioRef = useRef<HTMLAudioElement | null>(null)
 
   // Load & apply appearance on mount
@@ -182,7 +183,7 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
 
     socket.addEventListener('message', (evt) => {
       type AnyMsg = {
-        type: 'sync' | 'update' | 'presence' | 'cursor' | 'cursor-leave' | 'tags' | 'title'
+        type: 'sync' | 'update' | 'presence' | 'cursor' | 'cursor-leave' | 'tags' | 'title' | 'delete'
         content?: string; contentJson?: Record<string, unknown>
         title?: string; updatedAt?: string; connections?: number
         tags?: import('@/types').Tag[]
@@ -230,6 +231,16 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
         return
       }
 
+      if (msg.type === 'title' && msg.title) {
+        document.title = `${msg.title} | barraPAD - A notepad for whatever`
+        return
+      }
+
+      if (msg.type === 'delete') {
+        setDeleted(true)
+        return
+      }
+
       if (msg.type === 'cursor' && msg.id && msg.from !== undefined && msg.to !== undefined) {
         const existing = remoteCursorsRef.current.get(msg.id)
         const cursor: RemoteCursor = {
@@ -260,6 +271,17 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
   }, [noteId, editorReady])
 
   // ── Render ────────────────────────────────────────────────────────────────
+  if (deleted) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--editor-bg, #F9F7F4)' }}>
+        <div style={{ textAlign: 'center' }}>
+          <p style={{ fontSize: 16, color: '#8A8178', marginBottom: 12 }}>This note has been deleted.</p>
+          <a href="/" style={{ fontSize: 14, color: '#D4550A', textDecoration: 'none', fontWeight: 600 }}>← Go to barraPAD</a>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div style={{ minHeight: '100vh', background: 'var(--editor-bg, #F9F7F4)', display: 'flex', flexDirection: 'column' }}>
       {/* ── Top bar ── */}
