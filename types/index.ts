@@ -12,6 +12,10 @@ export interface Note {
   tags: Tag[]
   createdAt: string
   updatedAt: string
+  // Set on shared notes opened inside the main editor (not present on own notes)
+  sharedToken?: string
+  sharedPermission?: 'READ' | 'EDIT'
+  sharedNoteId?: string  // real DB note ID — used as the PartyKit room
 }
 
 export interface SharedAccessRecord {
