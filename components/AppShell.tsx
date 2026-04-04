@@ -332,6 +332,11 @@ export default function AppShell() {
     const handler = (e: Event) => {
       const { id, title } = (e as CustomEvent<{ id: string; title: string }>).detail
       updateNotes(prev => prev.map(n => n.id === id ? { ...n, title } : n))
+      // Also update the "Shared with me" sidebar entry if this is a shared note
+      if (id.startsWith('shared-')) {
+        const token = id.slice('shared-'.length)
+        setSharedNotes(prev => prev.map(r => r.token === token ? { ...r, noteTitle: title } : r))
+      }
     }
     window.addEventListener('barrapad:remote-rename', handler)
     return () => window.removeEventListener('barrapad:remote-rename', handler)
