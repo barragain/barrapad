@@ -27,6 +27,7 @@ interface SidebarProps {
   onDeleteNote: (id: string) => void
   onOpenSettings: () => void
   onRenameNote: (id: string, newTitle: string) => void
+  onOpenSharedNote: (token: string) => void
 }
 
 export default function Sidebar({
@@ -38,6 +39,7 @@ export default function Sidebar({
   onDeleteNote,
   onOpenSettings,
   onRenameNote,
+  onOpenSharedNote,
 }: SidebarProps) {
   const { user, isSignedIn } = useUser()
   const [search, setSearch] = useState('')
@@ -270,25 +272,31 @@ export default function Sidebar({
             <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#D4550A' }}>Shared with me</span>
           </div>
           <div className="px-1 pb-1.5 space-y-0.5">
-            {sharedNotes.map((record) => (
-              <a
-                key={record.id}
-                href={`/s/${record.token}`}
-                className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors"
-                style={{ textDecoration: 'none', display: 'flex' }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = '#D4550A14')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-medium truncate leading-tight" style={{ color: 'var(--ink)' }}>
-                    {record.noteTitle || 'Untitled'}
-                  </p>
-                  <p className="text-[10px] leading-tight" style={{ color: '#D4550A99' }}>
-                    {record.permission === 'EDIT' ? 'Can edit' : 'View only'}
-                  </p>
-                </div>
-              </a>
-            ))}
+            {sharedNotes.map((record) => {
+              const isActive = activeNoteId === `shared-${record.token}`
+              return (
+                <button
+                  key={record.id}
+                  onClick={() => onOpenSharedNote(record.token)}
+                  className="w-full text-left flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors"
+                  style={{
+                    background: isActive ? '#D4550A1F' : 'transparent',
+                    border: 'none', cursor: 'pointer',
+                  }}
+                  onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = '#D4550A14' }}
+                  onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium truncate leading-tight" style={{ color: 'var(--ink)' }}>
+                      {record.noteTitle || 'Untitled'}
+                    </p>
+                    <p className="text-[10px] leading-tight" style={{ color: '#D4550A99' }}>
+                      {record.permission === 'EDIT' ? 'Can edit' : 'View only'}
+                    </p>
+                  </div>
+                </button>
+              )
+            })}
           </div>
         </div>
       )}

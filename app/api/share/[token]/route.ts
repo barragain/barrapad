@@ -25,6 +25,7 @@ export async function GET(
   if (!link) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   return NextResponse.json({
+    noteId: link.noteId,
     title: link.note.title,
     content: link.note.content,
     tags: parseTags(link.note.tags),
