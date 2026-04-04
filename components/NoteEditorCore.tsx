@@ -124,7 +124,7 @@ export default function NoteEditorCore({
   const editorAreaRef = useRef<HTMLDivElement>(null)
   const editorContainerRef = useRef<HTMLDivElement>(null)
   const toolbarRef = useRef<HTMLDivElement>(null)
-  const [isEditorFocused, setIsEditorFocused] = useState(true)
+  const [isEditorFocused, setIsEditorFocused] = useState(false)
   const infoButtonRef = useRef<HTMLButtonElement>(null)
   const [showInfo, setShowInfo] = useState(false)
   const [wordCount, setWordCount] = useState(0)
@@ -138,18 +138,21 @@ export default function NoteEditorCore({
   const ctxMediaRecorderRef = useRef<MediaRecorder | null>(null)
   const ctxChunksRef = useRef<BlobPart[]>([])
 
-  // ── Toolbar focus tracking ────────────────────────────────────────────────
+  // ── Toolbar focus tracking ─────────────────────────────────────────────────
+  // Use Tiptap's own focus/blur events. The Toolbar has onMouseDown={e =>
+  // e.preventDefault()} which keeps the editor focused when clicking toolbar
+  // buttons, so onBlur only fires when clicking truly outside the editor.
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      const t = e.target as Node
-      setIsEditorFocused(
-        !!editorContainerRef.current?.contains(t) ||
-        !!toolbarRef.current?.contains(t)
-      )
+    if (!editor) return
+    const onFocus = () => setIsEditorFocused(true)
+    const onBlur  = () => setIsEditorFocused(false)
+    editor.on('focus', onFocus)
+    editor.on('blur',  onBlur)
+    return () => {
+      editor.off('focus', onFocus)
+      editor.off('blur',  onBlur)
     }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [])
+  }, [editor])
 
   // ── Spell-check word lookup ───────────────────────────────────────────────
   const getWordAtPos = useCallback((pos: number): { word: string; from: number; to: number } | null => {
