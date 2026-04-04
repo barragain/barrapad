@@ -104,8 +104,10 @@ export default function EditorComponent({
   const socketRef = useRef<PartySocket | null>(null)
   const sendTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const sendCursorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  // Tracks when the user last made a local edit — used to reject stale remote content
+  // Tracks when the user last made a local edit (for outgoing ts) and whether they are actively typing
   const lastLocalChangeTimeRef = useRef(0)
+  const isLocallyEditingRef = useRef(false)
+  const localEditTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const prevNoteIdRef = useRef<string>(note.id)
   const remoteCursorsRef = useRef<Map<string, RemoteCursor>>(new Map())
   const myColorRef = useRef(pickColor(Math.random().toString()))
@@ -289,8 +291,11 @@ export default function EditorComponent({
       // Immediate: update localStorage, no network
       onLocalChange(title, html)
 
-      // Record when this local change happened — used to reject stale remote content
+      // Record when this local change happened (for outgoing ts) and mark as actively editing
       lastLocalChangeTimeRef.current = Date.now()
+      isLocallyEditingRef.current = true
+      if (localEditTimeoutRef.current) clearTimeout(localEditTimeoutRef.current)
+      localEditTimeoutRef.current = setTimeout(() => { isLocallyEditingRef.current = false }, 1500)
 
       // Broadcast to PartyKit for real-time sync with share-link viewers
       if (sendTimerRef.current) clearTimeout(sendTimerRef.current)
@@ -349,6 +354,8 @@ export default function EditorComponent({
     // Reset pending state when switching notes
     pendingRef.current = null
     lastLocalChangeTimeRef.current = 0
+    isLocallyEditingRef.current = false
+    if (localEditTimeoutRef.current) clearTimeout(localEditTimeoutRef.current)
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [note.id])
@@ -374,14 +381,9 @@ export default function EditorComponent({
 
       if (msg.type === 'sync' || msg.type === 'update') {
         if (msg.content && msg.content !== '') {
-          const msgTs = msg.ts ?? 0
-          // Apply remote content when the incoming message is at least as recent
-          // as our last local edit (timestamp-based LWW). The pendingRef check was
-          // removed — it blocked all remote edits for the entire 1s auto-save
-          // window after every local keystroke, breaking real-time collaboration.
-          const safeToApply =
-            ed &&
-            msgTs >= lastLocalChangeTimeRef.current
+          // Apply remote content unless the local user is actively typing (within 1.5s).
+          // sync messages (initial/reconnect) are always applied unconditionally.
+          const safeToApply = ed && (msg.type === 'sync' || !isLocallyEditingRef.current)
           if (safeToApply) {
             const current = ed!.getHTML()
             if (current !== msg.content) {

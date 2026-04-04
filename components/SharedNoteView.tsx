@@ -120,9 +120,10 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const sendTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const sendCursorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  // Mirrors Editor.tsx sync guards: tracks unsaved local edits and last-edit time
   const pendingRef = useRef(false)
   const lastLocalChangeTimeRef = useRef(0)
+  const isLocallyEditingRef = useRef(false)
+  const localEditTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const remoteCursorsRef = useRef<Map<string, RemoteCursor>>(new Map())
   const myColorRef = useRef(pickColor(Math.random().toString()))
   const canEditRef = useRef(canEdit)
@@ -187,6 +188,9 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
 
       pendingRef.current = true
       lastLocalChangeTimeRef.current = Date.now()
+      isLocallyEditingRef.current = true
+      if (localEditTimeoutRef.current) clearTimeout(localEditTimeoutRef.current)
+      localEditTimeoutRef.current = setTimeout(() => { isLocallyEditingRef.current = false }, 1500)
 
       // 1. Send to PartyKit immediately for real-time sync
       if (sendTimerRef.current) clearTimeout(sendTimerRef.current)
@@ -303,15 +307,13 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
       if (msg.type === 'sync' || msg.type === 'update') {
         if ('connections' in msg) setConnections(msg.connections)
         if (msg.content && ed) {
-          const msgTs = (msg as ServerMessage & { ts?: number }).ts ?? 0
           // Read-only viewers always apply remote content.
-          // Edit-permission viewers: apply if the incoming message is at least as
-          // recent as our last local edit (timestamp-based LWW). The pendingRef
-          // check was removed — it caused edits from collaborators to be blocked
-          // for the entire 1s auto-save window after ANY local keystroke.
+          // Edit-permission viewers: apply unless actively typing (within 1.5s).
+          // sync messages (initial/reconnect) are always applied unconditionally.
           const safeToApply =
             !canEditRef.current ||
-            msgTs >= lastLocalChangeTimeRef.current
+            msg.type === 'sync' ||
+            !isLocallyEditingRef.current
           if (safeToApply) {
             const current = ed.getHTML()
             if (current !== msg.content) {
