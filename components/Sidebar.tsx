@@ -29,6 +29,7 @@ interface SidebarProps {
   onRenameNote: (id: string, newTitle: string) => void
   onOpenSharedNote: (token: string) => void
   onRemoveSharedNote: (noteId: string, token: string) => void
+  onRenameSharedNote: (token: string, noteId: string, newTitle: string) => void
 }
 
 export default function Sidebar({
@@ -42,6 +43,7 @@ export default function Sidebar({
   onRenameNote,
   onOpenSharedNote,
   onRemoveSharedNote,
+  onRenameSharedNote,
 }: SidebarProps) {
   const { user, isSignedIn } = useUser()
   const [search, setSearch] = useState('')
@@ -52,6 +54,8 @@ export default function Sidebar({
   const [sharedContextMenu, setSharedContextMenu] = useState<{ x: number; y: number; noteId: string; token: string } | null>(null)
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')
+  const [renamingSharedToken, setRenamingSharedToken] = useState<string | null>(null)
+  const [renameSharedValue, setRenameSharedValue] = useState('')
 
   // Preload the about GIF as soon as the sidebar mounts so it's cached by the time the user clicks ?
   useEffect(() => {
@@ -300,9 +304,36 @@ export default function Sidebar({
                   onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-medium truncate leading-tight" style={{ color: 'var(--ink)' }}>
-                      {record.noteTitle || 'Untitled'}
-                    </p>
+                    {renamingSharedToken === record.token ? (
+                      <input
+                        autoFocus
+                        value={renameSharedValue}
+                        onChange={(e) => setRenameSharedValue(e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            onRenameSharedNote(record.token, record.noteId, renameSharedValue.trim() || 'Untitled')
+                            setRenamingSharedToken(null)
+                          } else if (e.key === 'Escape') {
+                            setRenamingSharedToken(null)
+                          }
+                        }}
+                        onBlur={() => {
+                          onRenameSharedNote(record.token, record.noteId, renameSharedValue.trim() || 'Untitled')
+                          setRenamingSharedToken(null)
+                        }}
+                        style={{
+                          fontSize: 12, fontWeight: 500,
+                          color: 'var(--ink)', border: 'none',
+                          background: 'transparent', outline: 'none',
+                          width: '100%', padding: 0,
+                        }}
+                      />
+                    ) : (
+                      <p className="text-xs font-medium truncate leading-tight" style={{ color: 'var(--ink)' }}>
+                        {record.noteTitle || 'Untitled'}
+                      </p>
+                    )}
                     <p className="text-[10px] leading-tight" style={{ color: '#D4550A99' }}>
                       {record.permission === 'EDIT' ? 'Can edit' : 'View only'}
                     </p>
@@ -321,9 +352,11 @@ export default function Sidebar({
           items={[
             {
               type: 'item',
-              label: 'Open',
+              label: 'Rename',
               onClick: () => {
-                onOpenSharedNote(sharedContextMenu.token)
+                const record = sharedNotes.find(r => r.token === sharedContextMenu.token)
+                setRenameSharedValue(record?.noteTitle || 'Untitled')
+                setRenamingSharedToken(sharedContextMenu.token)
                 setSharedContextMenu(null)
               },
             },

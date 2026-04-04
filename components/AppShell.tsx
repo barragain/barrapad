@@ -369,6 +369,21 @@ export default function AppShell() {
     }
   }
 
+  const handleRenameSharedNote = useCallback(async (token: string, noteId: string, newTitle: string) => {
+    const virtualId = `shared-${token}`
+    setSharedNotes((prev) => prev.map((r) => r.token === token ? { ...r, noteTitle: newTitle } : r))
+    updateNotes((prev) => prev.map((n) => n.id === virtualId ? { ...n, title: newTitle } : n))
+    // Broadcast via PartyKit if this note is currently open in the editor
+    window.dispatchEvent(new CustomEvent('barrapad:rename', { detail: { id: virtualId, title: newTitle } }))
+    try {
+      await fetch(`/api/share/${token}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: newTitle }),
+      })
+    } catch {}
+  }, [updateNotes])
+
   const handleRemoveSharedNote = useCallback(async (noteId: string, token: string) => {
     const virtualId = `shared-${token}`
     setSharedNotes((prev) => prev.filter((r) => r.noteId !== noteId))
@@ -453,6 +468,7 @@ export default function AppShell() {
           onRenameNote={handleRenameNote}
           onOpenSharedNote={openSharedNote}
           onRemoveSharedNote={handleRemoveSharedNote}
+          onRenameSharedNote={handleRenameSharedNote}
         />
       </div>
 
@@ -477,6 +493,7 @@ export default function AppShell() {
               onRenameNote={handleRenameNote}
               onOpenSharedNote={(token) => { openSharedNote(token); setSidebarOpen(false) }}
               onRemoveSharedNote={handleRemoveSharedNote}
+              onRenameSharedNote={handleRenameSharedNote}
             />
           </motion.div>
         )}
