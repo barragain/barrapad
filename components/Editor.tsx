@@ -137,9 +137,10 @@ export default function EditorComponent({
   }, [onAutoSave])
 
   const getWordAtPos = useCallback((pos: number): { word: string; from: number; to: number } | null => {
-    if (!editor) return null
+    const ed = editorRef.current
+    if (!ed) return null
     try {
-      const $pos = editor.state.doc.resolve(pos)
+      const $pos = ed.state.doc.resolve(pos)
       const parent = $pos.parent
       if (!['paragraph', 'heading', 'listItem', 'taskItem', 'blockquote'].includes(parent.type.name)) return null
       const text = parent.textContent
@@ -152,8 +153,7 @@ export default function EditorComponent({
       if (word.length < 2) return null
       return { word, from: $pos.start() + start, to: $pos.start() + end }
     } catch { return null }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editor])
+  }, [])
 
   const editor = useEditor({
     extensions: [

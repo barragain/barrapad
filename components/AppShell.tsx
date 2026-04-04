@@ -205,6 +205,7 @@ export default function AppShell() {
       userId: '',
       title: 'Untitled',
       content: '',
+      tags: [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     }
