@@ -106,13 +106,16 @@ export default function Sidebar({
 
   const getContentPreview = (note: Note): React.ReactNode => {
     const plain = stripHtml(note.content)
-    if (!search) return plain.slice(0, 50) || 'No content'
+    // Skip the first line (title) so the preview doesn't repeat the sidebar title
+    const firstNewline = plain.indexOf('\n')
+    const body = firstNewline !== -1 ? plain.slice(firstNewline + 1).trim() : ''
+    if (!search) return body.slice(0, 50) || 'No additional content'
 
     const q = search.toLowerCase()
     const lowerPlain = plain.toLowerCase()
     const idx = lowerPlain.indexOf(q)
 
-    if (idx === -1) return plain.slice(0, 50) || 'No content'
+    if (idx === -1) return body.slice(0, 50) || 'No additional content'
 
     const start = Math.max(0, idx - 20)
     const end = Math.min(plain.length, idx + q.length + 30)
