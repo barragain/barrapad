@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useUser } from '@clerk/nextjs'
 import { useRouter } from 'next/navigation'
 import { Camera, ArrowRight } from 'lucide-react'
@@ -8,13 +8,22 @@ import { Camera, ArrowRight } from 'lucide-react'
 export default function OnboardingPage() {
   const { user, isLoaded } = useUser()
   const router = useRouter()
-  const [firstName, setFirstName] = useState(user?.firstName ?? '')
-  const [username, setUsername] = useState(user?.username ?? '')
+  const [firstName, setFirstName] = useState('')
+  const [username, setUsername] = useState('')
   const [usernameError, setUsernameError] = useState('')
   const [saving, setSaving] = useState(false)
-  const [preview, setPreview] = useState<string | null>(user?.imageUrl ?? null)
+  const [preview, setPreview] = useState<string | null>(null)
   const [imageFile, setImageFile] = useState<File | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  // Populate fields once Clerk user is ready
+  useEffect(() => {
+    if (user) {
+      setFirstName(user.firstName ?? '')
+      setUsername(user.username ?? '')
+      setPreview(user.imageUrl ?? null)
+    }
+  }, [user])
 
   if (!isLoaded) return null
 
@@ -51,13 +60,20 @@ export default function OnboardingPage() {
       }
       router.push('/')
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e)
-      if (msg.toLowerCase().includes('taken') || msg.toLowerCase().includes('unique')) {
+      // Clerk throws ClerkAPIResponseError with an `errors` array — check that first
+      let msg = ''
+      if (e && typeof e === 'object' && 'errors' in e) {
+        const clerkErrors = (e as { errors: Array<{ message?: string; longMessage?: string }> }).errors
+        msg = (clerkErrors[0]?.longMessage ?? clerkErrors[0]?.message ?? '').toLowerCase()
+      }
+      if (!msg) msg = (e instanceof Error ? e.message : String(e)).toLowerCase()
+
+      if (msg.includes('taken') || msg.includes('unique') || msg.includes('already exists')) {
         setUsernameError('That username is already taken')
-      } else if (msg.toLowerCase().includes('username')) {
+      } else if (msg.includes('username')) {
         setUsernameError('Invalid username — try a different one')
       } else {
-        setUsernameError('Something went wrong, please try again')
+        setUsernameError('Something went wrong: ' + msg)
       }
     } finally {
       setSaving(false)
