@@ -51,6 +51,22 @@ export async function GET(
     const noteId = params.token.slice(7)
     const access = await resolveCollabToken(noteId, userId)
     if (!access) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+    // Record that this collaborator has accessed the note (used for owner "opened" notifications)
+    prisma.sharedAccess.upsert({
+      where: { userId_noteId: { userId, noteId } },
+      update: { lastSeen: new Date(), noteTitle: access.note.title, permission: access.permission },
+      create: {
+        userId,
+        noteId,
+        noteTitle: access.note.title,
+        token: params.token,
+        permission: access.permission,
+        ownerName: '',
+        lastSeen: new Date(),
+      },
+    }).catch(() => {})
+
     return NextResponse.json({
       noteId: access.noteId,
       title: access.note.title,

@@ -28,6 +28,14 @@ export interface SharedAccessRecord {
   lastSeen: string
 }
 
+export interface CollabNotification {
+  id: string
+  type: 'shared' | 'deleted' | 'permission_changed' | 'opened'
+  noteTitle: string
+  message: string
+  timestamp: string
+}
+
 export interface AppearanceSettings {
   mode: 'light' | 'dark' | 'system'
   font: 'sans' | 'serif' | 'mono' | 'comic'

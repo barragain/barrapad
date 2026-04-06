@@ -10,7 +10,36 @@ import EditorWrapper from './EditorWrapper'
 import ShareModal from './ShareModal'
 import AppearanceModal from './AppearanceModal'
 import OnboardingModal from './OnboardingModal'
-import type { Note, Tag, AppearanceSettings, SharedAccessRecord } from '@/types'
+import NotificationBell from './NotificationBell'
+import type { Note, Tag, AppearanceSettings, SharedAccessRecord, CollabNotification } from '@/types'
+
+// ── Notification localStorage helpers ─────────────────────────────────────────
+
+type KnownSharedMap = Record<string, { title: string; permission: string }>
+
+function loadNotifications(): CollabNotification[] {
+  try {
+    const raw = localStorage.getItem('barrapad_notifications')
+    return raw ? (JSON.parse(raw) as CollabNotification[]) : []
+  } catch { return [] }
+}
+
+function saveNotifications(n: CollabNotification[]) {
+  try { localStorage.setItem('barrapad_notifications', JSON.stringify(n)) } catch {}
+}
+
+function loadKnownShared(): KnownSharedMap {
+  try {
+    const raw = localStorage.getItem('barrapad_known_shared')
+    return raw ? (JSON.parse(raw) as KnownSharedMap) : {}
+  } catch { return {} }
+}
+
+function saveKnownShared(records: SharedAccessRecord[]) {
+  const map: KnownSharedMap = {}
+  for (const r of records) map[r.token] = { title: r.noteTitle, permission: r.permission }
+  try { localStorage.setItem('barrapad_known_shared', JSON.stringify(map)) } catch {}
+}
 
 const DEFAULT_APPEARANCE: AppearanceSettings = {
   mode: 'light',
@@ -80,7 +109,13 @@ export default function AppShell() {
   const [appearance, setAppearance] = useState<AppearanceSettings>(DEFAULT_APPEARANCE)
   const [manualSaving, setManualSaving] = useState(false)
   const [autoSaving, setAutoSaving] = useState(false)
+  const [notifications, setNotifications] = useState<CollabNotification[]>([])
+  const [showNotifs, setShowNotifs] = useState(false)
   const exportRef = useRef<HTMLDivElement>(null)
+  // true on first sharedNotes fetch — used to set baseline without firing notifications
+  const isFirstNotifFetch = useRef(true)
+  // Set of "{noteId}:{accessorUserId}" pairs the owner has already been notified about
+  const openedNotifiedRef = useRef<Set<string>>(new Set())
 
   const activeNote = notes.find((n) => n.id === activeNoteId) ?? null
 
@@ -88,6 +123,82 @@ export default function AppShell() {
     const settings = loadAppearance()
     setAppearance(settings)
     applyAppearance(settings)
+    // Restore persisted notifications and "opened" seen set
+    setNotifications(loadNotifications())
+    try {
+      const raw = localStorage.getItem('barrapad_opened_notified')
+      if (raw) openedNotifiedRef.current = new Set(JSON.parse(raw) as string[])
+    } catch {}
+  }, [])
+
+  // Detect changes in sharedNotes compared to the last-known snapshot in localStorage.
+  // First call sets the baseline without firing notifications (avoids flooding on first load).
+  const detectSharedNotesChanges = useCallback((freshShared: SharedAccessRecord[]) => {
+    const known = loadKnownShared()
+    const freshMap = new Map(freshShared.map((r) => [r.token, r]))
+    const isFirst = isFirstNotifFetch.current
+    isFirstNotifFetch.current = false
+
+    // First run with empty known → silent initialization (existing user first time with feature)
+    if (isFirst && Object.keys(known).length === 0) {
+      saveKnownShared(freshShared)
+      return
+    }
+
+    const newNotifs: CollabNotification[] = []
+
+    // New shares
+    for (const [token, record] of freshMap) {
+      if (!known[token]) {
+        newNotifs.push({
+          id: `shared-${token}`,
+          type: 'shared',
+          noteTitle: record.noteTitle,
+          message: `"${record.noteTitle || 'A note'}" was shared with you`,
+          timestamp: new Date().toISOString(),
+        })
+      }
+    }
+
+    // Deleted / access removed
+    for (const [token, info] of Object.entries(known)) {
+      if (!freshMap.has(token)) {
+        newNotifs.push({
+          id: `deleted-${token}`,
+          type: 'deleted',
+          noteTitle: info.title,
+          message: `"${info.title || 'A shared note'}" was deleted or access was removed`,
+          timestamp: new Date().toISOString(),
+        })
+      }
+    }
+
+    // Permission changes
+    for (const [token, record] of freshMap) {
+      const prev = known[token]
+      if (prev && prev.permission !== record.permission) {
+        newNotifs.push({
+          id: `perm-${token}-${record.permission}`,
+          type: 'permission_changed',
+          noteTitle: record.noteTitle,
+          message: `Access to "${record.noteTitle || 'a note'}" changed to ${record.permission === 'EDIT' ? 'Can edit' : 'View only'}`,
+          timestamp: new Date().toISOString(),
+        })
+      }
+    }
+
+    saveKnownShared(freshShared)
+
+    if (newNotifs.length > 0) {
+      setNotifications((prev) => {
+        const existingIds = new Set(prev.map((n) => n.id))
+        const truly_new = newNotifs.filter((n) => !existingIds.has(n.id))
+        if (truly_new.length === 0) return prev
+        const next = [...truly_new, ...prev]
+        saveNotifications(next)
+        return next
+      })
+    }
   }, [])
 
   // Update document title whenever the active note changes
@@ -121,6 +232,7 @@ export default function AppShell() {
         const res = await fetch('/api/shared-notes')
         if (!res.ok) return
         const freshShared = (await res.json()) as SharedAccessRecord[]
+        detectSharedNotesChanges(freshShared)
         const validIds = new Set(freshShared.map((r) => `shared-${r.token}`))
         setSharedNotes(freshShared)
         setNotes((prev) => {
@@ -139,6 +251,47 @@ export default function AppShell() {
         })
       } catch {}
     }, 10000)
+    return () => clearInterval(interval)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSignedIn])
+
+  // Poll for "opened" events — owner gets notified the first time a collaborator opens their note
+  useEffect(() => {
+    if (!isSignedIn) return
+    const checkOpenedEvents = async () => {
+      try {
+        const res = await fetch('/api/share/access-events')
+        if (!res.ok) return
+        const events = (await res.json()) as { id: string; noteTitle: string; accessorName: string; accessedAt: string }[]
+        const seen = openedNotifiedRef.current
+        const newNotifs: CollabNotification[] = []
+        for (const ev of events) {
+          if (!seen.has(ev.id)) {
+            newNotifs.push({
+              id: `opened-${ev.id}`,
+              type: 'opened',
+              noteTitle: ev.noteTitle,
+              message: `${ev.accessorName} opened "${ev.noteTitle || 'your note'}"`,
+              timestamp: ev.accessedAt,
+            })
+            seen.add(ev.id)
+          }
+        }
+        if (newNotifs.length > 0) {
+          try { localStorage.setItem('barrapad_opened_notified', JSON.stringify([...seen])) } catch {}
+          setNotifications((prev) => {
+            const existingIds = new Set(prev.map((n) => n.id))
+            const truly_new = newNotifs.filter((n) => !existingIds.has(n.id))
+            if (truly_new.length === 0) return prev
+            const next = [...truly_new, ...prev]
+            saveNotifications(next)
+            return next
+          })
+        }
+      } catch {}
+    }
+    checkOpenedEvents()
+    const interval = setInterval(checkOpenedEvents, 30000)
     return () => clearInterval(interval)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSignedIn])
@@ -167,6 +320,7 @@ export default function AppShell() {
       }
       if (sharedRes.ok) {
         const freshShared = (await sharedRes.json()) as SharedAccessRecord[]
+        detectSharedNotesChanges(freshShared)
         setSharedNotes(freshShared)
         // Remove virtual notes for any shared notes no longer in the server list
         const validVirtualIds = new Set(freshShared.map(r => `shared-${r.token}`))
@@ -626,6 +780,18 @@ export default function AppShell() {
               </motion.span>
             )}
           </AnimatePresence>
+
+          {isLoaded && isSignedIn && (
+            <NotificationBell
+              notifications={notifications}
+              open={showNotifs}
+              onToggle={() => setShowNotifs((v) => !v)}
+              onDismiss={() => {
+                setNotifications([])
+                saveNotifications([])
+              }}
+            />
+          )}
 
           {activeNote && (
             <div ref={exportRef} className="relative">
