@@ -87,6 +87,35 @@ export default function AccessDeniedView({ noteId, onBack, onAccessGranted }: Pr
     return () => window.removeEventListener('barrapad:access-response', handleAccessResponse)
   }, [handleAccessResponse])
 
+  // Polling fallback — check request status every 3s while waiting
+  useEffect(() => {
+    if (status !== 'sent' && status !== 'has_pending') return
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/notes/${noteId}/access`)
+        if (!res.ok) return
+        const data = await res.json() as {
+          access: boolean
+          pendingRequest?: { status: string; resolvedByName?: string; grantedPermission?: string }
+        }
+        if (data.access) {
+          setStatus('accepted')
+          return
+        }
+        if (data.pendingRequest?.status === 'accepted') {
+          setStatus('accepted')
+          setResolvedByName(data.pendingRequest.resolvedByName ?? null)
+          setGrantedPermission(data.pendingRequest.grantedPermission ?? null)
+        } else if (data.pendingRequest?.status === 'denied') {
+          setStatus('denied')
+          setResolvedByName(data.pendingRequest.resolvedByName ?? null)
+        }
+      } catch {}
+    }
+    const interval = setInterval(poll, 3000)
+    return () => clearInterval(interval)
+  }, [status, noteId])
+
   const handleRequestAccess = async () => {
     setStatus('loading')
     try {
