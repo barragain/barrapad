@@ -9,6 +9,8 @@ export default function OnboardingPage() {
   const { user, isLoaded } = useUser()
   const router = useRouter()
   const [firstName, setFirstName] = useState(user?.firstName ?? '')
+  const [username, setUsername] = useState(user?.username ?? '')
+  const [usernameError, setUsernameError] = useState('')
   const [saving, setSaving] = useState(false)
   const [preview, setPreview] = useState<string | null>(user?.imageUrl ?? null)
   const [imageFile, setImageFile] = useState<File | null>(null)
@@ -23,18 +25,43 @@ export default function OnboardingPage() {
     setPreview(URL.createObjectURL(file))
   }
 
+  const handleUsernameChange = (value: string) => {
+    // Only allow lowercase letters, numbers, underscores, hyphens
+    const sanitized = value.toLowerCase().replace(/[^a-z0-9_-]/g, '')
+    setUsername(sanitized)
+    setUsernameError('')
+  }
+
   const handleContinue = async () => {
     if (!user) return
+    const trimmedUsername = username.trim()
+    if (!trimmedUsername) {
+      setUsernameError('Username is required')
+      return
+    }
+    if (trimmedUsername.length < 3) {
+      setUsernameError('Username must be at least 3 characters')
+      return
+    }
     setSaving(true)
     try {
-      await user.update({ firstName: firstName.trim() })
+      await user.update({ firstName: firstName.trim() || undefined, username: trimmedUsername })
       if (imageFile) {
         await user.setProfileImage({ file: imageFile })
       }
-    } catch (e) {
-      console.error(e)
+      router.push('/')
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e)
+      if (msg.toLowerCase().includes('taken') || msg.toLowerCase().includes('unique')) {
+        setUsernameError('That username is already taken')
+      } else if (msg.toLowerCase().includes('username')) {
+        setUsernameError('Invalid username — try a different one')
+      } else {
+        setUsernameError('Something went wrong, please try again')
+      }
+    } finally {
+      setSaving(false)
     }
-    router.push('/')
   }
 
   return (
@@ -76,7 +103,7 @@ export default function OnboardingPage() {
         {/* Name field */}
         <div className="w-full">
           <label className="text-xs font-medium text-[#C4BFB6] uppercase tracking-wider block mb-1">
-            What should we call you?
+            Display name
           </label>
           <input
             type="text"
@@ -88,21 +115,37 @@ export default function OnboardingPage() {
           />
         </div>
 
+        {/* Username field */}
+        <div className="w-full">
+          <label className="text-xs font-medium text-[#C4BFB6] uppercase tracking-wider block mb-1">
+            Username <span className="text-[#D4550A]">*</span>
+          </label>
+          <div className="flex items-center border border-[#E5E0D8] rounded-lg overflow-hidden focus-within:border-[#D4550A] transition-colors">
+            <span className="px-3 py-2 text-sm text-[#C4BFB6] bg-[#F5F2ED] border-r border-[#E5E0D8] select-none">@</span>
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => handleUsernameChange(e.target.value)}
+              placeholder="your_username"
+              maxLength={32}
+              className="flex-1 px-3 py-2 text-sm outline-none bg-transparent text-[#1A1A1A]"
+            />
+          </div>
+          {usernameError ? (
+            <p className="text-xs text-red-500 mt-1">{usernameError}</p>
+          ) : (
+            <p className="text-xs text-[#C4BFB6] mt-1">Used when others search for you to share notes</p>
+          )}
+        </div>
+
         {/* Continue */}
         <button
           onClick={handleContinue}
-          disabled={saving || !firstName.trim()}
+          disabled={saving || !username.trim()}
           className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#1A1A1A] text-white rounded-lg text-sm font-medium hover:bg-black/80 transition-colors disabled:opacity-40"
         >
           {saving ? 'Saving...' : 'Continue'}
           {!saving && <ArrowRight size={14} />}
-        </button>
-
-        <button
-          onClick={() => router.push('/')}
-          className="text-xs text-[#C4BFB6] hover:text-[#1A1A1A] transition-colors"
-        >
-          Skip for now
         </button>
       </div>
     </div>

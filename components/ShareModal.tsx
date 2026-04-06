@@ -1,8 +1,24 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { X, Copy, Share2, Download, Link2, Trash2, RefreshCw } from 'lucide-react'
+import { X, Copy, Share2, Download, Link2, Trash2, RefreshCw, Search, UserPlus } from 'lucide-react'
 import type { Note } from '@/types'
+
+interface Collaborator {
+  id: string
+  userId: string
+  username: string
+  displayName: string
+  permission: string
+}
+
+interface UserResult {
+  id: string
+  username: string
+  displayName: string
+  imageUrl: string
+  email: string
+}
 
 interface ShareLink {
   id: string
@@ -25,6 +41,16 @@ export default function ShareModal({ note, onClose, onIsSharedChange }: ShareMod
   const [copied, setCopied] = useState<'READ' | 'EDIT' | null>(null)
   const [qrDataUrl, setQrDataUrl] = useState('')
   const [activeQr, setActiveQr] = useState<'READ' | 'EDIT' | null>(null)
+
+  // Collaborator state
+  const [collaborators, setCollaborators] = useState<Collaborator[]>([])
+  const [collabQuery, setCollabQuery] = useState('')
+  const [collabResults, setCollabResults] = useState<UserResult[]>([])
+  const [searchLoading, setSearchLoading] = useState(false)
+  const [invitePermission, setInvitePermission] = useState<'READ' | 'EDIT'>('READ')
+  const [inviting, setInviting] = useState<string | null>(null)
+  const [removingCollab, setRemovingCollab] = useState<string | null>(null)
+  const searchRef = useRef<HTMLDivElement>(null)
 
   const origin = typeof window !== 'undefined' ? window.location.origin : ''
 
@@ -51,6 +77,79 @@ export default function ShareModal({ note, onClose, onIsSharedChange }: ShareMod
   }, [note.id, note.sharedToken, isSharedView])
 
   useEffect(() => { loadLinks() }, [loadLinks])
+
+  // Load collaborators (owner only)
+  const loadCollaborators = useCallback(async () => {
+    if (isSharedView) return
+    try {
+      const res = await fetch(`/api/notes/${note.id}/collaborators`)
+      if (!res.ok) return
+      setCollaborators((await res.json()) as Collaborator[])
+    } catch {}
+  }, [note.id, isSharedView])
+
+  useEffect(() => { loadCollaborators() }, [loadCollaborators])
+
+  // Debounced user search
+  useEffect(() => {
+    if (collabQuery.length < 2) { setCollabResults([]); return }
+    const timer = setTimeout(async () => {
+      setSearchLoading(true)
+      try {
+        const res = await fetch(`/api/users/search?q=${encodeURIComponent(collabQuery)}`)
+        if (!res.ok) return
+        const all = (await res.json()) as UserResult[]
+        // Filter out already-invited users
+        const invitedIds = new Set(collaborators.map((c) => c.userId))
+        setCollabResults(all.filter((u) => !invitedIds.has(u.id)))
+      } catch {} finally {
+        setSearchLoading(false)
+      }
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [collabQuery, collaborators])
+
+  // Close search dropdown when clicking outside
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setCollabResults([])
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const handleInvite = async (targetUserId: string) => {
+    setInviting(targetUserId)
+    try {
+      const res = await fetch(`/api/notes/${note.id}/collaborators`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetUserId, permission: invitePermission }),
+      })
+      if (!res.ok) return
+      const collab = (await res.json()) as Collaborator
+      setCollaborators((prev) => {
+        const without = prev.filter((c) => c.userId !== collab.userId)
+        return [collab, ...without]
+      })
+      setCollabResults((prev) => prev.filter((u) => u.id !== targetUserId))
+      setCollabQuery('')
+    } finally {
+      setInviting(null)
+    }
+  }
+
+  const handleRemoveCollab = async (collabUserId: string) => {
+    setRemovingCollab(collabUserId)
+    try {
+      await fetch(`/api/notes/${note.id}/collaborators/${collabUserId}`, { method: 'DELETE' })
+      setCollaborators((prev) => prev.filter((c) => c.userId !== collabUserId))
+    } finally {
+      setRemovingCollab(null)
+    }
+  }
 
   // Regenerate QR when active link changes
   useEffect(() => {
@@ -227,6 +326,133 @@ export default function ShareModal({ note, onClose, onIsSharedChange }: ShareMod
                       <Download size={14} />
                       Download QR
                     </button>
+                  </div>
+                </>
+              )}
+
+              {/* Invite people — owner only */}
+              {!isSharedView && (
+                <>
+                  <div className="border-t border-[#E5E0D8]" />
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-[#1A1A1A]">Invite people</p>
+                        <p className="text-xs text-[#C4BFB6]">Share directly with barraPAD users</p>
+                      </div>
+                      {/* Permission toggle */}
+                      <div className="flex items-center border border-[#E5E0D8] rounded-lg overflow-hidden text-xs font-medium">
+                        <button
+                          onClick={() => setInvitePermission('READ')}
+                          className="px-2.5 py-1 transition-colors"
+                          style={invitePermission === 'READ'
+                            ? { background: '#D4550A', color: '#fff' }
+                            : { background: 'transparent', color: '#8A8178' }}
+                        >
+                          View
+                        </button>
+                        <button
+                          onClick={() => setInvitePermission('EDIT')}
+                          className="px-2.5 py-1 transition-colors"
+                          style={invitePermission === 'EDIT'
+                            ? { background: '#D4550A', color: '#fff' }
+                            : { background: 'transparent', color: '#8A8178' }}
+                        >
+                          Edit
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Search input */}
+                    <div className="relative" ref={searchRef}>
+                      <div className="flex items-center gap-2 bg-[#F5F2ED] border border-[#E5E0D8] rounded-lg px-3 py-2 focus-within:border-[#D4550A] transition-colors">
+                        {searchLoading
+                          ? <div className="w-3 h-3 border border-[#C4BFB6] border-t-transparent rounded-full animate-spin shrink-0" />
+                          : <Search size={12} className="text-[#C4BFB6] shrink-0" />
+                        }
+                        <input
+                          type="text"
+                          value={collabQuery}
+                          onChange={(e) => setCollabQuery(e.target.value)}
+                          placeholder="Search by name, username or email..."
+                          className="flex-1 text-xs bg-transparent outline-none text-[#1A1A1A] min-w-0"
+                        />
+                        {collabQuery && (
+                          <button onClick={() => { setCollabQuery(''); setCollabResults([]) }} className="text-[#C4BFB6] hover:text-[#1A1A1A]">
+                            <X size={12} />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Results dropdown */}
+                      {collabResults.length > 0 && (
+                        <div className="absolute z-20 w-full mt-1 bg-white border border-[#E5E0D8] rounded-xl shadow-lg overflow-hidden">
+                          {collabResults.map((user) => (
+                            <div key={user.id} className="flex items-center gap-2.5 px-3 py-2 hover:bg-[#F5F2ED] transition-colors">
+                              {user.imageUrl ? (
+                                <img src={user.imageUrl} alt="" className="w-7 h-7 rounded-full object-cover shrink-0" />
+                              ) : (
+                                <div className="w-7 h-7 rounded-full bg-[#E5E0D8] shrink-0 flex items-center justify-center text-xs font-medium text-[#8A8178]">
+                                  {(user.displayName || user.username || '?')[0].toUpperCase()}
+                                </div>
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium text-[#1A1A1A] truncate">{user.displayName}</p>
+                                <p className="text-[10px] text-[#C4BFB6] truncate">
+                                  {user.username ? `@${user.username}` : user.email}
+                                </p>
+                              </div>
+                              <button
+                                onClick={() => handleInvite(user.id)}
+                                disabled={inviting === user.id}
+                                className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg bg-[#D4550A] text-white hover:bg-[#B84208] transition-colors disabled:opacity-60 shrink-0"
+                              >
+                                {inviting === user.id
+                                  ? <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
+                                  : <><UserPlus size={11} /> Invite</>
+                                }
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {collabQuery.length >= 2 && !searchLoading && collabResults.length === 0 && (
+                        <div className="absolute z-20 w-full mt-1 bg-white border border-[#E5E0D8] rounded-xl shadow-lg px-3 py-3">
+                          <p className="text-xs text-[#C4BFB6] text-center">No users found</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Existing collaborators */}
+                    {collaborators.length > 0 && (
+                      <div className="space-y-1 pt-1">
+                        {collaborators.map((c) => (
+                          <div key={c.id} className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-[#F5F2ED]">
+                            <div className="w-6 h-6 rounded-full bg-[#E5E0D8] shrink-0 flex items-center justify-center text-[10px] font-medium text-[#8A8178]">
+                              {(c.displayName || c.username || '?')[0].toUpperCase()}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium text-[#1A1A1A] truncate">{c.displayName || c.username || 'Unknown'}</p>
+                              <p className="text-[10px] text-[#C4BFB6]">
+                                {c.username ? `@${c.username} · ` : ''}{c.permission === 'EDIT' ? 'Can edit' : 'View only'}
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => handleRemoveCollab(c.userId)}
+                              disabled={removingCollab === c.userId}
+                              title="Remove"
+                              className="p-1 rounded hover:bg-red-50 text-[#C4BFB6] hover:text-red-500 transition-colors disabled:opacity-40"
+                            >
+                              {removingCollab === c.userId
+                                ? <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin" />
+                                : <X size={12} />
+                              }
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </>
               )}
