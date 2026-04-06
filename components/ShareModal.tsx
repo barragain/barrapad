@@ -50,6 +50,7 @@ export default function ShareModal({ note, onClose, onIsSharedChange }: ShareMod
   const [invitePermission, setInvitePermission] = useState<'READ' | 'EDIT'>('READ')
   const [inviting, setInviting] = useState<string | null>(null)
   const [removingCollab, setRemovingCollab] = useState<string | null>(null)
+  const [updatingPermission, setUpdatingPermission] = useState<string | null>(null)
   const searchRef = useRef<HTMLDivElement>(null)
 
   const origin = typeof window !== 'undefined' ? window.location.origin : ''
@@ -138,6 +139,23 @@ export default function ShareModal({ note, onClose, onIsSharedChange }: ShareMod
       setCollabQuery('')
     } finally {
       setInviting(null)
+    }
+  }
+
+  const handleChangePermission = async (collabUserId: string, permission: 'READ' | 'EDIT') => {
+    setUpdatingPermission(collabUserId)
+    try {
+      const res = await fetch(`/api/notes/${note.id}/collaborators/${collabUserId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ permission }),
+      })
+      if (!res.ok) return
+      setCollaborators((prev) =>
+        prev.map((c) => (c.userId === collabUserId ? { ...c, permission } : c))
+      )
+    } finally {
+      setUpdatingPermission(null)
     }
   }
 
@@ -434,9 +452,36 @@ export default function ShareModal({ note, onClose, onIsSharedChange }: ShareMod
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="text-xs font-medium text-[#1A1A1A] truncate">{c.displayName || c.username || 'Unknown'}</p>
-                              <p className="text-[10px] text-[#C4BFB6]">
-                                {c.username ? `@${c.username} · ` : ''}{c.permission === 'EDIT' ? 'Can edit' : 'View only'}
-                              </p>
+                              {c.username && <p className="text-[10px] text-[#C4BFB6]">@{c.username}</p>}
+                            </div>
+                            {/* Inline permission toggle */}
+                            <div className="flex items-center border border-[#E5E0D8] rounded-md overflow-hidden text-[10px] font-semibold shrink-0">
+                              {updatingPermission === c.userId ? (
+                                <div className="px-2 py-1">
+                                  <div className="w-3 h-3 border border-[#C4BFB6] border-t-transparent rounded-full animate-spin" />
+                                </div>
+                              ) : (
+                                <>
+                                  <button
+                                    onClick={() => c.permission !== 'READ' && handleChangePermission(c.userId, 'READ')}
+                                    className="px-2 py-1 transition-colors"
+                                    style={c.permission === 'READ'
+                                      ? { background: '#D4550A', color: '#fff' }
+                                      : { background: 'transparent', color: '#8A8178' }}
+                                  >
+                                    View
+                                  </button>
+                                  <button
+                                    onClick={() => c.permission !== 'EDIT' && handleChangePermission(c.userId, 'EDIT')}
+                                    className="px-2 py-1 transition-colors"
+                                    style={c.permission === 'EDIT'
+                                      ? { background: '#D4550A', color: '#fff' }
+                                      : { background: 'transparent', color: '#8A8178' }}
+                                  >
+                                    Edit
+                                  </button>
+                                </>
+                              )}
                             </div>
                             <button
                               onClick={() => handleRemoveCollab(c.userId)}
