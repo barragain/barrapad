@@ -57,6 +57,9 @@ import {
 } from 'lucide-react'
 import { isCorrectSync, suggestSync, ensureLoaded } from '@/utils/spellcheck'
 import { SpellCheck, SPELL_KEY } from '@/extensions/spell-check'
+import { UserMention } from '@/extensions/user-mention'
+import { NoteMention } from '@/extensions/note-mention'
+import MentionProfilePopover from './MentionProfilePopover'
 
 const lowlight = createLowlight(common)
 
@@ -94,6 +97,15 @@ export interface NoteEditorCoreProps {
   /** Content rendered below the editor (e.g. TagInput). */
   bottomSlot?: React.ReactNode
 
+  /** Note ID — used for @mention collaborator lookups */
+  noteId?: string
+
+  /** Callback when a @mention is inserted (for sending notifications) */
+  onMentionInserted?: (userId: string, displayName: string) => void
+
+  /** Callback when a #note mention is clicked */
+  onNoteMentionClick?: (noteId: string) => void
+
   className?: string
   rootStyle?: React.CSSProperties
 }
@@ -109,6 +121,9 @@ export default function NoteEditorCore({
   localEditTimeoutRef: parentLocalEditTimeoutRef,
   infoRows,
   bottomSlot,
+  noteId,
+  onMentionInserted,
+  onNoteMentionClick,
   className,
   rootStyle,
 }: NoteEditorCoreProps) {
@@ -185,6 +200,8 @@ export default function NoteEditorCore({
       LoremIpsum,
       CollabCursor,
       SpellCheck,
+      UserMention,
+      NoteMention,
     ],
     content: initialContent,
     editable,
@@ -301,6 +318,40 @@ export default function NoteEditorCore({
       }
     })
   }, [editor])
+
+  // Sync noteId into editor storage for @mention collaborator lookups
+  useEffect(() => {
+    if (!editor || !noteId) return
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const storage = editor.storage as any
+    if (storage.userMention) storage.userMention.noteId = noteId
+  }, [editor, noteId])
+
+  // Handle @mention insertions — fire notification callback via custom event from dropdown
+  useEffect(() => {
+    if (!onMentionInserted) return
+    const handler = (e: Event) => {
+      const { userId, displayName } = (e as CustomEvent<{ userId: string; displayName: string }>).detail
+      onMentionInserted(userId, displayName)
+    }
+    window.addEventListener('barrapad:mention-inserted', handler)
+    return () => window.removeEventListener('barrapad:mention-inserted', handler)
+  }, [onMentionInserted])
+
+  // Handle #note mention clicks
+  useEffect(() => {
+    if (!onNoteMentionClick) return
+    const handler = (e: MouseEvent) => {
+      const target = (e.target as HTMLElement).closest('.note-mention') as HTMLElement | null
+      if (target) {
+        e.preventDefault()
+        const noteRefId = target.getAttribute('data-id')
+        if (noteRefId) onNoteMentionClick(noteRefId)
+      }
+    }
+    document.addEventListener('click', handler)
+    return () => document.removeEventListener('click', handler)
+  }, [onNoteMentionClick])
 
   // ── Toolbar focus tracking ─────────────────────────────────────────────────
   // Use Tiptap's own focus/blur events. The Toolbar has onMouseDown={e =>
@@ -742,6 +793,9 @@ export default function NoteEditorCore({
               {bottomSlot}
             </div>
           )}
+
+          {/* Mention profile hover card */}
+          <MentionProfilePopover />
 
           {/* Popovers */}
           {linkPopover && (

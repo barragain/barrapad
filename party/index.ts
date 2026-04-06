@@ -25,6 +25,9 @@ export default class NoteParty implements Party.Server {
   constructor(readonly room: Party.Room) {}
 
   async onConnect(conn: Party.Connection) {
+    // Notification rooms — no content to sync, just acknowledge connection
+    if (this.room.id.startsWith('notif-')) return
+
     // If the note was deleted, tell the new client immediately instead of sending stale content
     const deleted = await this.room.storage.get<boolean>('deleted')
     if (deleted) {
@@ -95,12 +98,21 @@ export default class NoteParty implements Party.Server {
   async onRequest(request: Party.Request) {
     if (request.method === 'POST') {
       try {
-        const data = await request.json() as ClientMessage
-        if (data.type === 'title') {
-          await this.room.storage.put('title', data.title)
-          this.room.broadcast(JSON.stringify({ type: 'title', title: data.title } satisfies ServerMessage))
+        const data = await request.json() as Record<string, unknown>
+
+        // Notification room — just broadcast the message to all connections
+        if (this.room.id.startsWith('notif-')) {
+          this.room.broadcast(JSON.stringify(data))
+          return new Response('ok')
         }
-        if (data.type === 'delete') {
+
+        // Note rooms — existing behavior
+        const msg = data as unknown as ClientMessage
+        if (msg.type === 'title') {
+          await this.room.storage.put('title', msg.title)
+          this.room.broadcast(JSON.stringify({ type: 'title', title: msg.title } satisfies ServerMessage))
+        }
+        if (msg.type === 'delete') {
           await this.room.storage.put('deleted', true)
           this.room.broadcast(JSON.stringify({ type: 'delete' } satisfies ServerMessage))
         }

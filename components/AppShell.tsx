@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { Save, Share2, X, CloudUpload, Download, ChevronDown, Menu } from 'lucide-react'
 import { useAuth, useUser } from '@clerk/nextjs'
 import { AnimatePresence, motion } from 'framer-motion'
+import PartySocket from 'partysocket'
 import { downloadTxt, downloadMd, downloadPdf, downloadDocx } from '@/lib/export'
 import Sidebar from './Sidebar'
 import EditorWrapper from './EditorWrapper'
@@ -11,33 +12,14 @@ import ShareModal from './ShareModal'
 import AppearanceModal from './AppearanceModal'
 import OnboardingModal from './OnboardingModal'
 import NotificationBell from './NotificationBell'
+import AccessDeniedView from './AccessDeniedView'
 import type { Note, Tag, AppearanceSettings, SharedAccessRecord, CollabNotification } from '@/types'
 
-// ── Notification localStorage helpers ─────────────────────────────────────────
+const PARTYKIT_HOST = process.env.NEXT_PUBLIC_PARTYKIT_HOST ?? 'barrapad.barragain.partykit.dev'
 
-// Read notifications auto-expire after 14 days
-const NOTIF_EXPIRE_MS = 14 * 24 * 60 * 60 * 1000
+// ── Notification helpers ──────────────────────────────────────────────────────
 
 type KnownSharedMap = Record<string, { title: string; permission: string; ownerName: string }>
-
-function filterExpired(notifs: CollabNotification[]): CollabNotification[] {
-  const now = Date.now()
-  return notifs.filter((n) => {
-    if (!n.read || !n.readAt) return true
-    return now - new Date(n.readAt).getTime() < NOTIF_EXPIRE_MS
-  })
-}
-
-function loadNotifications(): CollabNotification[] {
-  try {
-    const raw = localStorage.getItem('barrapad_notifications')
-    return raw ? filterExpired(JSON.parse(raw) as CollabNotification[]) : []
-  } catch { return [] }
-}
-
-function saveNotifications(n: CollabNotification[]) {
-  try { localStorage.setItem('barrapad_notifications', JSON.stringify(n)) } catch {}
-}
 
 function loadKnownShared(): KnownSharedMap {
   try {
@@ -128,6 +110,7 @@ export default function AppShell() {
   const [autoSaving, setAutoSaving] = useState(false)
   const [notifications, setNotifications] = useState<CollabNotification[]>([])
   const [showNotifs, setShowNotifs] = useState(false)
+  const [accessDeniedNoteId, setAccessDeniedNoteId] = useState<string | null>(null)
   const exportRef = useRef<HTMLDivElement>(null)
   // true on first sharedNotes fetch — used to set baseline without firing notifications
   const isFirstNotifFetch = useRef(true)
@@ -139,6 +122,8 @@ export default function AppShell() {
   const manualTitlesRef = useRef<Set<string>>(new Set())
   // Mirror of sharedNotes in a ref so handleNoteDeleted can read it without stale closures
   const sharedNotesRef = useRef<SharedAccessRecord[]>([])
+  // PartyKit socket for real-time notifications
+  const notifSocketRef = useRef<PartySocket | null>(null)
 
   const activeNote = notes.find((n) => n.id === activeNoteId) ?? null
 
@@ -149,8 +134,6 @@ export default function AppShell() {
     const settings = loadAppearance()
     setAppearance(settings)
     applyAppearance(settings)
-    // Restore persisted notifications and "opened" seen set
-    setNotifications(loadNotifications())
     try {
       const raw = localStorage.getItem('barrapad_opened_notified')
       if (raw) openedNotifiedRef.current = new Set(JSON.parse(raw) as string[])
@@ -160,6 +143,48 @@ export default function AppShell() {
       if (raw) manualTitlesRef.current = new Set(JSON.parse(raw) as string[])
     } catch {}
   }, [])
+
+  // Fetch notifications from server on mount + connect to real-time notification room
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn || !user) return
+
+    // Fetch existing notifications from DB
+    fetch('/api/notifications')
+      .then((r) => r.ok ? r.json() : [])
+      .then((data: CollabNotification[]) => setNotifications(data))
+      .catch(() => {})
+
+    // Connect to notification PartyKit room
+    const socket = new PartySocket({ host: PARTYKIT_HOST, room: `notif-${user.id}` })
+    notifSocketRef.current = socket
+
+    socket.addEventListener('message', (evt) => {
+      try {
+        const msg = JSON.parse(evt.data as string) as Record<string, unknown>
+
+        if (msg.type === 'notification') {
+          const notif = msg.notification as CollabNotification
+          setNotifications((prev) => {
+            if (prev.some((n) => n.id === notif.id)) return prev
+            return [notif, ...prev]
+          })
+        }
+
+        if (msg.type === 'notification_update') {
+          const id = msg.notificationId as string
+          const updates = msg.updates as Partial<CollabNotification>
+          setNotifications((prev) =>
+            prev.map((n) => n.id === id ? { ...n, ...updates } : n)
+          )
+        }
+      } catch {}
+    })
+
+    return () => {
+      socket.close()
+      notifSocketRef.current = null
+    }
+  }, [isLoaded, isSignedIn, user])
 
   // Detect changes in sharedNotes compared to the last-known snapshot in localStorage.
   // First call sets the baseline without firing notifications (avoids flooding on first load).
@@ -227,9 +252,7 @@ export default function AppShell() {
         const existingIds = new Set(prev.map((n) => n.id))
         const truly_new = newNotifs.filter((n) => !existingIds.has(n.id))
         if (truly_new.length === 0) return prev
-        const next = [...truly_new, ...prev]
-        saveNotifications(next)
-        return next
+        return [...truly_new, ...prev]
       })
     }
   }, [])
@@ -316,9 +339,7 @@ export default function AppShell() {
             const existingIds = new Set(prev.map((n) => n.id))
             const truly_new = newNotifs.filter((n) => !existingIds.has(n.id))
             if (truly_new.length === 0) return prev
-            const next = [...truly_new, ...prev]
-            saveNotifications(next)
-            return next
+            return [...truly_new, ...prev]
           })
         }
       } catch {}
@@ -684,9 +705,7 @@ export default function AppShell() {
         }
         setNotifications((prev) => {
           if (prev.some((n) => n.id === notif.id)) return prev
-          const next = [notif, ...prev]
-          saveNotifications(next)
-          return next
+          return [notif, ...prev]
         })
         // Remove from localStorage snapshot so the 10s poll doesn't duplicate the notification
         const known = loadKnownShared()
@@ -709,9 +728,7 @@ export default function AppShell() {
         }
         setNotifications((prev) => {
           if (prev.some((n) => n.id === notif.id)) return prev
-          const next = [notif, ...prev]
-          saveNotifications(next)
-          return next
+          return [notif, ...prev]
         })
       }
     }
@@ -758,6 +775,70 @@ export default function AppShell() {
     applyAppearance(settings)
     localStorage.setItem('barrapad_appearance', JSON.stringify(settings))
   }
+
+  // ── Note mention click handler ──────────────────────────────────────────
+  const handleNoteMentionClick = useCallback(async (mentionedNoteId: string) => {
+    // Check own notes first
+    const ownNote = notes.find((n) => n.id === mentionedNoteId && !n.sharedToken)
+    if (ownNote) {
+      setActiveNoteId(mentionedNoteId)
+      setAccessDeniedNoteId(null)
+      return
+    }
+
+    // Check shared notes
+    const shared = sharedNotes.find((r) => r.noteId === mentionedNoteId)
+    if (shared) {
+      openSharedNote(shared.token)
+      setAccessDeniedNoteId(null)
+      return
+    }
+
+    // Check access via API
+    try {
+      const res = await fetch(`/api/notes/${mentionedNoteId}/access`)
+      if (!res.ok) {
+        setAccessDeniedNoteId(mentionedNoteId)
+        return
+      }
+      const data = await res.json() as { access: boolean; permission?: string }
+      if (data.access) {
+        // User has access — find or open the note
+        if (data.permission === 'OWNER') {
+          setActiveNoteId(mentionedNoteId)
+        } else {
+          // Need to find/create a share token to open it
+          const freshShared = await fetch('/api/shared-notes').then(r => r.json()) as SharedAccessRecord[]
+          const match = freshShared.find((r) => r.noteId === mentionedNoteId)
+          if (match) openSharedNote(match.token)
+        }
+        setAccessDeniedNoteId(null)
+      } else {
+        setAccessDeniedNoteId(mentionedNoteId)
+      }
+    } catch {
+      setAccessDeniedNoteId(mentionedNoteId)
+    }
+  }, [notes, sharedNotes, openSharedNote])
+
+  // ── Access request action handler ───────────────────────────────────────
+  const handleAccessRequestAction = useCallback(async (requestId: string, action: 'accept' | 'deny', permission?: string) => {
+    try {
+      const res = await fetch(`/api/access-requests/${requestId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, permission }),
+      })
+      if (res.ok) {
+        // Re-fetch notifications to get updated state
+        const notifsRes = await fetch('/api/notifications')
+        if (notifsRes.ok) {
+          const data = await notifsRes.json() as CollabNotification[]
+          setNotifications(data)
+        }
+      }
+    } catch {}
+  }, [])
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: 'var(--editor-bg)' }}>
@@ -865,16 +946,16 @@ export default function AppShell() {
               onToggle={() => setShowNotifs((v) => !v)}
               onMarkAllRead={() => {
                 const now = new Date().toISOString()
-                setNotifications((prev) => {
-                  const next = prev.map((n) => n.read ? n : { ...n, read: true, readAt: now })
-                  saveNotifications(next)
-                  return next
-                })
+                setNotifications((prev) =>
+                  prev.map((n) => n.read ? n : { ...n, read: true, readAt: now })
+                )
+                fetch('/api/notifications', { method: 'PATCH' }).catch(() => {})
               }}
               onDeleteAll={() => {
                 setNotifications([])
-                saveNotifications([])
+                fetch('/api/notifications', { method: 'DELETE' }).catch(() => {})
               }}
+              onAccessRequestAction={handleAccessRequestAction}
             />
           )}
 
@@ -951,7 +1032,12 @@ export default function AppShell() {
 
         {/* Editor */}
         <div className="flex-1 overflow-hidden">
-          {activeNote ? (
+          {accessDeniedNoteId ? (
+            <AccessDeniedView
+              noteId={accessDeniedNoteId}
+              onBack={() => setAccessDeniedNoteId(null)}
+            />
+          ) : activeNote ? (
             <EditorWrapper
               note={activeNote}
               allTags={allTags}
@@ -960,6 +1046,7 @@ export default function AppShell() {
               onManualSave={handleManualSaveContent}
               onTagsChange={handleTagsChange}
               onNoteDeleted={handleNoteDeleted}
+              onNoteMentionClick={handleNoteMentionClick}
             />
           ) : (
             <div className="flex h-full items-center justify-center">

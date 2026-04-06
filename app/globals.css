@@ -797,3 +797,137 @@ body {
 }
 .barrapad-tag-create:hover { background: rgba(212,85,10,0.07); }
 [data-font="comic"] .ProseMirror { font-family: 'Comic Sans MS', 'Chalkboard SE', cursive; }
+
+/* ── Mention chips ─────────────────────────────────────────────────────── */
+.user-mention {
+  background: rgba(212, 85, 10, 0.1);
+  color: #D4550A;
+  border-radius: 4px;
+  padding: 1px 4px;
+  font-weight: 600;
+  font-size: 0.93em;
+  cursor: pointer;
+  transition: background 0.15s;
+  text-decoration: none;
+}
+.user-mention:hover { background: rgba(212, 85, 10, 0.2); }
+
+.note-mention {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+  border-radius: 4px;
+  padding: 1px 4px;
+  font-weight: 600;
+  font-size: 0.93em;
+  cursor: pointer;
+  transition: background 0.15s;
+  text-decoration: none;
+}
+.note-mention:hover { background: rgba(59, 130, 246, 0.2); }
+
+.dark .user-mention { background: rgba(212, 85, 10, 0.2); color: #f59e0b; }
+.dark .user-mention:hover { background: rgba(212, 85, 10, 0.3); }
+.dark .note-mention { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+.dark .note-mention:hover { background: rgba(59, 130, 246, 0.3); }
+
+/* ── Mention suggestion dropdown ───────────────────────────────────────── */
+.tippy-box[data-theme~='mention'] {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+}
+.tippy-box[data-theme~='mention'] .tippy-content { padding: 0; }
+
+.mention-suggestion-list {
+  background: var(--editor-bg, #fff);
+  border: 1px solid var(--border, #E5E0D8);
+  border-radius: 10px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+  overflow: hidden;
+  max-height: 280px;
+  overflow-y: auto;
+  min-width: 220px;
+}
+
+.mention-suggestion-empty {
+  padding: 12px 14px;
+  font-size: 12px;
+  color: var(--muted, #C4BFB6);
+  text-align: center;
+}
+
+.mention-suggestion-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition: background 0.1s;
+}
+.mention-suggestion-item:hover,
+.mention-suggestion-item.is-selected {
+  background: var(--border, #E5E0D8);
+}
+
+.mention-suggestion-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.mention-suggestion-avatar-placeholder {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #D4550A;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.mention-suggestion-note-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.mention-suggestion-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.mention-suggestion-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink, #1A1A1A);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mention-suggestion-username {
+  font-size: 11px;
+  color: var(--muted, #C4BFB6);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

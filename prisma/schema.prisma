@@ -15,8 +15,9 @@ model Note {
   tags          String               @default("[]")
   createdAt     DateTime             @default(now())
   updatedAt     DateTime             @updatedAt
-  shareLinks    ShareLink[]
-  collaborators NoteCollaborator[]
+  shareLinks      ShareLink[]
+  collaborators   NoteCollaborator[]
+  accessRequests  AccessRequest[]
 
   @@index([userId])
 }
@@ -62,4 +63,42 @@ model SharedAccess {
 
   @@unique([userId, noteId])
   @@index([userId])
+}
+
+model Notification {
+  id          String    @id @default(cuid())
+  userId      String
+  type        String    // mention, shared, deleted, permission_changed, opened, access_request, access_response
+  noteId      String?
+  noteTitle   String    @default("")
+  message     String
+  fromUserId  String?
+  fromName    String    @default("")
+  fromAvatar  String    @default("")
+  metadata    String    @default("{}")
+  read        Boolean   @default(false)
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([userId, read])
+  @@index([userId, createdAt])
+}
+
+model AccessRequest {
+  id               String    @id @default(cuid())
+  noteId           String
+  note             Note      @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  requesterId      String
+  requesterName    String    @default("")
+  requesterAvatar  String    @default("")
+  status           String    @default("pending")
+  resolvedBy       String?
+  resolvedByName   String?
+  grantedPermission String?
+  createdAt        DateTime  @default(now())
+  resolvedAt       DateTime?
+
+  @@unique([noteId, requesterId])
+  @@index([noteId])
+  @@index([requesterId])
 }

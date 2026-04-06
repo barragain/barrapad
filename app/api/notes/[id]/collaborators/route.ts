@@ -9,7 +9,7 @@ async function verifyOwnership(noteId: string, userId: string) {
   return note
 }
 
-// GET /api/notes/:id/collaborators — list invited collaborators (owner only)
+// GET /api/notes/:id/collaborators — list collaborators (owner or any collaborator can see)
 export async function GET(
   _request: NextRequest,
   { params }: { params: { id: string } }
@@ -17,16 +17,51 @@ export async function GET(
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const owned = await verifyOwnership(params.id, userId)
-  if (owned === null) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  if (owned === false) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  const note = await prisma.note.findUnique({ where: { id: params.id } })
+  if (!note) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+  // Allow access if user is owner or a collaborator
+  const isOwner = note.userId === userId
+  let isCollaborator = false
+  if (!isOwner) {
+    const collab = await prisma.noteCollaborator.findUnique({
+      where: { noteId_userId: { noteId: params.id, userId } },
+    })
+    isCollaborator = !!collab
+  }
+  if (!isOwner && !isCollaborator) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const collaborators = await prisma.noteCollaborator.findMany({
     where: { noteId: params.id },
     orderBy: { invitedAt: 'desc' },
   })
 
-  return NextResponse.json(collaborators)
+  // Include the owner in the list for @mention purposes
+  const result = [...collaborators]
+  if (!result.some((c) => c.userId === note.userId)) {
+    let ownerName = 'Owner'
+    let ownerUsername = ''
+    let ownerAvatar = ''
+    try {
+      const client = await clerkClient()
+      const owner = await client.users.getUser(note.userId)
+      ownerName = [owner.firstName, owner.lastName].filter(Boolean).join(' ') || owner.username || 'Owner'
+      ownerUsername = owner.username ?? ''
+      ownerAvatar = owner.imageUrl ?? ''
+    } catch {}
+    result.unshift({
+      id: `owner-${note.userId}`,
+      noteId: params.id,
+      userId: note.userId,
+      username: ownerUsername,
+      displayName: ownerName,
+      avatarUrl: ownerAvatar,
+      permission: 'OWNER',
+      invitedAt: note.createdAt,
+    } as typeof result[0])
+  }
+
+  return NextResponse.json(result)
 }
 
 // POST /api/notes/:id/collaborators — invite a user by their Clerk userId

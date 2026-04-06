@@ -31,12 +31,47 @@ export interface SharedAccessRecord {
 
 export interface CollabNotification {
   id: string
-  type: 'shared' | 'deleted' | 'permission_changed' | 'opened'
+  type: 'mention' | 'shared' | 'deleted' | 'permission_changed' | 'opened' | 'access_request' | 'access_response'
+  noteId?: string
   noteTitle: string
   message: string
   timestamp: string
   read?: boolean
   readAt?: string
+  fromUserId?: string
+  fromName?: string
+  fromAvatar?: string
+  metadata?: Record<string, unknown>
+}
+
+export interface AccessRequestRecord {
+  id: string
+  noteId: string
+  noteTitle: string
+  requesterId: string
+  requesterName: string
+  requesterAvatar: string
+  status: 'pending' | 'accepted' | 'denied'
+  resolvedBy?: string
+  resolvedByName?: string
+  grantedPermission?: string
+  createdAt: string
+  resolvedAt?: string
+}
+
+export interface MentionableUser {
+  id: string
+  username: string
+  displayName: string
+  imageUrl: string
+  email: string
+}
+
+export interface MentionableNote {
+  id: string
+  title: string
+  isOwner: boolean
+  ownerName?: string
 }
 
 export interface AppearanceSettings {

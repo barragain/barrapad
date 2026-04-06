@@ -31,6 +31,8 @@ interface EditorProps {
   onTagsChange: (tags: Tag[]) => void
   /** Called when the note is deleted by any collaborator — remove it from state */
   onNoteDeleted?: (noteId: string) => void
+  /** Called when a #note mention is clicked */
+  onNoteMentionClick?: (noteId: string) => void
 }
 
 export default function EditorComponent({
@@ -41,6 +43,7 @@ export default function EditorComponent({
   onManualSave,
   onTagsChange,
   onNoteDeleted,
+  onNoteMentionClick,
 }: EditorProps) {
   // ── Refs ──────────────────────────────────────────────────────────────────
   const editorRef = useRef<Editor | null>(null)
@@ -334,6 +337,19 @@ export default function EditorComponent({
     return () => window.removeEventListener('barrapad:rename', handler)
   }, [note.id])
 
+  // ── Mention notification ─────────────────────────────────────────────────
+  const handleMentionInserted = useCallback((mentionedUserId: string, _displayName: string) => {
+    const realNoteId = note.sharedNoteId ?? note.id
+    if (realNoteId.startsWith('temp-')) return
+    const text = editorRef.current?.getText() ?? ''
+    const title = text.split('\n')[0]?.trim().slice(0, 100) || 'Untitled'
+    fetch('/api/notifications/mention', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mentionedUserId, noteId: realNoteId, noteTitle: title }),
+    }).catch(() => {})
+  }, [note.id, note.sharedNoteId])
+
   // ── Tags sync ─────────────────────────────────────────────────────────────
   const handleTagsChangeWithSync = useCallback((tags: Tag[]) => {
     onTagsChange(tags)
@@ -381,6 +397,9 @@ export default function EditorComponent({
       onSelectionUpdate={handleSelectionUpdate}
       isLocallyEditingRef={isLocallyEditingRef}
       localEditTimeoutRef={localEditTimeoutRef}
+      noteId={note.sharedNoteId ?? note.id}
+      onMentionInserted={handleMentionInserted}
+      onNoteMentionClick={onNoteMentionClick}
       infoRows={[
         { label: 'Created', value: formatDate(note.createdAt) },
         { label: 'Updated', value: formatDate(note.updatedAt) },

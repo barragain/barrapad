@@ -13,6 +13,7 @@ interface EditorWrapperProps {
   onManualSave: (title: string, content: string) => void
   onTagsChange: (tags: Tag[]) => void
   onNoteDeleted?: (noteId: string) => void
+  onNoteMentionClick?: (noteId: string) => void
 }
 
 export default function EditorWrapper(props: EditorWrapperProps) {
