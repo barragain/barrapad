@@ -25,6 +25,13 @@ export default class NoteParty implements Party.Server {
   constructor(readonly room: Party.Room) {}
 
   async onConnect(conn: Party.Connection) {
+    // If the note was deleted, tell the new client immediately instead of sending stale content
+    const deleted = await this.room.storage.get<boolean>('deleted')
+    if (deleted) {
+      conn.send(JSON.stringify({ type: 'delete' } satisfies ServerMessage))
+      return
+    }
+
     const content     = (await this.room.storage.get<string>('content'))     ?? ''
     const contentJson = (await this.room.storage.get<object>('contentJson')) ?? undefined
     const title       = (await this.room.storage.get<string>('title'))       ?? ''
@@ -72,6 +79,7 @@ export default class NoteParty implements Party.Server {
     }
 
     if (data.type === 'delete') {
+      await this.room.storage.put('deleted', true)
       this.room.broadcast(JSON.stringify({ type: 'delete' } satisfies ServerMessage))
     }
 
@@ -93,6 +101,7 @@ export default class NoteParty implements Party.Server {
           this.room.broadcast(JSON.stringify({ type: 'title', title: data.title } satisfies ServerMessage))
         }
         if (data.type === 'delete') {
+          await this.room.storage.put('deleted', true)
           this.room.broadcast(JSON.stringify({ type: 'delete' } satisfies ServerMessage))
         }
       } catch {}
