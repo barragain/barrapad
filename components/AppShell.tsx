@@ -105,11 +105,41 @@ export default function AppShell() {
   }, [isLoaded, isSignedIn])
 
   // Re-validate shared notes whenever the tab regains focus.
-  // Catches deletions that happened while the user was on a different note or tab.
   useEffect(() => {
     const handleVisibility = () => { if (!document.hidden && isSignedIn) fetchNotes() }
     document.addEventListener('visibilitychange', handleVisibility)
     return () => document.removeEventListener('visibilitychange', handleVisibility)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSignedIn])
+
+  // Poll shared notes every 10 seconds to catch deletions that happen while
+  // the user is on a different note (PartyKit only reaches the open note's editor).
+  useEffect(() => {
+    if (!isSignedIn) return
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch('/api/shared-notes')
+        if (!res.ok) return
+        const freshShared = (await res.json()) as SharedAccessRecord[]
+        const validIds = new Set(freshShared.map((r) => `shared-${r.token}`))
+        setSharedNotes(freshShared)
+        setNotes((prev) => {
+          const staleIds = prev
+            .filter((n) => n.sharedToken && !validIds.has(n.id))
+            .map((n) => n.id)
+          if (staleIds.length === 0) return prev
+          const staleSet = new Set(staleIds)
+          const next = prev.filter((n) => !staleSet.has(n.id))
+          saveCachedNotes(next)
+          setActiveNoteId((active) => {
+            if (!active || !staleSet.has(active)) return active
+            return next.find((n) => !n.sharedToken)?.id ?? null
+          })
+          return next
+        })
+      } catch {}
+    }, 10000)
+    return () => clearInterval(interval)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSignedIn])
 

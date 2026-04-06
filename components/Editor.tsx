@@ -262,6 +262,8 @@ export default function EditorComponent({
       }
 
       if (msg.type === 'delete') {
+        // Auto-remove immediately — no overlay, no button click required
+        onNoteDeletedRef.current?.(note.id)
         setDeleted(true)
       }
     })
