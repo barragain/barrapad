@@ -104,24 +104,52 @@ export default function AppShell() {
     if (isLoaded) fetchNotes()
   }, [isLoaded, isSignedIn])
 
+  // Re-validate shared notes whenever the tab regains focus.
+  // Catches deletions that happened while the user was on a different note or tab.
+  useEffect(() => {
+    const handleVisibility = () => { if (!document.hidden && isSignedIn) fetchNotes() }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSignedIn])
+
   const fetchNotes = async () => {
     try {
       const [notesRes, sharedRes] = await Promise.all([
         fetch('/api/notes'),
         fetch('/api/shared-notes'),
       ])
+      let ownedData: Note[] = []
       if (notesRes.ok) {
         const raw = (await notesRes.json()) as Note[]
-        const data = raw.map(n => ({ ...n, tags: Array.isArray(n.tags) ? n.tags : [] }))
-        setNotes(data)
-        saveCachedNotes(data)
+        ownedData = raw.map(n => ({ ...n, tags: Array.isArray(n.tags) ? n.tags : [] }))
+        setNotes(prev => {
+          // Preserve open virtual shared-notes alongside the fresh owned notes
+          const virtual = prev.filter(n => n.sharedToken)
+          const next = [...ownedData, ...virtual]
+          saveCachedNotes(next)
+          return next
+        })
         setActiveNoteId((prev) => {
-          if (prev && (prev.startsWith('shared-') || data.some((n) => n.id === prev))) return prev
-          return data[0]?.id ?? null
+          if (prev && (prev.startsWith('shared-') || ownedData.some((n) => n.id === prev))) return prev
+          return ownedData[0]?.id ?? null
         })
       }
       if (sharedRes.ok) {
-        setSharedNotes((await sharedRes.json()) as SharedAccessRecord[])
+        const freshShared = (await sharedRes.json()) as SharedAccessRecord[]
+        setSharedNotes(freshShared)
+        // Remove virtual notes for any shared notes no longer in the server list
+        const validVirtualIds = new Set(freshShared.map(r => `shared-${r.token}`))
+        setNotes(prev => {
+          const next = prev.filter(n => !n.sharedToken || validVirtualIds.has(n.id))
+          saveCachedNotes(next)
+          return next
+        })
+        setActiveNoteId(prev => {
+          if (!prev?.startsWith('shared-')) return prev
+          if (validVirtualIds.has(prev)) return prev
+          return ownedData[0]?.id ?? null
+        })
       }
     } catch {}
   }
@@ -129,17 +157,23 @@ export default function AppShell() {
   /** Open a shared note in the main editor by token */
   const openSharedNote = useCallback(async (token: string) => {
     const virtualId = `shared-${token}`
-    // Already loaded — just switch to it
-    setNotes((prev) => {
-      if (prev.some((n) => n.id === virtualId)) return prev
-      return prev // will be populated after fetch below
-    })
+    // Show cached content immediately for responsiveness, then re-validate below
     const existing = notes.find((n) => n.id === virtualId)
-    if (existing) { setActiveNoteId(virtualId); return }
+    if (existing) setActiveNoteId(virtualId)
 
     try {
       const res = await fetch(`/api/share/${token}`)
-      if (!res.ok) return
+      if (!res.ok) {
+        // Note is gone — clean up from both lists
+        setSharedNotes((prev) => prev.filter((r) => r.token !== token))
+        setNotes((prev) => { const next = prev.filter((n) => n.id !== virtualId); saveCachedNotes(next); return next })
+        setActiveNoteId((prev) => {
+          if (prev !== virtualId) return prev
+          const fallback = notes.find((n) => n.id !== virtualId && !n.sharedToken)
+          return fallback?.id ?? null
+        })
+        return
+      }
       const data = await res.json() as {
         noteId: string; title: string; content: string
         tags: import('@/types').Tag[]; permission: string; updatedAt: string
@@ -156,9 +190,10 @@ export default function AppShell() {
         sharedPermission: data.permission as 'READ' | 'EDIT',
         sharedNoteId: data.noteId,
       }
+      // Replace stale cached version or add fresh
       setNotes((prev) => {
-        if (prev.some((n) => n.id === virtualId)) return prev
-        return [...prev, note]
+        const without = prev.filter((n) => n.id !== virtualId)
+        return [...without, note]
       })
       setActiveNoteId(virtualId)
     } catch {}
