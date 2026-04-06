@@ -54,27 +54,34 @@ export default function OnboardingPage() {
     }
     setSaving(true)
     try {
-      await user.update({ firstName: firstName.trim() || undefined, username: trimmedUsername })
+      // Update display name client-side (safe, no step-up required)
+      if (firstName.trim()) {
+        await user.update({ firstName: firstName.trim() })
+      }
+
+      // Update username via backend API to avoid Clerk's session step-up verification
+      const res = await fetch('/api/user/username', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: trimmedUsername }),
+      })
+      if (!res.ok) {
+        const data = (await res.json()) as { error?: string }
+        const msg = (data.error ?? '').toLowerCase()
+        if (msg.includes('taken') || msg.includes('unique') || res.status === 409) {
+          setUsernameError('That username is already taken')
+        } else {
+          setUsernameError(data.error ?? 'Failed to save username')
+        }
+        return
+      }
+
       if (imageFile) {
         await user.setProfileImage({ file: imageFile })
       }
       router.push('/')
-    } catch (e: unknown) {
-      // Clerk throws ClerkAPIResponseError with an `errors` array — check that first
-      let msg = ''
-      if (e && typeof e === 'object' && 'errors' in e) {
-        const clerkErrors = (e as { errors: Array<{ message?: string; longMessage?: string }> }).errors
-        msg = (clerkErrors[0]?.longMessage ?? clerkErrors[0]?.message ?? '').toLowerCase()
-      }
-      if (!msg) msg = (e instanceof Error ? e.message : String(e)).toLowerCase()
-
-      if (msg.includes('taken') || msg.includes('unique') || msg.includes('already exists')) {
-        setUsernameError('That username is already taken')
-      } else if (msg.includes('username')) {
-        setUsernameError('Invalid username — try a different one')
-      } else {
-        setUsernameError('Something went wrong: ' + msg)
-      }
+    } catch {
+      setUsernameError('Something went wrong, please try again')
     } finally {
       setSaving(false)
     }
