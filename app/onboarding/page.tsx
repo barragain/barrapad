@@ -54,16 +54,11 @@ export default function OnboardingPage() {
     }
     setSaving(true)
     try {
-      // Update display name client-side (safe, no step-up required)
-      if (firstName.trim()) {
-        await user.update({ firstName: firstName.trim() })
-      }
-
-      // Update username via backend API to avoid Clerk's session step-up verification
+      // All profile updates go through the backend to avoid Clerk's session step-up requirement
       const res = await fetch('/api/user/username', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: trimmedUsername }),
+        body: JSON.stringify({ username: trimmedUsername, firstName: firstName.trim() || undefined }),
       })
       if (!res.ok) {
         const data = (await res.json()) as { error?: string }
