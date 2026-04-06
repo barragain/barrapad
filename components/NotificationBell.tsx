@@ -104,7 +104,7 @@ export default function NotificationBell({ notifications, open, onToggle, onDism
             style={{
               background: 'var(--editor-bg)',
               border: '1px solid var(--border)',
-              width: 292,
+              width: 'min(292px, calc(100vw - 24px))',
               transformOrigin: 'top right',
             }}
           >
