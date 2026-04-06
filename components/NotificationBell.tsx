@@ -283,14 +283,15 @@ function NotificationItem({
         {isAccessRequest && !isResolved && !loading && (
           <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 6 }}>
             {/* Permission chooser */}
-            <div style={{ display: 'flex', gap: 4 }}>
+            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
               <button
                 onClick={() => setPermChoice('READ')}
                 style={{
-                  fontSize: 10, fontWeight: 600, padding: '3px 8px', borderRadius: 5,
+                  fontSize: 11, fontWeight: 600, padding: '6px 12px', borderRadius: 6,
                   border: '1px solid var(--border)', cursor: 'pointer',
                   background: (permChoice ?? 'READ') === 'READ' ? '#3b82f6' : 'transparent',
                   color: (permChoice ?? 'READ') === 'READ' ? '#fff' : 'var(--muted)',
+                  minHeight: 32,
                 }}
               >
                 View only
@@ -298,35 +299,36 @@ function NotificationItem({
               <button
                 onClick={() => setPermChoice('EDIT')}
                 style={{
-                  fontSize: 10, fontWeight: 600, padding: '3px 8px', borderRadius: 5,
+                  fontSize: 11, fontWeight: 600, padding: '6px 12px', borderRadius: 6,
                   border: '1px solid var(--border)', cursor: 'pointer',
                   background: permChoice === 'EDIT' ? '#D4550A' : 'transparent',
                   color: permChoice === 'EDIT' ? '#fff' : 'var(--muted)',
+                  minHeight: 32,
                 }}
               >
                 Can edit
               </button>
             </div>
-            <div style={{ display: 'flex', gap: 4 }}>
+            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
               <button
                 onClick={() => handleAction('accept')}
                 style={{
-                  fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 6,
-                  border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3,
-                  background: '#22c55e', color: '#fff',
+                  fontSize: 12, fontWeight: 600, padding: '6px 14px', borderRadius: 6,
+                  border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4,
+                  background: '#22c55e', color: '#fff', minHeight: 32,
                 }}
               >
-                <Check size={11} /> Accept
+                <Check size={12} /> Accept
               </button>
               <button
                 onClick={() => handleAction('deny')}
                 style={{
-                  fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 6,
-                  border: '1px solid var(--border)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3,
-                  background: 'transparent', color: '#ef4444',
+                  fontSize: 12, fontWeight: 600, padding: '6px 14px', borderRadius: 6,
+                  border: '1px solid var(--border)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4,
+                  background: 'transparent', color: '#ef4444', minHeight: 32,
                 }}
               >
-                <X size={11} /> Deny
+                <X size={12} /> Deny
               </button>
             </div>
           </div>

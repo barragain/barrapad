@@ -134,7 +134,7 @@ export default function AccessDeniedView({ noteId, onBack, onAccessGranted }: Pr
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-        style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, maxWidth: 360 }}
+        style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, maxWidth: 360, width: '100%' }}
       >
         <AnimatePresence mode="wait">
           {status === 'accepted' ? (
@@ -171,7 +171,7 @@ export default function AccessDeniedView({ noteId, onBack, onAccessGranted }: Pr
                 onClick={() => onAccessGranted?.(noteId)}
                 style={{
                   marginTop: 4, fontSize: 14, fontWeight: 600,
-                  padding: '10px 24px', borderRadius: 10,
+                  padding: '12px 24px', borderRadius: 10,
                   background: '#D4550A', color: '#fff',
                   border: 'none', cursor: 'pointer',
                   display: 'flex', alignItems: 'center', gap: 6,
@@ -260,7 +260,7 @@ export default function AccessDeniedView({ noteId, onBack, onAccessGranted }: Pr
                     onClick={handleRequestAccess}
                     style={{
                       fontSize: 14, fontWeight: 600,
-                      padding: '10px 24px', borderRadius: 10,
+                      padding: '12px 24px', borderRadius: 10,
                       background: '#D4550A', color: '#fff',
                       border: 'none', cursor: 'pointer',
                     }}
@@ -282,7 +282,7 @@ export default function AccessDeniedView({ noteId, onBack, onAccessGranted }: Pr
                       disabled={cancelling}
                       style={{
                         fontSize: 12, fontWeight: 500,
-                        padding: '6px 16px', borderRadius: 8,
+                        padding: '10px 16px', borderRadius: 8,
                         background: 'transparent', color: '#ef4444',
                         border: '1px solid var(--border)', cursor: 'pointer',
                         opacity: cancelling ? 0.5 : 1,

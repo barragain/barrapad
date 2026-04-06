@@ -836,6 +836,7 @@ body {
   border: none;
   box-shadow: none;
   padding: 0;
+  max-width: calc(100vw - 16px) !important;
 }
 .tippy-box[data-theme~='mention'] .tippy-content { padding: 0; }
 
@@ -847,7 +848,8 @@ body {
   overflow: hidden;
   max-height: 280px;
   overflow-y: auto;
-  min-width: 220px;
+  min-width: 200px;
+  max-width: calc(100vw - 16px);
 }
 
 .mention-suggestion-empty {
