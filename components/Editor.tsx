@@ -181,6 +181,10 @@ export default function EditorComponent({
     if (currentHtml !== note.content) {
       ed.commands.setContent(note.content || '', { emitUpdate: false })
     }
+    // Auto-focus when switching to a brand new empty note so the user can type immediately
+    if (!note.content || note.content === '<p></p>') {
+      requestAnimationFrame(() => ed.commands.focus())
+    }
     pendingRef.current = null
     lastLocalChangeTimeRef.current = 0
     isLocallyEditingRef.current = false

@@ -133,8 +133,17 @@ export default function AppShell() {
   const isFirstNotifFetch = useRef(true)
   // Set of "{noteId}:{accessorUserId}" pairs the owner has already been notified about
   const openedNotifiedRef = useRef<Set<string>>(new Set())
+  // Tracks note IDs the current user is actively deleting themselves (to suppress self-delete notifications)
+  const selfDeleteRef = useRef<Set<string>>(new Set())
+  // Tracks note IDs where the user has explicitly set a title — auto-title updates are suppressed for these
+  const manualTitlesRef = useRef<Set<string>>(new Set())
+  // Mirror of sharedNotes in a ref so handleNoteDeleted can read it without stale closures
+  const sharedNotesRef = useRef<SharedAccessRecord[]>([])
 
   const activeNote = notes.find((n) => n.id === activeNoteId) ?? null
+
+  // Keep ref in sync so handleNoteDeleted can access latest sharedNotes without stale closures
+  useEffect(() => { sharedNotesRef.current = sharedNotes }, [sharedNotes])
 
   useEffect(() => {
     const settings = loadAppearance()
@@ -145,6 +154,10 @@ export default function AppShell() {
     try {
       const raw = localStorage.getItem('barrapad_opened_notified')
       if (raw) openedNotifiedRef.current = new Set(JSON.parse(raw) as string[])
+    } catch {}
+    try {
+      const raw = localStorage.getItem('barrapad_manual_titles')
+      if (raw) manualTitlesRef.current = new Set(JSON.parse(raw) as string[])
     } catch {}
   }, [])
 
@@ -311,7 +324,7 @@ export default function AppShell() {
       } catch {}
     }
     checkOpenedEvents()
-    const interval = setInterval(checkOpenedEvents, 30000)
+    const interval = setInterval(checkOpenedEvents, 10000)
     return () => clearInterval(interval)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSignedIn])
@@ -426,13 +439,12 @@ export default function AppShell() {
 
   /** Immediate: update localStorage only, no API call */
   const handleLocalChange = useCallback((title: string, content: string) => {
-    if (!activeNoteId || activeNoteId.startsWith('temp-')) return
+    if (!activeNoteId) return
     updateNotes((prev) =>
       prev.map((n) => {
         if (n.id !== activeNoteId) return n
-        // Only auto-update title from content if the note hasn't been manually
-        // renamed (i.e. title is still the default 'Untitled' or blank).
-        const useTitle = !n.title || n.title === 'Untitled' ? title : n.title
+        // Auto-update title from the first line unless the user has explicitly renamed via the UI
+        const useTitle = manualTitlesRef.current.has(n.id) ? n.title : title
         return { ...n, title: useTitle, content, updatedAt: new Date().toISOString() }
       })
     )
@@ -444,8 +456,7 @@ export default function AppShell() {
     const activeNote = notes.find(n => n.id === activeNoteId)
     if (!activeNote) return
 
-    const storedTitle = activeNote.title
-    const title = storedTitle && storedTitle !== 'Untitled' ? storedTitle : contentTitle
+    const title = manualTitlesRef.current.has(activeNoteId) ? activeNote.title : contentTitle
 
     // Shared note — save via share API
     if (activeNote.sharedToken) {
@@ -582,6 +593,8 @@ export default function AppShell() {
   }, [updateNotes])
 
   const handleRenameNote = useCallback(async (id: string, newTitle: string) => {
+    manualTitlesRef.current.add(id)
+    try { localStorage.setItem('barrapad_manual_titles', JSON.stringify([...manualTitlesRef.current])) } catch {}
     updateNotes((prev) => prev.map((n) => n.id === id ? { ...n, title: newTitle, updatedAt: new Date().toISOString() } : n))
     window.dispatchEvent(new CustomEvent('barrapad:rename', { detail: { id, title: newTitle } }))
     try {
@@ -595,6 +608,7 @@ export default function AppShell() {
 
   const handleDeleteNote = async (id: string) => {
     const prev = notes
+    selfDeleteRef.current.add(id)
     updateNotes((n) => n.filter((note) => note.id !== id))
     if (activeNoteId === id) {
       const remaining = prev.filter((n) => n.id !== id)
@@ -603,6 +617,7 @@ export default function AppShell() {
     try {
       await fetch(`/api/notes/${id}`, { method: 'DELETE' })
     } catch {
+      selfDeleteRef.current.delete(id)
       setNotes(prev)
       saveCachedNotes(prev)
     }
@@ -656,7 +671,49 @@ export default function AppShell() {
   const handleNoteDeleted = useCallback((noteId: string) => {
     if (noteId.startsWith('shared-')) {
       const token = noteId.replace('shared-', '')
+      // Immediately create notification instead of waiting for the 10s poll
+      const record = sharedNotesRef.current.find((r) => r.token === token)
+      if (record) {
+        const who = record.ownerName || 'Someone'
+        const notif: CollabNotification = {
+          id: `deleted-${token}`,
+          type: 'deleted',
+          noteTitle: record.noteTitle,
+          message: `${who} removed access to "${record.noteTitle || 'a shared note'}"`,
+          timestamp: new Date().toISOString(),
+        }
+        setNotifications((prev) => {
+          if (prev.some((n) => n.id === notif.id)) return prev
+          const next = [notif, ...prev]
+          saveNotifications(next)
+          return next
+        })
+        // Remove from localStorage snapshot so the 10s poll doesn't duplicate the notification
+        const known = loadKnownShared()
+        if (known[token]) {
+          delete known[token]
+          try { localStorage.setItem('barrapad_known_shared', JSON.stringify(known)) } catch {}
+        }
+      }
       setSharedNotes((prev) => prev.filter((r) => r.token !== token))
+    } else if (!selfDeleteRef.current.has(noteId)) {
+      // Owned note deleted remotely by a collaborator — notify the owner
+      const deletedNote = notes.find((n) => n.id === noteId)
+      if (deletedNote) {
+        const notif: CollabNotification = {
+          id: `deleted-owned-${noteId}`,
+          type: 'deleted',
+          noteTitle: deletedNote.title,
+          message: `A collaborator deleted your note "${deletedNote.title || 'Untitled'}"`,
+          timestamp: new Date().toISOString(),
+        }
+        setNotifications((prev) => {
+          if (prev.some((n) => n.id === notif.id)) return prev
+          const next = [notif, ...prev]
+          saveNotifications(next)
+          return next
+        })
+      }
     }
     updateNotes((prev) => prev.filter((n) => n.id !== noteId))
     setActiveNoteId((prev) => {
