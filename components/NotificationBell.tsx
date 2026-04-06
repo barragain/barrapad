@@ -32,6 +32,7 @@ interface Props {
   onMarkAllRead: () => void
   onDeleteAll: () => void
   onAccessRequestAction?: (requestId: string, action: 'accept' | 'deny', permission?: string) => void
+  onNotificationClick?: (notification: CollabNotification) => void
 }
 
 export default function NotificationBell({
@@ -41,6 +42,7 @@ export default function NotificationBell({
   onMarkAllRead,
   onDeleteAll,
   onAccessRequestAction,
+  onNotificationClick,
 }: Props) {
   const ref = useRef<HTMLDivElement>(null)
   const unreadCount = notifications.filter((n) => !n.read).length
@@ -175,6 +177,7 @@ export default function NotificationBell({
                       index={i}
                       isLast={i === notifications.length - 1}
                       onAccessRequestAction={onAccessRequestAction}
+                      onClick={onNotificationClick ? () => onNotificationClick(n) : undefined}
                     />
                   ))
                 )}
@@ -201,17 +204,20 @@ function NotificationItem({
   index: i,
   isLast,
   onAccessRequestAction,
+  onClick,
 }: {
   notification: CollabNotification
   index: number
   isLast: boolean
   onAccessRequestAction?: (requestId: string, action: 'accept' | 'deny', permission?: string) => void
+  onClick?: () => void
 }) {
   const [loading, setLoading] = useState(false)
   const [permChoice, setPermChoice] = useState<string | null>(null)
   const meta = (n.metadata ?? {}) as Record<string, unknown>
   const isAccessRequest = n.type === 'access_request'
   const isResolved = isAccessRequest && !!meta.resolved
+  const hasNoteId = !!n.noteId
   const color = TYPE_COLOR[n.type] ?? '#888'
 
   const handleAction = async (action: 'accept' | 'deny') => {
@@ -229,6 +235,12 @@ function NotificationItem({
       className="flex items-start gap-2.5 px-3 py-2.5"
       style={{
         borderBottom: isLast ? 'none' : '1px solid var(--border)',
+        cursor: hasNoteId ? 'pointer' : undefined,
+      }}
+      onClick={(e) => {
+        // Don't navigate if clicking action buttons
+        if ((e.target as HTMLElement).closest('button')) return
+        if (hasNoteId && onClick) onClick()
       }}
     >
       {/* Dot or avatar */}

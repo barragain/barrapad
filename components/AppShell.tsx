@@ -956,6 +956,18 @@ export default function AppShell() {
                 fetch('/api/notifications', { method: 'DELETE' }).catch(() => {})
               }}
               onAccessRequestAction={handleAccessRequestAction}
+              onNotificationClick={(n) => {
+                if (!n.noteId) return
+                setShowNotifs(false)
+                handleNoteMentionClick(n.noteId)
+                // Mark as read
+                if (!n.read) {
+                  setNotifications((prev) =>
+                    prev.map((notif) => notif.id === n.id ? { ...notif, read: true, readAt: new Date().toISOString() } : notif)
+                  )
+                  fetch(`/api/notifications/${n.id}`, { method: 'PATCH' }).catch(() => {})
+                }
+              }}
             />
           )}
 
