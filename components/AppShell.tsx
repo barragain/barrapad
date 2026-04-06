@@ -168,6 +168,19 @@ export default function AppShell() {
             if (prev.some((n) => n.id === notif.id)) return prev
             return [notif, ...prev]
           })
+
+          // If this is an access response, dispatch event for AccessDeniedView
+          if (notif.type === 'access_response' && notif.noteId) {
+            const meta = (notif.metadata ?? {}) as Record<string, unknown>
+            window.dispatchEvent(new CustomEvent('barrapad:access-response', {
+              detail: {
+                noteId: notif.noteId,
+                action: meta.action as string,
+                resolvedByName: notif.fromName ?? 'Someone',
+                permission: meta.permission as string | undefined,
+              },
+            }))
+          }
         }
 
         if (msg.type === 'notification_update') {
@@ -1048,6 +1061,10 @@ export default function AppShell() {
             <AccessDeniedView
               noteId={accessDeniedNoteId}
               onBack={() => setAccessDeniedNoteId(null)}
+              onAccessGranted={(grantedNoteId) => {
+                setAccessDeniedNoteId(null)
+                handleNoteMentionClick(grantedNoteId)
+              }}
             />
           ) : activeNote ? (
             <EditorWrapper

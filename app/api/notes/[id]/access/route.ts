@@ -37,7 +37,7 @@ export async function GET(
     access: false,
     noteTitle: note.title,
     pendingRequest: pendingRequest
-      ? { id: pendingRequest.id, status: pendingRequest.status, resolvedByName: pendingRequest.resolvedByName }
+      ? { id: pendingRequest.id, status: pendingRequest.status, resolvedByName: pendingRequest.resolvedByName, grantedPermission: pendingRequest.grantedPermission }
       : null,
   })
 }
