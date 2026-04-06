@@ -15,12 +15,23 @@ import type { Note, Tag, AppearanceSettings, SharedAccessRecord, CollabNotificat
 
 // ── Notification localStorage helpers ─────────────────────────────────────────
 
-type KnownSharedMap = Record<string, { title: string; permission: string }>
+// Read notifications auto-expire after 14 days
+const NOTIF_EXPIRE_MS = 14 * 24 * 60 * 60 * 1000
+
+type KnownSharedMap = Record<string, { title: string; permission: string; ownerName: string }>
+
+function filterExpired(notifs: CollabNotification[]): CollabNotification[] {
+  const now = Date.now()
+  return notifs.filter((n) => {
+    if (!n.read || !n.readAt) return true
+    return now - new Date(n.readAt).getTime() < NOTIF_EXPIRE_MS
+  })
+}
 
 function loadNotifications(): CollabNotification[] {
   try {
     const raw = localStorage.getItem('barrapad_notifications')
-    return raw ? (JSON.parse(raw) as CollabNotification[]) : []
+    return raw ? filterExpired(JSON.parse(raw) as CollabNotification[]) : []
   } catch { return [] }
 }
 
@@ -37,7 +48,13 @@ function loadKnownShared(): KnownSharedMap {
 
 function saveKnownShared(records: SharedAccessRecord[]) {
   const map: KnownSharedMap = {}
-  for (const r of records) map[r.token] = { title: r.noteTitle, permission: r.permission }
+  for (const r of records) {
+    map[r.token] = {
+      title: r.noteTitle,
+      permission: r.permission,
+      ownerName: r.ownerName ?? '',
+    }
+  }
   try { localStorage.setItem('barrapad_known_shared', JSON.stringify(map)) } catch {}
 }
 
@@ -150,11 +167,12 @@ export default function AppShell() {
     // New shares
     for (const [token, record] of freshMap) {
       if (!known[token]) {
+        const who = record.ownerName || 'Someone'
         newNotifs.push({
           id: `shared-${token}`,
           type: 'shared',
           noteTitle: record.noteTitle,
-          message: `"${record.noteTitle || 'A note'}" was shared with you`,
+          message: `${who} shared "${record.noteTitle || 'a note'}" with you`,
           timestamp: new Date().toISOString(),
         })
       }
@@ -163,11 +181,12 @@ export default function AppShell() {
     // Deleted / access removed
     for (const [token, info] of Object.entries(known)) {
       if (!freshMap.has(token)) {
+        const who = info.ownerName || 'Someone'
         newNotifs.push({
           id: `deleted-${token}`,
           type: 'deleted',
           noteTitle: info.title,
-          message: `"${info.title || 'A shared note'}" was deleted or access was removed`,
+          message: `${who} removed access to "${info.title || 'a shared note'}"`,
           timestamp: new Date().toISOString(),
         })
       }
@@ -177,11 +196,12 @@ export default function AppShell() {
     for (const [token, record] of freshMap) {
       const prev = known[token]
       if (prev && prev.permission !== record.permission) {
+        const who = record.ownerName || prev.ownerName || 'Someone'
         newNotifs.push({
           id: `perm-${token}-${record.permission}`,
           type: 'permission_changed',
           noteTitle: record.noteTitle,
-          message: `Access to "${record.noteTitle || 'a note'}" changed to ${record.permission === 'EDIT' ? 'Can edit' : 'View only'}`,
+          message: `${who} changed your access to "${record.noteTitle || 'a note'}" to ${record.permission === 'EDIT' ? 'Can edit' : 'View only'}`,
           timestamp: new Date().toISOString(),
         })
       }
@@ -786,7 +806,15 @@ export default function AppShell() {
               notifications={notifications}
               open={showNotifs}
               onToggle={() => setShowNotifs((v) => !v)}
-              onDismiss={() => {
+              onMarkAllRead={() => {
+                const now = new Date().toISOString()
+                setNotifications((prev) => {
+                  const next = prev.map((n) => n.read ? n : { ...n, read: true, readAt: now })
+                  saveNotifications(next)
+                  return next
+                })
+              }}
+              onDeleteAll={() => {
                 setNotifications([])
                 saveNotifications([])
               }}

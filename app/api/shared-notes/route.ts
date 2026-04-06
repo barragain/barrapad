@@ -1,4 +1,4 @@
-import { auth } from '@clerk/nextjs/server'
+import { auth, clerkClient } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
@@ -22,16 +22,35 @@ export async function GET() {
   // Avoid duplicates — if a noteId is already covered by a SharedAccess record, skip it
   const sharedNoteIds = new Set(sharedAccess.map((r) => r.noteId))
 
-  const collabRecords = collaborations
-    .filter((c) => !sharedNoteIds.has(c.noteId))
-    .map((c) => ({
-      id: c.id,
-      noteId: c.noteId,
-      noteTitle: c.note.title,
-      token: `collab-${c.noteId}`,
-      permission: c.permission,
-      lastSeen: c.invitedAt.toISOString(),
-    }))
+  // Fetch owner display names from Clerk for collab invites
+  const collabsToShow = collaborations.filter((c) => !sharedNoteIds.has(c.noteId))
+  const ownerUserIds = [...new Set(collabsToShow.map((c) => c.note.userId))]
+  const ownerNameMap = new Map<string, string>()
+  if (ownerUserIds.length > 0) {
+    try {
+      const client = await clerkClient()
+      await Promise.all(
+        ownerUserIds.map(async (uid) => {
+          const u = await client.users.getUser(uid)
+          const name =
+            [u.firstName, u.lastName].filter(Boolean).join(' ') ||
+            u.username ||
+            'Someone'
+          ownerNameMap.set(uid, name)
+        })
+      )
+    } catch {}
+  }
+
+  const collabRecords = collabsToShow.map((c) => ({
+    id: c.id,
+    noteId: c.noteId,
+    noteTitle: c.note.title,
+    token: `collab-${c.noteId}`,
+    permission: c.permission,
+    lastSeen: c.invitedAt.toISOString(),
+    ownerName: ownerNameMap.get(c.note.userId) ?? '',
+  }))
 
   const result = [
     ...sharedAccess.map((r) => ({
@@ -41,6 +60,7 @@ export async function GET() {
       token: r.token,
       permission: r.permission,
       lastSeen: r.lastSeen.toISOString(),
+      ownerName: r.ownerName,
     })),
     ...collabRecords,
   ]

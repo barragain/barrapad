@@ -26,6 +26,7 @@ export interface SharedAccessRecord {
   token: string
   permission: string
   lastSeen: string
+  ownerName?: string
 }
 
 export interface CollabNotification {
@@ -34,6 +35,8 @@ export interface CollabNotification {
   noteTitle: string
   message: string
   timestamp: string
+  read?: boolean
+  readAt?: string
 }
 
 export interface AppearanceSettings {
