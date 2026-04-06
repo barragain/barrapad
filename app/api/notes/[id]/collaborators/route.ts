@@ -50,6 +50,7 @@ export async function POST(
   // Fetch the invited user's profile from Clerk
   let username = ''
   let displayName = ''
+  let avatarUrl = ''
   try {
     const client = await clerkClient()
     const user = await client.users.getUser(body.targetUserId)
@@ -59,19 +60,21 @@ export async function POST(
       username ||
       user.emailAddresses[0]?.emailAddress ||
       ''
+    avatarUrl = user.imageUrl ?? ''
   } catch {
     return NextResponse.json({ error: 'User not found' }, { status: 404 })
   }
 
   const collab = await prisma.noteCollaborator.upsert({
     where: { noteId_userId: { noteId: params.id, userId: body.targetUserId } },
-    update: { permission, username, displayName },
+    update: { permission, username, displayName, avatarUrl },
     create: {
       noteId: params.id,
       userId: body.targetUserId,
       permission,
       username,
       displayName,
+      avatarUrl,
     },
   })
 

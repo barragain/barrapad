@@ -9,6 +9,7 @@ interface Collaborator {
   userId: string
   username: string
   displayName: string
+  avatarUrl: string
   permission: string
 }
 
@@ -447,9 +448,13 @@ export default function ShareModal({ note, onClose, onIsSharedChange }: ShareMod
                       <div className="space-y-1 pt-1">
                         {collaborators.map((c) => (
                           <div key={c.id} className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-[#F5F2ED]">
-                            <div className="w-6 h-6 rounded-full bg-[#E5E0D8] shrink-0 flex items-center justify-center text-[10px] font-medium text-[#8A8178]">
-                              {(c.displayName || c.username || '?')[0].toUpperCase()}
-                            </div>
+                            {c.avatarUrl ? (
+                              <img src={c.avatarUrl} alt="" className="w-6 h-6 rounded-full object-cover shrink-0" />
+                            ) : (
+                              <div className="w-6 h-6 rounded-full bg-[#E5E0D8] shrink-0 flex items-center justify-center text-[10px] font-medium text-[#8A8178]">
+                                {(c.displayName || c.username || '?')[0].toUpperCase()}
+                              </div>
+                            )}
                             <div className="flex-1 min-w-0">
                               <p className="text-xs font-medium text-[#1A1A1A] truncate">{c.displayName || c.username || 'Unknown'}</p>
                               {c.username && <p className="text-[10px] text-[#C4BFB6]">@{c.username}</p>}

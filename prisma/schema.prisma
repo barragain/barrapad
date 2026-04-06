@@ -28,6 +28,7 @@ model NoteCollaborator {
   userId      String
   username    String   @default("")
   displayName String   @default("")
+  avatarUrl   String   @default("")
   permission  String   @default("READ")
   invitedAt   DateTime @default(now())
 
