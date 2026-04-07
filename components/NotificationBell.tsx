@@ -1,6 +1,7 @@
 'use client'
 
-import { useRef, useEffect, useState } from 'react'
+import { useRef, useEffect, useState, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { Bell, CheckCheck, Trash2, Check, X, Loader2 } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import type { CollabNotification } from '@/types'
@@ -45,17 +46,38 @@ export default function NotificationBell({
   onNotificationClick,
 }: Props) {
   const ref = useRef<HTMLDivElement>(null)
+  const popoverRef = useRef<HTMLDivElement>(null)
   const unreadCount = notifications.filter((n) => !n.read).length
   const hasUnread = unreadCount > 0
 
+  // Compute fixed position anchored to the bell button
+  const [popoverPos, setPopoverPos] = useState<{ top: number; right: number } | null>(null)
+
+  const updatePos = useCallback(() => {
+    if (!ref.current) return
+    const rect = ref.current.getBoundingClientRect()
+    setPopoverPos({
+      top: rect.bottom + 4,
+      right: Math.max(8, window.innerWidth - rect.right),
+    })
+  }, [])
+
   useEffect(() => {
     if (!open) return
+    updatePos()
+    window.addEventListener('resize', updatePos)
+    window.addEventListener('scroll', updatePos, true)
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) onToggle()
+      const target = e.target as Node
+      if (ref.current && !ref.current.contains(target) && popoverRef.current && !popoverRef.current.contains(target)) onToggle()
     }
     document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [open, onToggle])
+    return () => {
+      document.removeEventListener('mousedown', handler)
+      window.removeEventListener('resize', updatePos)
+      window.removeEventListener('scroll', updatePos, true)
+    }
+  }, [open, onToggle, updatePos])
 
   return (
     <div ref={ref} className="relative">
@@ -107,22 +129,26 @@ export default function NotificationBell({
         </AnimatePresence>
       </button>
 
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            key="notif-popover"
-            initial={{ opacity: 0, y: -6, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -6, scale: 0.96 }}
-            transition={{ duration: 0.15, ease: [0.34, 1.56, 0.64, 1] }}
-            className="absolute top-full right-0 mt-1 z-[55] rounded-xl shadow-xl overflow-hidden"
-            style={{
-              background: 'var(--editor-bg)',
-              border: '1px solid var(--border)',
-              width: 'min(340px, calc(100vw - 24px))',
-              transformOrigin: 'top right',
-            }}
-          >
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {open && popoverPos && (
+            <motion.div
+              ref={popoverRef}
+              key="notif-popover"
+              initial={{ opacity: 0, y: -6, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -6, scale: 0.96 }}
+              transition={{ duration: 0.15, ease: [0.34, 1.56, 0.64, 1] }}
+              className="fixed z-[9999] rounded-xl shadow-xl overflow-hidden"
+              style={{
+                background: 'var(--editor-bg)',
+                border: '1px solid var(--border)',
+                width: 'min(340px, calc(100vw - 24px))',
+                transformOrigin: 'top right',
+                top: popoverPos.top,
+                right: popoverPos.right,
+              }}
+            >
             {/* Header */}
             <div
               className="flex items-center justify-between px-3 py-2.5"
@@ -194,7 +220,8 @@ export default function NotificationBell({
             )}
           </motion.div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>,
+      document.body)}
     </div>
   )
 }
