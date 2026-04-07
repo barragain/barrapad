@@ -39,11 +39,15 @@ export const FileAttachment = Node.create<FileAttachmentOptions>({
 
   addAttributes() {
     return {
-      name: { default: '' },
-      size: { default: 0 },
-      mimeType: { default: 'application/octet-stream' },
-      dataUrl: { default: '' },
-      align: { default: 'left' },
+      // rendered: false prevents TipTap from auto-rendering these as raw HTML
+      // attributes (e.g. `dataUrl="data:..."`) — we handle it in renderHTML
+      // with proper data-* names. Without this, the base64 dataUrl gets
+      // doubled in the output HTML, potentially exceeding size limits.
+      name: { default: '', rendered: false },
+      size: { default: 0, rendered: false },
+      mimeType: { default: 'application/octet-stream', rendered: false },
+      dataUrl: { default: '', rendered: false },
+      align: { default: 'left', rendered: false },
     }
   },
 

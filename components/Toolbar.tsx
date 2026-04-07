@@ -38,18 +38,31 @@ import '@/extensions/resizable-image'
 import { uploadImage } from '@/lib/upload-image'
 import { NodeSelection } from '@tiptap/pm/state'
 
-/** Directly dispatch alignment for a node-selected image or fileAttachment.
- *  Bypasses the command chain which can lose NodeSelection via .focus(). */
+/** Directly dispatch alignment for an image or fileAttachment near the selection.
+ *  Tries NodeSelection first, then checks the resolved position for an adjacent node. */
 function setNodeAlign(editor: Editor, align: 'left' | 'center' | 'right') {
   const { selection } = editor.state
-  if (selection instanceof NodeSelection) {
-    const { node, from } = selection
-    if (node.type.name === 'image' || node.type.name === 'fileAttachment') {
-      const tr = editor.state.tr.setNodeMarkup(from, undefined, { ...node.attrs, align })
+  const TYPES = ['image', 'fileAttachment']
+
+  // NodeSelection — cursor IS the node
+  if (selection instanceof NodeSelection && TYPES.includes(selection.node.type.name)) {
+    const tr = editor.state.tr.setNodeMarkup(selection.from, undefined, { ...selection.node.attrs, align })
+    editor.view.dispatch(tr)
+    return true
+  }
+
+  // Fallback: walk up from the selection anchor to find an image/attachment ancestor or sibling
+  const $pos = selection.$anchor
+  for (let d = $pos.depth; d >= 0; d--) {
+    const node = d === 0 ? editor.state.doc.nodeAt($pos.before(1)) : $pos.node(d)
+    if (node && TYPES.includes(node.type.name)) {
+      const pos = d === 0 ? $pos.before(1) : $pos.before(d)
+      const tr = editor.state.tr.setNodeMarkup(pos, undefined, { ...node.attrs, align })
       editor.view.dispatch(tr)
       return true
     }
   }
+
   return false
 }
 
