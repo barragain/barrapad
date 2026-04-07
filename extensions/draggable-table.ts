@@ -54,7 +54,7 @@ class DraggableTableView extends TableView {
 
     dom.insertBefore(handle, dom.firstChild)
 
-    // Drag ghost + animations
+    // Custom drag ghost + animations (fires before ProseMirror's handler)
     dom.addEventListener('dragstart', (e: DragEvent) => {
       const table = dom.querySelector('table')
       const rows = table?.querySelectorAll('tr').length ?? 0
@@ -89,12 +89,17 @@ export const DraggableTable = Table.extend({
       new Plugin({
         props: {
           handleDOMEvents: {
-            // Intercept mousedown on the drag handle to set up NodeSelection.
-            // Return true to prevent ProseMirror's own mousedown from interfering.
-            // The handle is draggable="true", so the browser will fire dragstart,
-            // and ProseMirror's dragstart handler sees the NodeSelection and handles
-            // serialization + drop.
+            // Block ProseMirror's mousedown on the handle so it doesn't
+            // create a competing MouseDown tracker or place a text cursor.
             mousedown: (view, event) => {
+              const target = event.target as HTMLElement
+              if (!target.closest('.table-drag-handle')) return false
+              return true
+            },
+            // When the browser fires dragstart (handle is draggable="true"),
+            // create a NodeSelection so ProseMirror's internal dragstart
+            // handler serializes the table and sets view.dragging for drop.
+            dragstart: (view, event) => {
               const target = event.target as HTMLElement
               if (!target.closest('.table-drag-handle')) return false
 
@@ -107,9 +112,9 @@ export const DraggableTable = Table.extend({
               view.dispatch(
                 view.state.tr.setSelection(NodeSelection.create(view.state.doc, tablePos))
               )
-              // Return true — block ProseMirror's mousedown so it doesn't
-              // override our selection or fail to set mightDrag
-              return true
+              // Return false — let ProseMirror's internal dragstart handler
+              // pick up the NodeSelection and serialize the drag data
+              return false
             },
           },
         },
