@@ -1,4 +1,6 @@
 import { Table, TableView } from '@tiptap/extension-table'
+import { NodeSelection } from '@tiptap/pm/state'
+import { Plugin } from '@tiptap/pm/state'
 import type { Node as PmNode } from '@tiptap/pm/model'
 
 function makeDragGhost(label: string): HTMLElement {
@@ -17,8 +19,7 @@ function makeDragGhost(label: string): HTMLElement {
 }
 
 /**
- * Extends the default TableView to add a drag handle and drop animations.
- * Passed as the `View` option to the columnResizing plugin.
+ * Extends the default TableView to add a drag handle.
  */
 class DraggableTableView extends TableView {
   constructor(node: PmNode, cellMinWidth: number) {
@@ -26,9 +27,6 @@ class DraggableTableView extends TableView {
 
     const dom = this.dom as HTMLElement
 
-    // Create drag handle (6-dot grip) — NOT draggable itself;
-    // ProseMirror sets `draggable=true` on the dom when it detects a drag
-    // from a non-content area of a draggable node.
     const handle = document.createElement('div')
     handle.className = 'table-drag-handle'
     handle.contentEditable = 'false'
@@ -40,8 +38,7 @@ class DraggableTableView extends TableView {
 
     dom.insertBefore(handle, dom.firstChild)
 
-    // Custom drag ghost + animations — on the dom, not the handle,
-    // because ProseMirror initiates the drag on the dom element.
+    // Drag ghost + animations
     dom.addEventListener('dragstart', (e: DragEvent) => {
       const table = dom.querySelector('table')
       const rows = table?.querySelectorAll('tr').length ?? 0
@@ -56,6 +53,8 @@ class DraggableTableView extends TableView {
       dom.classList.remove('barrapad-dragging')
       dom.classList.add('barrapad-dropped')
       dom.addEventListener('animationend', () => dom.classList.remove('barrapad-dropped'), { once: true })
+      // Clean up draggable flag
+      dom.removeAttribute('draggable')
     })
   }
 }
@@ -67,5 +66,48 @@ export const DraggableTable = Table.extend({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const opts = this.parent?.() as any
     return { ...opts, View: DraggableTableView, allowTableNodeSelection: true }
+  },
+
+  addProseMirrorPlugins() {
+    const parentPlugins = this.parent?.() ?? []
+    return [
+      ...parentPlugins,
+      // Plugin to handle drag initiation from the grip handle
+      new Plugin({
+        props: {
+          handleDOMEvents: {
+            mousedown: (view, event) => {
+              const target = event.target as HTMLElement
+              if (!target.closest('.table-drag-handle')) return false
+
+              const wrapper = target.closest('.tableWrapper') as HTMLElement
+              if (!wrapper) return false
+
+              // Find the table node position by scanning the document
+              const pos = view.posAtDOM(wrapper, 0)
+              try {
+                const $pos = view.state.doc.resolve(pos)
+                for (let d = $pos.depth; d >= 0; d--) {
+                  if ($pos.node(d).type.name === 'table') {
+                    const tablePos = $pos.before(d)
+                    // Select the table node
+                    const tr = view.state.tr.setSelection(
+                      NodeSelection.create(view.state.doc, tablePos)
+                    )
+                    view.dispatch(tr)
+                    // Make wrapper draggable so the browser can initiate drag
+                    wrapper.setAttribute('draggable', 'true')
+                    return false // let the browser continue
+                  }
+                }
+              } catch {
+                // Position resolution can fail at doc boundaries
+              }
+              return false
+            },
+          },
+        },
+      }),
+    ]
   },
 })

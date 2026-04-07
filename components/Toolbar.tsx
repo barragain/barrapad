@@ -36,34 +36,35 @@ import ColorPicker from './ColorPicker'
 import LinkPopover from './LinkPopover'
 import '@/extensions/resizable-image'
 import { uploadImage } from '@/lib/upload-image'
-import { NodeSelection } from '@tiptap/pm/state'
 
-/** Directly dispatch alignment for an image or fileAttachment near the selection.
- *  Tries NodeSelection first, then checks the resolved position for an adjacent node. */
+/** Find any image or fileAttachment overlapping the current selection and set its align.
+ *  Does not rely on instanceof — scans the doc for the active node. */
 function setNodeAlign(editor: Editor, align: 'left' | 'center' | 'right') {
-  const { selection } = editor.state
   const TYPES = ['image', 'fileAttachment']
+  const { from, to } = editor.state.selection
+  let done = false
 
-  // NodeSelection — cursor IS the node
-  if (selection instanceof NodeSelection && TYPES.includes(selection.node.type.name)) {
-    const tr = editor.state.tr.setNodeMarkup(selection.from, undefined, { ...selection.node.attrs, align })
-    editor.view.dispatch(tr)
-    return true
-  }
-
-  // Fallback: walk up from the selection anchor to find an image/attachment ancestor or sibling
-  const $pos = selection.$anchor
-  for (let d = $pos.depth; d >= 0; d--) {
-    const node = d === 0 ? editor.state.doc.nodeAt($pos.before(1)) : $pos.node(d)
-    if (node && TYPES.includes(node.type.name)) {
-      const pos = d === 0 ? $pos.before(1) : $pos.before(d)
+  editor.state.doc.nodesBetween(from, to, (node, pos) => {
+    if (done) return false
+    if (TYPES.includes(node.type.name)) {
       const tr = editor.state.tr.setNodeMarkup(pos, undefined, { ...node.attrs, align })
       editor.view.dispatch(tr)
-      return true
+      done = true
+      return false
+    }
+  })
+
+  // Also check the node AT the from position (for NodeSelection where from === to)
+  if (!done) {
+    const node = editor.state.doc.nodeAt(from)
+    if (node && TYPES.includes(node.type.name)) {
+      const tr = editor.state.tr.setNodeMarkup(from, undefined, { ...node.attrs, align })
+      editor.view.dispatch(tr)
+      done = true
     }
   }
 
-  return false
+  return done
 }
 
 interface ToolbarProps {
