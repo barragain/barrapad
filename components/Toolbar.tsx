@@ -282,10 +282,11 @@ export default function Toolbar({ editor }: ToolbarProps) {
         isH3: ctx.editor.isActive('heading', { level: 3 }),
         canUndo: ctx.editor.can().undo(),
         canRedo: ctx.editor.can().redo(),
-        isAlignLeft: ctx.editor.isActive({ textAlign: 'left' }) || ctx.editor.isActive('image', { align: 'left' }),
-        isAlignCenter: ctx.editor.isActive({ textAlign: 'center' }) || ctx.editor.isActive('image', { align: 'center' }),
-        isAlignRight: ctx.editor.isActive({ textAlign: 'right' }) || ctx.editor.isActive('image', { align: 'right' }),
+        isAlignLeft: ctx.editor.isActive({ textAlign: 'left' }) || ctx.editor.isActive('image', { align: 'left' }) || ctx.editor.isActive('fileAttachment', { align: 'left' }),
+        isAlignCenter: ctx.editor.isActive({ textAlign: 'center' }) || ctx.editor.isActive('image', { align: 'center' }) || ctx.editor.isActive('fileAttachment', { align: 'center' }),
+        isAlignRight: ctx.editor.isActive({ textAlign: 'right' }) || ctx.editor.isActive('image', { align: 'right' }) || ctx.editor.isActive('fileAttachment', { align: 'right' }),
         isImageSelected: ctx.editor.isActive('image'),
+        isFileAttachmentSelected: ctx.editor.isActive('fileAttachment'),
       }
     },
   })
@@ -568,21 +569,21 @@ export default function Toolbar({ editor }: ToolbarProps) {
         {/* ── ROW 3: Alignment · Table · Image · Code ── */}
 
         <TBtn
-          onClick={() => editorState.isImageSelected ? editor.chain().focus().setImageAlign('left').run() : editor.chain().focus().setTextAlign('left').run()}
+          onClick={() => editorState.isImageSelected ? editor.chain().focus().setImageAlign('left').run() : editorState.isFileAttachmentSelected ? editor.chain().focus().setFileAttachmentAlign('left').run() : editor.chain().focus().setTextAlign('left').run()}
           active={editorState.isAlignLeft}
           label="Align left"
         >
           <AlignLeft size={iconSize} />
         </TBtn>
         <TBtn
-          onClick={() => editorState.isImageSelected ? editor.chain().focus().setImageAlign('center').run() : editor.chain().focus().setTextAlign('center').run()}
+          onClick={() => editorState.isImageSelected ? editor.chain().focus().setImageAlign('center').run() : editorState.isFileAttachmentSelected ? editor.chain().focus().setFileAttachmentAlign('center').run() : editor.chain().focus().setTextAlign('center').run()}
           active={editorState.isAlignCenter}
           label="Align center"
         >
           <AlignCenter size={iconSize} />
         </TBtn>
         <TBtn
-          onClick={() => editorState.isImageSelected ? editor.chain().focus().setImageAlign('right').run() : editor.chain().focus().setTextAlign('right').run()}
+          onClick={() => editorState.isImageSelected ? editor.chain().focus().setImageAlign('right').run() : editorState.isFileAttachmentSelected ? editor.chain().focus().setFileAttachmentAlign('right').run() : editor.chain().focus().setTextAlign('right').run()}
           active={editorState.isAlignRight}
           label="Align right"
         >

@@ -10,7 +10,8 @@ import Link from '@tiptap/extension-link'
 import { TextStyle } from '@tiptap/extension-text-style'
 import { Color } from '@tiptap/extension-color'
 import Highlight from '@tiptap/extension-highlight'
-import { Table, TableRow, TableCell, TableHeader } from '@tiptap/extension-table'
+import { TableRow, TableCell, TableHeader } from '@tiptap/extension-table'
+import { DraggableTable } from '@/extensions/draggable-table'
 import TextAlign from '@tiptap/extension-text-align'
 import TaskList from '@tiptap/extension-task-list'
 import TaskItem from '@tiptap/extension-task-item'
@@ -184,7 +185,7 @@ export default function NoteEditorCore({
       TextStyle,
       Color,
       Highlight.configure({ multicolor: true }),
-      Table.configure({ resizable: true }),
+      DraggableTable.configure({ resizable: true }),
       TableRow,
       TableCell,
       TableHeader,
@@ -354,10 +355,20 @@ export default function NoteEditorCore({
   // Use Tiptap's own focus/blur events. The Toolbar has onMouseDown={e =>
   // e.preventDefault()} which keeps the editor focused when clicking toolbar
   // buttons, so onBlur only fires when clicking truly outside the editor.
+  // Exception: toolbar popovers (e.g. LinkPopover) actively focus their own
+  // inputs, which steals focus from the editor. We detect this by checking
+  // whether the newly-focused element lives inside the toolbar wrapper.
   useEffect(() => {
     if (!editor) return
     const onFocus = () => setIsEditorFocused(true)
-    const onBlur  = () => setIsEditorFocused(false)
+    const onBlur  = () => {
+      // Delay so the browser has time to set document.activeElement to the new target
+      setTimeout(() => {
+        const active = document.activeElement
+        if (active && toolbarRef.current?.contains(active)) return // focus moved to toolbar child
+        setIsEditorFocused(false)
+      }, 0)
+    }
     editor.on('focus', onFocus)
     editor.on('blur',  onBlur)
     return () => {

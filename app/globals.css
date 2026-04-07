@@ -527,6 +527,41 @@ body {
   -webkit-touch-callout: none;
 }
 
+/* ── Table drag handle ──────────────────────────────────────────────────── */
+.table-drag-handle {
+  position: absolute;
+  top: -2px;
+  left: -24px;
+  width: 18px;
+  height: 22px;
+  background: var(--editor-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s;
+  z-index: 10;
+  color: var(--muted);
+}
+
+.table-drag-handle:hover {
+  background: var(--sidebar-bg);
+  color: var(--accent);
+}
+
+.table-drag-handle:active {
+  cursor: grabbing;
+}
+
+/* Show handle on table hover */
+.tableWrapper:hover > .table-drag-handle,
+.table-drag-handle:hover {
+  opacity: 1;
+}
+
 .ProseMirror table {
   border-collapse: collapse;
   margin: 0.5em 0;

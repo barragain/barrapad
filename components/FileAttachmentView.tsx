@@ -230,11 +230,12 @@ function AudioPlayer({ name, size, dataUrl, onRename, selected }: { name: string
 }
 
 export default function FileAttachmentView({ node, updateAttributes, selected }: NodeViewProps) {
-  const { name, size, mimeType, dataUrl } = node.attrs as {
+  const { name, size, mimeType, dataUrl, align } = node.attrs as {
     name: string
     size: number
     mimeType: string
     dataUrl: string
+    align: 'left' | 'center' | 'right'
   }
 
   const isAudio = mimeType.startsWith('audio/')
@@ -284,7 +285,15 @@ export default function FileAttachmentView({ node, updateAttributes, selected }:
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       {...({ 'data-drag-handle': true, 'data-file-attachment-view': true, 'data-file-name': name } as any)}
       contentEditable={false}
-      style={{ display: 'inline-flex', alignItems: 'center', margin: '4px 0', cursor: 'grab', width: 'fit-content' }}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        margin: '4px 0',
+        cursor: 'grab',
+        width: 'fit-content',
+        marginLeft: align === 'right' ? 'auto' : align === 'center' ? 'auto' : undefined,
+        marginRight: align === 'left' ? undefined : align === 'center' ? 'auto' : undefined,
+      }}
     >
       {isAudio ? (
         <AudioPlayer name={name} size={size} dataUrl={dataUrl} onRename={handleRename} selected={selected} />
