@@ -622,11 +622,7 @@ export const ResizableImage = Node.create({
   },
 
   addNodeView() {
-    return ReactNodeViewRenderer(ResizableImageView, {
-      // fit-content so the TipTap wrapper shrinks to the image —
-      // prevents full-width drag ghost and selection outline.
-      attrs: { style: 'width: fit-content; max-width: 100%' },
-    })
+    return ReactNodeViewRenderer(ResizableImageView)
   },
 
   addCommands() {

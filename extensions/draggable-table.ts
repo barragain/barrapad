@@ -1,6 +1,4 @@
 import { Table, TableView } from '@tiptap/extension-table'
-import { NodeSelection } from '@tiptap/pm/state'
-import { Plugin } from '@tiptap/pm/state'
 import type { Node as PmNode } from '@tiptap/pm/model'
 
 function makeDragGhost(label: string): HTMLElement {
@@ -30,6 +28,7 @@ class DraggableTableView extends TableView {
     const handle = document.createElement('div')
     handle.className = 'table-drag-handle'
     handle.contentEditable = 'false'
+    handle.setAttribute('data-drag-handle', '')
     handle.innerHTML = `<svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor">
       <circle cx="3" cy="2" r="1.2"/><circle cx="7" cy="2" r="1.2"/>
       <circle cx="3" cy="7" r="1.2"/><circle cx="7" cy="7" r="1.2"/>
@@ -69,45 +68,6 @@ export const DraggableTable = Table.extend({
   },
 
   addProseMirrorPlugins() {
-    const parentPlugins = this.parent?.() ?? []
-    return [
-      ...parentPlugins,
-      // Plugin to handle drag initiation from the grip handle
-      new Plugin({
-        props: {
-          handleDOMEvents: {
-            mousedown: (view, event) => {
-              const target = event.target as HTMLElement
-              if (!target.closest('.table-drag-handle')) return false
-
-              const wrapper = target.closest('.tableWrapper') as HTMLElement
-              if (!wrapper) return false
-
-              // Find the table node position by scanning the document
-              const pos = view.posAtDOM(wrapper, 0)
-              try {
-                const $pos = view.state.doc.resolve(pos)
-                for (let d = $pos.depth; d >= 0; d--) {
-                  if ($pos.node(d).type.name === 'table') {
-                    const tablePos = $pos.before(d)
-                    // Select the table node
-                    const tr = view.state.tr.setSelection(
-                      NodeSelection.create(view.state.doc, tablePos)
-                    )
-                    view.dispatch(tr)
-                    // Make wrapper draggable so the browser can initiate drag
-                    wrapper.setAttribute('draggable', 'true')
-                    return false // let the browser continue
-                  }
-                }
-              } catch {
-                // Position resolution can fail at doc boundaries
-              }
-              return false
-            },
-          },
-        },
-      }),
-    ]
+    return this.parent?.() ?? []
   },
 })

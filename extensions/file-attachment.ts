@@ -88,11 +88,7 @@ export const FileAttachment = Node.create<FileAttachmentOptions>({
     // Dynamic import to avoid SSR issues
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { default: FileAttachmentView } = require('../components/FileAttachmentView')
-    return ReactNodeViewRenderer(FileAttachmentView as Parameters<typeof ReactNodeViewRenderer>[0], {
-      // fit-content keeps the wrapper tight around the attachment for clean drag ghosts,
-      // while still being block-level so margin auto alignment works.
-      attrs: { style: 'width: fit-content; max-width: 100%' },
-    })
+    return ReactNodeViewRenderer(FileAttachmentView as Parameters<typeof ReactNodeViewRenderer>[0])
   },
 
   addCommands() {
