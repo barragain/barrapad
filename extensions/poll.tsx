@@ -3,7 +3,7 @@
 import { Node, mergeAttributes } from '@tiptap/core'
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react'
 import type { NodeViewProps } from '@tiptap/react'
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { BarChart2, Edit2 } from 'lucide-react'
 
 export type PollOption = { id: string; label: string; votes: number }
@@ -29,6 +29,43 @@ function PollView({ node, updateAttributes, selected }: NodeViewProps) {
 
   const totalVotes = opts.reduce((s, o) => s + o.votes, 0)
 
+  // Custom drag ghost + animations
+  useEffect(() => {
+    const onStart = (e: DragEvent) => {
+      const target = e.target as HTMLElement | null
+      const nodeEl = target?.closest<HTMLElement>('[data-poll-view]')
+      if (!nodeEl) return
+      const ghost = document.createElement('div')
+      ghost.textContent = q ? `Poll: ${q.slice(0, 24)}${q.length > 24 ? '…' : ''}` : 'Poll'
+      ghost.style.cssText = [
+        'position:fixed', 'top:0', 'left:-9999px',
+        'background:#D4550A', 'color:white',
+        'font:600 12px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
+        'padding:5px 10px', 'border-radius:99px',
+        'white-space:nowrap', 'pointer-events:none',
+        'box-shadow:0 2px 8px rgba(212,85,10,0.35)',
+      ].join(';')
+      document.body.appendChild(ghost)
+      e.dataTransfer?.setDragImage(ghost, 0, Math.max(ghost.offsetHeight / 2, 8))
+      setTimeout(() => ghost.remove(), 0)
+      nodeEl.classList.add('barrapad-dragging')
+    }
+    const onEnd = (e: DragEvent) => {
+      const target = e.target as HTMLElement | null
+      const nodeEl = target?.closest<HTMLElement>('[data-poll-view]')
+      if (!nodeEl) return
+      nodeEl.classList.remove('barrapad-dragging')
+      nodeEl.classList.add('barrapad-dropped')
+      nodeEl.addEventListener('animationend', () => nodeEl.classList.remove('barrapad-dropped'), { once: true })
+    }
+    document.addEventListener('dragstart', onStart)
+    document.addEventListener('dragend', onEnd)
+    return () => {
+      document.removeEventListener('dragstart', onStart)
+      document.removeEventListener('dragend', onEnd)
+    }
+  }, [q])
+
   const save = () => {
     const valid = dopts.filter(o => o.label.trim())
     if (!dq.trim() || valid.length < 2) return
@@ -49,7 +86,12 @@ function PollView({ node, updateAttributes, selected }: NodeViewProps) {
 
   return (
     <NodeViewWrapper>
-      <div contentEditable={false} className={`barrapad-poll${selected ? ' is-selected' : ''}`}>
+      <div
+        contentEditable={false}
+        data-drag-handle
+        data-poll-view
+        className={`barrapad-poll${selected ? ' is-selected' : ''}`}
+      >
         {/* Header */}
         <div className="barrapad-poll-head">
           <BarChart2 size={13} />
@@ -164,6 +206,7 @@ export const Poll = Node.create({
   name: 'poll',
   group: 'block',
   atom: true,
+  draggable: true,
 
   addAttributes() {
     return {

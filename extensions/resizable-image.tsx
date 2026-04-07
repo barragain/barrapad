@@ -16,6 +16,7 @@ function ResizableImageView({ node, updateAttributes, selected, editor, getPos }
   }
 
   const [resizing, setResizing] = useState(false)
+  const [liveWidth, setLiveWidth] = useState<number | null>(null) // pixel indicator during resize
   const [hovered, setHovered] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [menuVisible, setMenuVisible] = useState(false) // for animation
@@ -113,14 +114,18 @@ function ResizableImageView({ node, updateAttributes, selected, editor, getPos }
       setResizing(true)
       startX.current = e.clientX
       startW.current = imgRef.current?.offsetWidth ?? (width ?? 400)
+      setLiveWidth(startW.current)
 
       const onMove = (ev: MouseEvent) => {
         const newW = Math.max(80, Math.min(900, startW.current + ev.clientX - startX.current))
-        updateAttributes({ width: Math.round(newW) })
+        const rounded = Math.round(newW)
+        setLiveWidth(rounded)
+        updateAttributes({ width: rounded })
       }
 
       const onUp = () => {
         setResizing(false)
+        setLiveWidth(null)
         document.removeEventListener('mousemove', onMove)
         document.removeEventListener('mouseup', onUp)
       }
@@ -250,6 +255,30 @@ function ResizableImageView({ node, updateAttributes, selected, editor, getPos }
               outlineOffset: 2,
             }}
           />
+
+          {/* Pixel size indicator during resize */}
+          {resizing && liveWidth !== null && (
+            <div style={{
+              position: 'absolute',
+              bottom: 8,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              background: 'rgba(0,0,0,0.7)',
+              color: '#fff',
+              fontSize: 12,
+              fontWeight: 600,
+              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+              padding: '3px 10px',
+              borderRadius: 6,
+              backdropFilter: 'blur(4px)',
+              whiteSpace: 'nowrap',
+              pointerEvents: 'none',
+              zIndex: 25,
+              letterSpacing: '0.3px',
+            }}>
+              {liveWidth}px × {imgRef.current ? Math.round(imgRef.current.offsetHeight) : '…'}px
+            </div>
+          )}
 
           {/* ⋯ Menu button — top right, with hover animation */}
           <button
@@ -611,7 +640,9 @@ export const ResizableImage = Node.create({
 
   addNodeView() {
     return ReactNodeViewRenderer(ResizableImageView, {
-      attrs: { style: 'display: inline-block' },
+      // Must be block (not inline-block) so the inner flex container spans
+      // full editor width and justifyContent alignment actually works.
+      attrs: { style: 'display: block' },
     })
   },
 
