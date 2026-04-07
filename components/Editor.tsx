@@ -266,16 +266,21 @@ export default function EditorComponent({
             try {
               ed!.commands.setTextSelection({ from: Math.min(from, maxPos), to: Math.min(to, maxPos) })
             } catch { /* position no longer valid */ }
-            if (msg.title) {
-              onLocalChangeRef.current(msg.title, msg.content!)
-              // On initial sync, set the title authoritatively from the room state.
-              // This ensures shared note users get the correct title, since
-              // handleLocalChange skips title updates for shared notes.
-              if (msg.type === 'sync') {
+            // Update local state with remote content, but preserve the local title
+            // to prevent the remote user's auto-derived title from overwriting the
+            // owner's title. Title sync only happens via explicit 'title' messages
+            // or the initial 'sync' (which is authoritative).
+            if (msg.type === 'sync') {
+              if (msg.title) {
+                onLocalChangeRef.current(msg.title, msg.content!)
                 window.dispatchEvent(new CustomEvent('barrapad:remote-rename', {
                   detail: { id: note.id, title: msg.title },
                 }))
               }
+            } else {
+              // For regular updates: only sync the content, keep local title
+              const localTitle = noteTitleRef.current || ''
+              onLocalChangeRef.current(localTitle, msg.content!)
             }
           }
         }
