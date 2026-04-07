@@ -1,4 +1,5 @@
 import { Table, TableView } from '@tiptap/extension-table'
+import { NodeSelection, Plugin } from '@tiptap/pm/state'
 import type { Node as PmNode } from '@tiptap/pm/model'
 
 function makeDragGhost(label: string): HTMLElement {
@@ -16,6 +17,22 @@ function makeDragGhost(label: string): HTMLElement {
   return el
 }
 
+/** Resolve the table node position from a DOM element inside the table wrapper. */
+function findTablePos(view: import('@tiptap/pm/view').EditorView, wrapper: HTMLElement): number | null {
+  try {
+    const pos = view.posAtDOM(wrapper, 0)
+    const $pos = view.state.doc.resolve(pos)
+    for (let d = $pos.depth; d >= 0; d--) {
+      if ($pos.node(d).type.name === 'table') {
+        return $pos.before(d)
+      }
+    }
+  } catch {
+    // Position resolution can fail at doc boundaries
+  }
+  return null
+}
+
 /**
  * Extends the default TableView to add a drag handle.
  */
@@ -28,7 +45,7 @@ class DraggableTableView extends TableView {
     const handle = document.createElement('div')
     handle.className = 'table-drag-handle'
     handle.contentEditable = 'false'
-    handle.setAttribute('data-drag-handle', '')
+    handle.draggable = true
     handle.innerHTML = `<svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor">
       <circle cx="3" cy="2" r="1.2"/><circle cx="7" cy="2" r="1.2"/>
       <circle cx="3" cy="7" r="1.2"/><circle cx="7" cy="7" r="1.2"/>
@@ -52,8 +69,6 @@ class DraggableTableView extends TableView {
       dom.classList.remove('barrapad-dragging')
       dom.classList.add('barrapad-dropped')
       dom.addEventListener('animationend', () => dom.classList.remove('barrapad-dropped'), { once: true })
-      // Clean up draggable flag
-      dom.removeAttribute('draggable')
     })
   }
 }
@@ -68,6 +83,37 @@ export const DraggableTable = Table.extend({
   },
 
   addProseMirrorPlugins() {
-    return this.parent?.() ?? []
+    const parentPlugins = this.parent?.() ?? []
+    return [
+      ...parentPlugins,
+      new Plugin({
+        props: {
+          handleDOMEvents: {
+            // Intercept mousedown on the drag handle to set up NodeSelection.
+            // Return true to prevent ProseMirror's own mousedown from interfering.
+            // The handle is draggable="true", so the browser will fire dragstart,
+            // and ProseMirror's dragstart handler sees the NodeSelection and handles
+            // serialization + drop.
+            mousedown: (view, event) => {
+              const target = event.target as HTMLElement
+              if (!target.closest('.table-drag-handle')) return false
+
+              const wrapper = target.closest('.tableWrapper') as HTMLElement
+              if (!wrapper) return false
+
+              const tablePos = findTablePos(view, wrapper)
+              if (tablePos === null) return false
+
+              view.dispatch(
+                view.state.tr.setSelection(NodeSelection.create(view.state.doc, tablePos))
+              )
+              // Return true — block ProseMirror's mousedown so it doesn't
+              // override our selection or fail to set mightDrag
+              return true
+            },
+          },
+        },
+      }),
+    ]
   },
 })

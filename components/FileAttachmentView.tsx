@@ -286,11 +286,12 @@ export default function FileAttachmentView({ node, updateAttributes, selected }:
       {...({ 'data-drag-handle': true, 'data-file-attachment-view': true, 'data-file-name': name } as any)}
       contentEditable={false}
       style={{
-        display: 'inline-flex',
+        display: 'flex',
         alignItems: 'center',
         margin: '4px 0',
         cursor: 'grab',
         width: 'fit-content',
+        maxWidth: '100%',
         marginLeft: align === 'right' ? 'auto' : align === 'center' ? 'auto' : undefined,
         marginRight: align === 'left' ? undefined : align === 'center' ? 'auto' : undefined,
       }}
