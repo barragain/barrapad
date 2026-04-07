@@ -35,6 +35,7 @@ import TablePicker from './TablePicker'
 import ColorPicker from './ColorPicker'
 import LinkPopover from './LinkPopover'
 import '@/extensions/resizable-image'
+import { uploadImage } from '@/lib/upload-image'
 
 interface ToolbarProps {
   editor: Editor | null
@@ -312,15 +313,11 @@ export default function Toolbar({ editor }: ToolbarProps) {
   const handleImage = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    const reader = new FileReader()
-    reader.onload = (ev) => {
-      if (ev.target?.result) {
-        const sel = editor.state.selection
-        if ('node' in sel && sel.node) editor.commands.setTextSelection(sel.to)
-        editor.chain().focus().setImage({ src: ev.target.result as string }).run()
-      }
-    }
-    reader.readAsDataURL(file)
+    uploadImage(file).then(url => {
+      const sel = editor.state.selection
+      if ('node' in sel && sel.node) editor.commands.setTextSelection(sel.to)
+      editor.chain().focus().setImage({ src: url }).run()
+    })
     e.target.value = ''
   }
 

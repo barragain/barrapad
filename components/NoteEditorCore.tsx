@@ -60,6 +60,7 @@ import { SpellCheck, SPELL_KEY } from '@/extensions/spell-check'
 import { UserMention } from '@/extensions/user-mention'
 import { NoteMention } from '@/extensions/note-mention'
 import MentionProfilePopover from './MentionProfilePopover'
+import { uploadImage } from '@/lib/upload-image'
 
 const lowlight = createLowlight(common)
 
@@ -217,13 +218,12 @@ export default function NoteEditorCore({
         const ed = editorRef.current
         if (!ed) return false
         for (const file of Array.from(files)) {
-          const reader = new FileReader()
           if (file.type.startsWith('image/')) {
-            reader.onload = (e) => {
-              const result = e.target?.result as string
-              if (result) { deselect(ed); ed.chain().focus().setImage({ src: result }).run() }
-            }
+            uploadImage(file).then(url => {
+              deselect(ed); ed.chain().focus().setImage({ src: url }).run()
+            })
           } else {
+            const reader = new FileReader()
             reader.onload = (e) => {
               const result = e.target?.result as string
               if (!result) return
@@ -233,8 +233,8 @@ export default function NoteEditorCore({
                 mimeType: file.type || 'application/octet-stream', dataUrl: result,
               }).run()
             }
+            reader.readAsDataURL(file)
           }
-          reader.readAsDataURL(file)
         }
         return true
       },
@@ -247,12 +247,9 @@ export default function NoteEditorCore({
             if (item.type.startsWith('image/')) {
               const file = item.getAsFile()
               if (!file) continue
-              const reader = new FileReader()
-              reader.onload = (e) => {
-                const result = e.target?.result as string
-                if (result) { deselect(ed); ed.chain().focus().setImage({ src: result }).run() }
-              }
-              reader.readAsDataURL(file)
+              uploadImage(file).then(url => {
+                deselect(ed); ed.chain().focus().setImage({ src: url }).run()
+              })
               return true
             }
           }
@@ -596,13 +593,12 @@ export default function NoteEditorCore({
     const ed = editorRef.current
     if (!ed) return
     for (const file of Array.from(files)) {
-      const reader = new FileReader()
       if (file.type.startsWith('image/')) {
-        reader.onload = (ev) => {
-          const result = ev.target?.result as string
-          if (result) { deselect(ed); ed.chain().focus().setImage({ src: result }).run() }
-        }
+        uploadImage(file).then(url => {
+          deselect(ed); ed.chain().focus().setImage({ src: url }).run()
+        })
       } else {
+        const reader = new FileReader()
         reader.onload = (ev) => {
           const result = ev.target?.result as string
           if (!result) return
@@ -612,8 +608,8 @@ export default function NoteEditorCore({
             mimeType: file.type || 'application/octet-stream', dataUrl: result,
           }).run()
         }
+        reader.readAsDataURL(file)
       }
-      reader.readAsDataURL(file)
     }
   }, [])
 
@@ -751,15 +747,11 @@ export default function NoteEditorCore({
                 const file = e.target.files?.[0]
                 const ed = editorRef.current
                 if (!file || !ed) return
-                const reader = new FileReader()
-                reader.onload = (ev) => {
-                  const result = ev.target?.result as string
-                  if (!result) return
+                uploadImage(file).then(url => {
                   const pos = contextClickRef.current.editorPos
                   if (pos !== undefined) ed.chain().focus().setNodeSelection(pos).run()
-                  ed.chain().focus().setImage({ src: result }).run()
-                }
-                reader.readAsDataURL(file)
+                  ed.chain().focus().setImage({ src: url }).run()
+                })
                 e.target.value = ''
               }}
             />

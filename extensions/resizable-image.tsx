@@ -5,6 +5,7 @@ import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react'
 import type { NodeViewProps } from '@tiptap/react'
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { NodeSelection } from '@tiptap/pm/state'
+import { uploadImage } from '@/lib/upload-image'
 
 function ResizableImageView({ node, updateAttributes, selected, editor, getPos }: NodeViewProps) {
   const { src, alt, title, width, align } = node.attrs as {
@@ -143,9 +144,7 @@ function ResizableImageView({ node, updateAttributes, selected, editor, getPos }
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !file.type.startsWith('image/')) return
-    const reader = new FileReader()
-    reader.onload = () => updateAttributes({ src: reader.result as string })
-    reader.readAsDataURL(file)
+    uploadImage(file).then(url => updateAttributes({ src: url }))
     e.target.value = ''
     closeMenu()
   }, [updateAttributes, closeMenu])
