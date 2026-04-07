@@ -249,26 +249,15 @@ export default function EditorComponent({
         if (msg.content && msg.content !== '') {
           const safeToApply = ed && (msg.type === 'sync' || !isLocallyEditingRef.current)
           if (safeToApply) {
-            // Don't let a stale sync overwrite content that React state already
-            // has correctly. Compare lengths as a heuristic — if the editor
-            // already has more content than the sync, the local state is fresher
-            // (e.g. images were added but PartyKit room hadn't received them yet).
-            const currentLen = ed!.getHTML().length
-            const incomingLen = (msg.content ?? '').length
-            if (msg.type === 'sync' && currentLen > incomingLen + 50) {
-              pendingSyncRef.current = false
-              // Still process cursors below, but skip the content overwrite
-            } else {
-              const { from, to } = ed!.state.selection
-              // Prefer JSON over HTML — JSON preserves trailing spaces that HTML parsing strips
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              ed!.commands.setContent((msg.contentJson ?? msg.content) as any, { emitUpdate: false })
-              const maxPos = ed!.state.doc.content.size
-              try {
-                ed!.commands.setTextSelection({ from: Math.min(from, maxPos), to: Math.min(to, maxPos) })
-              } catch { /* position no longer valid */ }
-              if (msg.title) onLocalChangeRef.current(msg.title, msg.content!)
-            }
+            const { from, to } = ed!.state.selection
+            // Prefer JSON over HTML — JSON preserves trailing spaces that HTML parsing strips
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            ed!.commands.setContent((msg.contentJson ?? msg.content) as any, { emitUpdate: false })
+            const maxPos = ed!.state.doc.content.size
+            try {
+              ed!.commands.setTextSelection({ from: Math.min(from, maxPos), to: Math.min(to, maxPos) })
+            } catch { /* position no longer valid */ }
+            if (msg.title) onLocalChangeRef.current(msg.title, msg.content!)
           }
         }
         if (msg.type === 'sync' && msg.cursors) {
