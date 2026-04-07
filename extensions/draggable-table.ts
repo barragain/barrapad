@@ -1,4 +1,5 @@
-import { Table } from '@tiptap/extension-table'
+import { Table, TableView } from '@tiptap/extension-table'
+import type { Node as PmNode } from '@tiptap/pm/model'
 
 function makeDragGhost(label: string): HTMLElement {
   const el = document.createElement('div')
@@ -15,55 +16,55 @@ function makeDragGhost(label: string): HTMLElement {
   return el
 }
 
+/**
+ * Extends the default TableView to add a drag handle and drop animations.
+ * This is passed as the `View` option to the columnResizing plugin.
+ */
+class DraggableTableView extends TableView {
+  constructor(node: PmNode, cellMinWidth: number) {
+    super(node, cellMinWidth)
+
+    const dom = this.dom as HTMLElement
+
+    // Create drag handle (6-dot grip)
+    const handle = document.createElement('div')
+    handle.className = 'table-drag-handle'
+    handle.contentEditable = 'false'
+    handle.setAttribute('data-drag-handle', '')
+    handle.setAttribute('draggable', 'true')
+    handle.innerHTML = `<svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor">
+      <circle cx="3" cy="2" r="1.2"/><circle cx="7" cy="2" r="1.2"/>
+      <circle cx="3" cy="7" r="1.2"/><circle cx="7" cy="7" r="1.2"/>
+      <circle cx="3" cy="12" r="1.2"/><circle cx="7" cy="12" r="1.2"/>
+    </svg>`
+
+    dom.insertBefore(handle, dom.firstChild)
+
+    // Custom drag ghost
+    handle.addEventListener('dragstart', (e: DragEvent) => {
+      const table = dom.querySelector('table')
+      const rows = table?.querySelectorAll('tr').length ?? 0
+      const cols = table?.querySelector('tr')?.children.length ?? 0
+      const ghost = makeDragGhost(`Table ${rows}\u00d7${cols}`)
+      e.dataTransfer?.setDragImage(ghost, 0, Math.max(ghost.offsetHeight / 2, 8))
+      setTimeout(() => ghost.remove(), 0)
+      dom.classList.add('barrapad-dragging')
+    })
+
+    dom.addEventListener('dragend', () => {
+      dom.classList.remove('barrapad-dragging')
+      dom.classList.add('barrapad-dropped')
+      dom.addEventListener('animationend', () => dom.classList.remove('barrapad-dropped'), { once: true })
+    })
+  }
+}
+
 export const DraggableTable = Table.extend({
   draggable: true,
 
-  addNodeView() {
-    const parentNodeView = this.parent?.()
-    if (!parentNodeView) return undefined as never
-
+  addOptions() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (...args: any[]) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const view = (parentNodeView as any)(...args)
-      const dom = view.dom as HTMLElement | undefined
-      if (!dom) return view
-
-      dom.style.position = 'relative'
-
-      // Create drag handle
-      const handle = document.createElement('div')
-      handle.className = 'table-drag-handle'
-      handle.contentEditable = 'false'
-      handle.setAttribute('data-drag-handle', '')
-      handle.setAttribute('draggable', 'true')
-      // 6-dot grip icon
-      handle.innerHTML = `<svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor">
-        <circle cx="3" cy="2" r="1.2"/><circle cx="7" cy="2" r="1.2"/>
-        <circle cx="3" cy="7" r="1.2"/><circle cx="7" cy="7" r="1.2"/>
-        <circle cx="3" cy="12" r="1.2"/><circle cx="7" cy="12" r="1.2"/>
-      </svg>`
-
-      dom.insertBefore(handle, dom.firstChild)
-
-      // Custom drag ghost
-      handle.addEventListener('dragstart', (e: DragEvent) => {
-        const table = dom.querySelector('table')
-        const rows = table?.querySelectorAll('tr').length ?? 0
-        const cols = table?.querySelector('tr')?.children.length ?? 0
-        const ghost = makeDragGhost(`Table ${rows}×${cols}`)
-        e.dataTransfer?.setDragImage(ghost, 0, Math.max(ghost.offsetHeight / 2, 8))
-        setTimeout(() => ghost.remove(), 0)
-        dom.classList.add('barrapad-dragging')
-      })
-
-      dom.addEventListener('dragend', () => {
-        dom.classList.remove('barrapad-dragging')
-        dom.classList.add('barrapad-dropped')
-        dom.addEventListener('animationend', () => dom.classList.remove('barrapad-dropped'), { once: true })
-      })
-
-      return view
-    }
+    const opts = this.parent?.() as any
+    return { ...opts, View: DraggableTableView, allowTableNodeSelection: true }
   },
 })

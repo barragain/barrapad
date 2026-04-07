@@ -1,5 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&display=swap');
 @import "tailwindcss";
+@import "prosemirror-tables/style/tables.css";
 
 /* Custom spell-check underlines (replaces native browser spell-check) */
 .spell-error {
@@ -527,13 +528,17 @@ body {
   -webkit-touch-callout: none;
 }
 
-/* ── Table drag handle ──────────────────────────────────────────────────── */
+/* ── Table drag & resize ───────────────────────────────────────────────── */
+.tableWrapper {
+  position: relative;
+}
+
 .table-drag-handle {
   position: absolute;
-  top: -2px;
-  left: -24px;
-  width: 18px;
-  height: 22px;
+  top: 0;
+  left: 0;
+  width: 20px;
+  height: 20px;
   background: var(--editor-bg);
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -543,7 +548,7 @@ body {
   justify-content: center;
   opacity: 0;
   transition: opacity 0.15s, background 0.15s;
-  z-index: 10;
+  z-index: 21;
   color: var(--muted);
 }
 
@@ -557,9 +562,18 @@ body {
 }
 
 /* Show handle on table hover */
-.tableWrapper:hover > .table-drag-handle,
-.table-drag-handle:hover {
+.tableWrapper:hover > .table-drag-handle {
   opacity: 1;
+}
+
+/* Style the column resize handle */
+.ProseMirror .column-resize-handle {
+  background-color: var(--accent) !important;
+}
+
+/* Cell selection overlay */
+.ProseMirror .selectedCell::after {
+  background: rgba(212, 85, 10, 0.08);
 }
 
 .ProseMirror table {
