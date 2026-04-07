@@ -86,6 +86,25 @@ function PollView({ node, updateAttributes, selected }: NodeViewProps) {
   const pollWidth = POLL_SIZES[size]
   const SizeIcon = size === 'compact' ? Minimize2 : size === 'full' ? Maximize2 : Square
 
+  // Sync TipTap's outer wrapper width so drag ghost + selection outline match.
+  // NodeViewWrapper renders as [data-node-view-wrapper], and TipTap wraps it
+  // in an outer content div. We style both to ensure correct sizing.
+  useEffect(() => {
+    const el = pollRef.current
+    if (!el) return
+    // Walk up to find TipTap's outer wrapper (the one with data-node-view-content or parent of node-view-wrapper)
+    const outer = el.closest('[data-node-view-wrapper]')?.parentElement as HTMLElement | null
+    if (outer && outer.classList.contains('ProseMirror') === false) {
+      if (pollWidth) {
+        outer.style.width = `${pollWidth}px`
+        outer.style.maxWidth = '100%'
+      } else {
+        outer.style.width = '100%'
+        outer.style.maxWidth = ''
+      }
+    }
+  }, [pollWidth])
+
   return (
     <NodeViewWrapper
       data-drag-handle
