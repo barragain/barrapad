@@ -3,17 +3,21 @@
 import { Node, mergeAttributes } from '@tiptap/core'
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react'
 import type { NodeViewProps } from '@tiptap/react'
-import { useState, useCallback, useEffect } from 'react'
-import { BarChart2, Edit2 } from 'lucide-react'
+import { useState, useCallback, useEffect, useRef } from 'react'
+import { BarChart2, Edit2, Minimize2, Maximize2, Square } from 'lucide-react'
 
 export type PollOption = { id: string; label: string; votes: number }
 
 let _uid = 0
 const genId = () => `p${Date.now().toString(36)}${(++_uid).toString(36)}`
 
+const POLL_SIZES = { compact: 280, medium: 400, full: undefined } as const
+type PollSize = keyof typeof POLL_SIZES
+
 function PollView({ node, updateAttributes, selected }: NodeViewProps) {
   const q = node.attrs.question as string
   const opts: PollOption[] = JSON.parse((node.attrs.options as string) || '[]')
+  const size = (node.attrs.size as PollSize) || 'medium'
 
   const [voted, setVoted] = useState<string | null>(null)
   const [editing, setEditing] = useState(!q)
@@ -28,43 +32,38 @@ function PollView({ node, updateAttributes, selected }: NodeViewProps) {
   )
 
   const totalVotes = opts.reduce((s, o) => s + o.votes, 0)
+  const pollRef = useRef<HTMLDivElement>(null)
 
-  // Custom drag ghost + animations
-  useEffect(() => {
-    const onStart = (e: DragEvent) => {
-      const target = e.target as HTMLElement | null
-      const nodeEl = target?.closest<HTMLElement>('[data-poll-view]')
-      if (!nodeEl) return
-      const ghost = document.createElement('div')
-      ghost.textContent = q ? `Poll: ${q.slice(0, 24)}${q.length > 24 ? '…' : ''}` : 'Poll'
-      ghost.style.cssText = [
-        'position:fixed', 'top:0', 'left:-9999px',
-        'background:#D4550A', 'color:white',
-        'font:600 12px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
-        'padding:5px 10px', 'border-radius:99px',
-        'white-space:nowrap', 'pointer-events:none',
-        'box-shadow:0 2px 8px rgba(212,85,10,0.35)',
-      ].join(';')
-      document.body.appendChild(ghost)
-      e.dataTransfer?.setDragImage(ghost, 0, Math.max(ghost.offsetHeight / 2, 8))
-      setTimeout(() => ghost.remove(), 0)
-      nodeEl.classList.add('barrapad-dragging')
-    }
-    const onEnd = (e: DragEvent) => {
-      const target = e.target as HTMLElement | null
-      const nodeEl = target?.closest<HTMLElement>('[data-poll-view]')
-      if (!nodeEl) return
-      nodeEl.classList.remove('barrapad-dragging')
-      nodeEl.classList.add('barrapad-dropped')
-      nodeEl.addEventListener('animationend', () => nodeEl.classList.remove('barrapad-dropped'), { once: true })
-    }
-    document.addEventListener('dragstart', onStart)
-    document.addEventListener('dragend', onEnd)
-    return () => {
-      document.removeEventListener('dragstart', onStart)
-      document.removeEventListener('dragend', onEnd)
-    }
+  const cycleSize = useCallback(() => {
+    const order: PollSize[] = ['compact', 'medium', 'full']
+    const next = order[(order.indexOf(size) + 1) % order.length]
+    updateAttributes({ size: next })
+  }, [size, updateAttributes])
+
+  const onDragStart = useCallback((e: React.DragEvent) => {
+    const ghost = document.createElement('div')
+    ghost.textContent = q ? `Poll: ${q.slice(0, 24)}${q.length > 24 ? '…' : ''}` : 'Poll'
+    ghost.style.cssText = [
+      'position:fixed', 'top:0', 'left:-9999px',
+      'background:#D4550A', 'color:white',
+      'font:600 12px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
+      'padding:5px 10px', 'border-radius:99px',
+      'white-space:nowrap', 'pointer-events:none',
+      'box-shadow:0 2px 8px rgba(212,85,10,0.35)',
+    ].join(';')
+    document.body.appendChild(ghost)
+    e.dataTransfer.setDragImage(ghost, 0, Math.max(ghost.offsetHeight / 2, 8))
+    setTimeout(() => ghost.remove(), 0)
+    pollRef.current?.classList.add('barrapad-dragging')
   }, [q])
+
+  const onDragEnd = useCallback(() => {
+    const el = pollRef.current
+    if (!el) return
+    el.classList.remove('barrapad-dragging')
+    el.classList.add('barrapad-dropped')
+    el.addEventListener('animationend', () => el.classList.remove('barrapad-dropped'), { once: true })
+  }, [])
 
   const save = () => {
     const valid = dopts.filter(o => o.label.trim())
@@ -84,18 +83,38 @@ function PollView({ node, updateAttributes, selected }: NodeViewProps) {
     [voted, opts, updateAttributes]
   )
 
+  const pollWidth = POLL_SIZES[size]
+  const SizeIcon = size === 'compact' ? Minimize2 : size === 'full' ? Maximize2 : Square
+
   return (
-    <NodeViewWrapper>
+    <NodeViewWrapper
+      data-drag-handle
+      data-poll-view
+      ref={pollRef}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      style={{
+        width: pollWidth ? `${pollWidth}px` : '100%',
+        maxWidth: '100%',
+        transition: 'width 0.2s ease',
+      }}
+    >
       <div
         contentEditable={false}
-        data-drag-handle
-        data-poll-view
         className={`barrapad-poll${selected ? ' is-selected' : ''}`}
       >
         {/* Header */}
         <div className="barrapad-poll-head">
           <BarChart2 size={13} />
           <span className="barrapad-poll-tag">Poll</span>
+          <button
+            className="barrapad-poll-editbtn"
+            onClick={cycleSize}
+            title={`Size: ${size}`}
+            style={{ marginLeft: 'auto' }}
+          >
+            <SizeIcon size={11} />
+          </button>
           {!editing && (
             <button className="barrapad-poll-editbtn" onClick={() => setEditing(true)} title="Edit poll">
               <Edit2 size={11} />
@@ -217,15 +236,25 @@ export const Poll = Node.create({
           { id: 'b', label: '', votes: 0 },
         ]),
       },
+      size: { default: 'medium' },
     }
   },
 
   parseHTML() {
-    return [{ tag: 'div[data-poll]' }]
+    return [{
+      tag: 'div[data-poll]',
+      getAttrs: (el) => {
+        const div = el as HTMLDivElement
+        return { size: div.getAttribute('data-poll-size') ?? 'medium' }
+      },
+    }]
   },
 
   renderHTML({ HTMLAttributes }) {
-    return ['div', mergeAttributes(HTMLAttributes, { 'data-poll': '' })]
+    return ['div', mergeAttributes(HTMLAttributes, {
+      'data-poll': '',
+      ...(HTMLAttributes.size && HTMLAttributes.size !== 'medium' ? { 'data-poll-size': HTMLAttributes.size } : {}),
+    })]
   },
 
   addNodeView() {
