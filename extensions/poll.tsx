@@ -258,8 +258,6 @@ export const Poll = Node.create({
   },
 
   addNodeView() {
-    return ReactNodeViewRenderer(PollView, {
-      attrs: { style: 'width: fit-content; max-width: 100%' },
-    })
+    return ReactNodeViewRenderer(PollView)
   },
 })
