@@ -72,6 +72,11 @@ export default function EditorComponent({
   useEffect(() => { onLocalChangeRef.current = onLocalChange }, [onLocalChange])
   useEffect(() => { onTagsChangeRef.current = onTagsChange }, [onTagsChange])
 
+  // Track the note's "real" title from state so the PartyKit broadcast uses it
+  // instead of the content-derived title (which ignores manual renames).
+  const noteTitleRef = useRef(note.title)
+  useEffect(() => { noteTitleRef.current = note.title }, [note.title])
+
   const lastLocalChangeTimeRef = useRef(0)
   const prevNoteIdRef = useRef<string>(note.id)
   // Track previous note info so we can flush auto-save to the correct endpoint on note switch
@@ -122,15 +127,19 @@ export default function EditorComponent({
 
     lastLocalChangeTimeRef.current = Date.now()
 
+    // Use the note's actual title from state (which respects manual renames)
+    // rather than the raw content-derived title. After onLocalChange runs,
+    // noteTitleRef is updated via the useEffect on note.title.
+    // We read it inside the timeout so it reflects the latest state.
     if (sendTimerRef.current) clearTimeout(sendTimerRef.current)
     sendTimerRef.current = setTimeout(() => {
-      // Send JSON alongside HTML — JSON preserves all whitespace (spaces, trailing spaces)
-      // which the HTML serializer/parser would otherwise silently strip.
+      const broadcastTitle = noteTitleRef.current || title
       const contentJson = editorRef.current?.getJSON()
-      socketRef.current?.send(JSON.stringify({ type: 'update', content: html, contentJson, title, ts: lastLocalChangeTimeRef.current }))
+      socketRef.current?.send(JSON.stringify({ type: 'update', content: html, contentJson, title: broadcastTitle, ts: lastLocalChangeTimeRef.current }))
     }, 50)
 
-    pendingRef.current = { title, html }
+    const effectiveTitle = noteTitleRef.current || title
+    pendingRef.current = { title: effectiveTitle, html }
 
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
     autoSaveTimerRef.current = setTimeout(() => { flushAutoSave() }, 1_000)
