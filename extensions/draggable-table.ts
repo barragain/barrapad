@@ -41,9 +41,10 @@ class DraggableTableView extends TableView {
 
     dom.insertBefore(handle, dom.firstChild)
 
-    // Drag animations
+    // Drag animations — delay adding the class so the browser's drag
+    // isn't cancelled by the CSS transform + pointer-events:none
     dom.addEventListener('dragstart', () => {
-      dom.classList.add('barrapad-dragging')
+      requestAnimationFrame(() => dom.classList.add('barrapad-dragging'))
     })
 
     dom.addEventListener('dragend', () => {
