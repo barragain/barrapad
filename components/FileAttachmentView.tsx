@@ -239,8 +239,17 @@ export default function FileAttachmentView({ node, updateAttributes, selected }:
   }
 
   const isAudio = mimeType.startsWith('audio/')
+  const wrapperRef = useRef<HTMLDivElement>(null)
 
-  // Custom drag ghost
+  // Apply alignment margins on the OUTER TipTap wrapper (the one with fit-content).
+  useEffect(() => {
+    const outer = wrapperRef.current?.parentElement
+    if (!outer) return
+    outer.style.marginLeft = align === 'right' || align === 'center' ? 'auto' : ''
+    outer.style.marginRight = align === 'center' ? 'auto' : ''
+  }, [align])
+
+  // Custom drag ghost + drag animations
   useEffect(() => {
     const onStart = (e: DragEvent) => {
       const target = e.target as HTMLElement | null
@@ -250,9 +259,22 @@ export default function FileAttachmentView({ node, updateAttributes, selected }:
       const ghost = makeDragGhost(fileName)
       e.dataTransfer?.setDragImage(ghost, 0, Math.max(ghost.offsetHeight / 2, 8))
       setTimeout(() => ghost.remove(), 0)
+      nodeEl.classList.add('barrapad-dragging')
+    }
+    const onEnd = (e: DragEvent) => {
+      const target = e.target as HTMLElement | null
+      const nodeEl = target?.closest<HTMLElement>('[data-file-attachment-view]')
+      if (!nodeEl) return
+      nodeEl.classList.remove('barrapad-dragging')
+      nodeEl.classList.add('barrapad-dropped')
+      nodeEl.addEventListener('animationend', () => nodeEl.classList.remove('barrapad-dropped'), { once: true })
     }
     document.addEventListener('dragstart', onStart)
-    return () => document.removeEventListener('dragstart', onStart)
+    document.addEventListener('dragend', onEnd)
+    return () => {
+      document.removeEventListener('dragstart', onStart)
+      document.removeEventListener('dragend', onEnd)
+    }
   }, [])
 
   const handleRename = (newName: string) => updateAttributes({ name: newName })
@@ -269,6 +291,7 @@ export default function FileAttachmentView({ node, updateAttributes, selected }:
   return (
     <NodeViewWrapper
       as="div"
+      ref={wrapperRef}
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       {...({ 'data-drag-handle': true, 'data-file-attachment-view': true, 'data-file-name': name } as any)}
       contentEditable={false}
@@ -279,8 +302,6 @@ export default function FileAttachmentView({ node, updateAttributes, selected }:
         cursor: 'grab',
         width: 'fit-content',
         maxWidth: '100%',
-        marginLeft: align === 'right' ? 'auto' : align === 'center' ? 'auto' : undefined,
-        marginRight: align === 'left' ? undefined : align === 'center' ? 'auto' : undefined,
       }}
     >
       {isAudio ? (

@@ -98,24 +98,53 @@ body {
   z-index: 100;
 }
 
-/* ── Drag & drop for node views ─────────────────────────────── */
+/* ── Drag & drop animations for node views ─────────────────────────────── */
 
 /* Grab cursor on draggable blocks */
 [data-drag-handle],
 [data-file-attachment-view] {
   cursor: grab;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
+/* Press-down: slight lift + shadow to signal "I'm grabbable" */
 [data-drag-handle]:active,
 [data-file-attachment-view]:active {
   cursor: grabbing;
+  transform: scale(0.98);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.10);
 }
 
-/* Drop cursor indicator */
+/* While dragging — fade out the source element */
+.barrapad-dragging {
+  opacity: 0.35 !important;
+  transform: scale(0.96) rotate(-0.5deg) !important;
+  transition: opacity 0.2s ease, transform 0.2s ease !important;
+  pointer-events: none;
+  filter: grayscale(0.3);
+}
+
+/* The element "settles" when dropped — bounce into place */
+@keyframes barrapad-drop-settle {
+  0%   { transform: scale(0.94) rotate(-0.5deg); opacity: 0.5; }
+  40%  { transform: scale(1.02); opacity: 1; }
+  70%  { transform: scale(0.995); }
+  100% { transform: scale(1); opacity: 1; }
+}
+.barrapad-dropped {
+  animation: barrapad-drop-settle 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* Pulse on the drop-cursor line itself */
+@keyframes barrapad-dropcursor-pulse {
+  0%, 100% { opacity: 0.6; }
+  50%      { opacity: 1; }
+}
 .ProseMirror-dropcursor {
   height: 3px !important;
   background: var(--accent) !important;
   border-radius: 2px;
+  animation: barrapad-dropcursor-pulse 1s ease-in-out infinite;
 }
 
 /* Tiptap editor styles */

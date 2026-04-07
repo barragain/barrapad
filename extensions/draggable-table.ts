@@ -40,6 +40,17 @@ class DraggableTableView extends TableView {
     </svg>`
 
     dom.insertBefore(handle, dom.firstChild)
+
+    // Drag animations
+    dom.addEventListener('dragstart', () => {
+      dom.classList.add('barrapad-dragging')
+    })
+
+    dom.addEventListener('dragend', () => {
+      dom.classList.remove('barrapad-dragging')
+      dom.classList.add('barrapad-dropped')
+      dom.addEventListener('animationend', () => dom.classList.remove('barrapad-dropped'), { once: true })
+    })
   }
 }
 

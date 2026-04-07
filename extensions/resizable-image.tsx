@@ -75,9 +75,16 @@ function ResizableImageView({ node, updateAttributes, selected, editor, getPos }
     if (imgRef.current) {
       e.dataTransfer.setDragImage(imgRef.current, imgRef.current.offsetWidth / 2, 20)
     }
+    wrapperRef.current?.classList.add('barrapad-dragging')
   }, [])
 
-  const onDragEnd = useCallback(() => {}, [])
+  const onDragEnd = useCallback(() => {
+    const el = wrapperRef.current
+    if (!el) return
+    el.classList.remove('barrapad-dragging')
+    el.classList.add('barrapad-dropped')
+    el.addEventListener('animationend', () => el.classList.remove('barrapad-dropped'), { once: true })
+  }, [])
 
   const onResizeStart = useCallback(
     (e: React.MouseEvent) => {
@@ -189,11 +196,17 @@ function ResizableImageView({ node, updateAttributes, selected, editor, getPos }
     setTimeout(() => setEditingCaption(true), 160)
   }, [closeMenu])
 
+  // Apply alignment margins on the OUTER TipTap wrapper (the one with fit-content).
+  // Margins on the inner NodeViewWrapper don't work because it fills its parent.
+  useEffect(() => {
+    const outer = wrapperRef.current?.parentElement
+    if (!outer) return
+    outer.style.marginLeft = align === 'right' || align === 'center' ? 'auto' : ''
+    outer.style.marginRight = align === 'center' ? 'auto' : ''
+  }, [align])
+
   const showHandle = selected || hovered || resizing
   const isFullWidth = !width && align === 'center'
-  // Margin-based alignment so the wrapper stays content-width (good drag ghost)
-  const marginLeft = align === 'right' ? 'auto' : align === 'center' ? 'auto' : undefined
-  const marginRight = align === 'left' ? 'auto' : align === 'center' ? 'auto' : undefined
 
   return (
     <NodeViewWrapper
@@ -204,8 +217,6 @@ function ResizableImageView({ node, updateAttributes, selected, editor, getPos }
       style={{
         width: 'fit-content',
         maxWidth: '100%',
-        marginLeft,
-        marginRight,
         paddingBlock: '2px',
         userSelect: 'none',
         cursor: resizing ? 'ew-resize' : 'grab',
@@ -614,7 +625,9 @@ export const ResizableImage = Node.create({
   },
 
   addNodeView() {
-    return ReactNodeViewRenderer(ResizableImageView)
+    return ReactNodeViewRenderer(ResizableImageView, {
+      attrs: { style: 'width: fit-content; max-width: 100%' },
+    })
   },
 
   addCommands() {
