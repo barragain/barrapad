@@ -197,29 +197,33 @@ function ResizableImageView({ node, updateAttributes, selected, editor, getPos }
     setTimeout(() => setEditingCaption(true), 160)
   }, [closeMenu])
 
-  const justify = align === 'center' ? 'center' : align === 'right' ? 'flex-end' : 'flex-start'
   const showHandle = selected || hovered || resizing
   const isFullWidth = !width && align === 'center'
+  // Margin-based alignment so the wrapper stays content-width (good drag ghost)
+  const marginLeft = align === 'right' ? 'auto' : align === 'center' ? 'auto' : undefined
+  const marginRight = align === 'left' ? 'auto' : align === 'center' ? 'auto' : undefined
 
   return (
-    <NodeViewWrapper contentEditable={false}>
-      <div
-        ref={wrapperRef}
-        data-drag-handle
-        data-image-view
-        data-image-label={alt || title || 'Image'}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-        onDragStart={onDragStart}
-        onDragEnd={onDragEnd}
-        style={{
-          display: 'flex',
-          justifyContent: justify,
-          paddingBlock: '2px',
-          userSelect: 'none',
-          cursor: resizing ? 'ew-resize' : 'grab',
-        }}
-      >
+    <NodeViewWrapper
+      contentEditable={false}
+      data-drag-handle
+      data-image-view
+      data-image-label={alt || title || 'Image'}
+      style={{
+        width: 'fit-content',
+        maxWidth: '100%',
+        marginLeft,
+        marginRight,
+        paddingBlock: '2px',
+        userSelect: 'none',
+        cursor: resizing ? 'ew-resize' : 'grab',
+      }}
+      ref={wrapperRef}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+    >
         <div style={{ position: 'relative', display: 'inline-block', maxWidth: '100%' }}>
           <img
             ref={imgRef}
@@ -431,13 +435,11 @@ function ResizableImageView({ node, updateAttributes, selected, editor, getPos }
             }}
           />
         </div>
-      </div>
 
       {/* Caption below image — inline editable, outside the image container */}
       {(editingCaption || title) && (
         <div style={{
-          display: 'flex',
-          justifyContent: justify,
+          textAlign: align === 'center' ? 'center' : align === 'right' ? 'right' : 'left',
           marginTop: 4,
           marginBottom: 2,
         }}>
@@ -620,11 +622,7 @@ export const ResizableImage = Node.create({
   },
 
   addNodeView() {
-    return ReactNodeViewRenderer(ResizableImageView, {
-      // Must be block (not inline-block) so the inner flex container spans
-      // full editor width and justifyContent alignment actually works.
-      attrs: { style: 'display: block' },
-    })
+    return ReactNodeViewRenderer(ResizableImageView)
   },
 
   addCommands() {
