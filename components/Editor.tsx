@@ -178,17 +178,11 @@ export default function EditorComponent({
     const wasTemp = prevNoteIdRef.current.startsWith('temp-')
 
     // ── Flush pending save for the PREVIOUS note before switching ──────────
-    // The auto-save timer and PartyKit send timer are about to be cancelled,
-    // so we must persist any unsaved content NOW, using the previous note's ID.
+    // PartyKit flush is handled in the PartyKit effect's cleanup (runs before
+    // this setup), but we still need to persist to the database.
     const prev = prevNoteRef.current
     if (pendingRef.current && prev.id && !prev.id.startsWith('temp-')) {
       const { title, html } = pendingRef.current
-      // Also flush to PartyKit so the room has the latest content for other clients
-      if (socketRef.current?.readyState === WebSocket.OPEN) {
-        const contentJson = ed.getJSON()
-        socketRef.current.send(JSON.stringify({ type: 'update', content: html, contentJson, title, ts: Date.now() }))
-      }
-      // Persist to the database via the correct endpoint
       const url = prev.sharedToken
         ? `/api/share/${prev.sharedToken}`
         : `/api/notes/${prev.id}`
@@ -255,15 +249,26 @@ export default function EditorComponent({
         if (msg.content && msg.content !== '') {
           const safeToApply = ed && (msg.type === 'sync' || !isLocallyEditingRef.current)
           if (safeToApply) {
-            const { from, to } = ed!.state.selection
-            // Prefer JSON over HTML — JSON preserves trailing spaces that HTML parsing strips
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            ed!.commands.setContent((msg.contentJson ?? msg.content) as any, { emitUpdate: false })
-            const maxPos = ed!.state.doc.content.size
-            try {
-              ed!.commands.setTextSelection({ from: Math.min(from, maxPos), to: Math.min(to, maxPos) })
-            } catch { /* position no longer valid */ }
-            if (msg.title) onLocalChangeRef.current(msg.title, msg.content!)
+            // Don't let a stale sync overwrite content that React state already
+            // has correctly. Compare lengths as a heuristic — if the editor
+            // already has more content than the sync, the local state is fresher
+            // (e.g. images were added but PartyKit room hadn't received them yet).
+            const currentLen = ed!.getHTML().length
+            const incomingLen = (msg.content ?? '').length
+            if (msg.type === 'sync' && currentLen > incomingLen + 50) {
+              pendingSyncRef.current = false
+              // Still process cursors below, but skip the content overwrite
+            } else {
+              const { from, to } = ed!.state.selection
+              // Prefer JSON over HTML — JSON preserves trailing spaces that HTML parsing strips
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              ed!.commands.setContent((msg.contentJson ?? msg.content) as any, { emitUpdate: false })
+              const maxPos = ed!.state.doc.content.size
+              try {
+                ed!.commands.setTextSelection({ from: Math.min(from, maxPos), to: Math.min(to, maxPos) })
+              } catch { /* position no longer valid */ }
+              if (msg.title) onLocalChangeRef.current(msg.title, msg.content!)
+            }
           }
         }
         if (msg.type === 'sync' && msg.cursors) {
@@ -306,6 +311,15 @@ export default function EditorComponent({
     })
 
     return () => {
+      // Flush any pending content to the PartyKit room BEFORE closing the socket,
+      // so other clients (and the room's stored state) have the latest content.
+      // The note-switching effect can't do this because React runs all cleanups
+      // before all setups — by the time that effect runs, this socket is already gone.
+      if (pendingRef.current && socket.readyState === WebSocket.OPEN) {
+        const { title, html } = pendingRef.current
+        const contentJson = editorRef.current?.getJSON()
+        socket.send(JSON.stringify({ type: 'update', content: html, contentJson, title, ts: Date.now() }))
+      }
       remoteCursorsRef.current.clear()
       socket.close()
       socketRef.current = null
