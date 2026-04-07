@@ -65,12 +65,13 @@ function ResizableImageView({ node, updateAttributes, selected, editor, getPos }
     }
   }, [editingCaption])
 
-  // Custom drag image
+  // Custom drag image + drag animations
   useEffect(() => {
-    const handler = (e: DragEvent) => {
+    const onStart = (e: DragEvent) => {
       const target = e.target as HTMLElement | null
       const nodeEl = target?.closest<HTMLElement>('[data-image-view]')
       if (!nodeEl) return
+      // Custom ghost pill
       const label = (nodeEl.dataset.imageLabel ?? 'Image')
       const ghost = document.createElement('div')
       ghost.textContent = label.length > 28 ? label.slice(0, 28) + '…' : label
@@ -85,9 +86,24 @@ function ResizableImageView({ node, updateAttributes, selected, editor, getPos }
       document.body.appendChild(ghost)
       e.dataTransfer?.setDragImage(ghost, 0, Math.max(ghost.offsetHeight / 2, 8))
       setTimeout(() => ghost.remove(), 0)
+      // Add dragging class for lift animation
+      nodeEl.classList.add('barrapad-dragging')
     }
-    document.addEventListener('dragstart', handler)
-    return () => document.removeEventListener('dragstart', handler)
+    const onEnd = (e: DragEvent) => {
+      const target = e.target as HTMLElement | null
+      const nodeEl = target?.closest<HTMLElement>('[data-image-view]')
+      if (!nodeEl) return
+      nodeEl.classList.remove('barrapad-dragging')
+      // Add drop-settle animation
+      nodeEl.classList.add('barrapad-dropped')
+      nodeEl.addEventListener('animationend', () => nodeEl.classList.remove('barrapad-dropped'), { once: true })
+    }
+    document.addEventListener('dragstart', onStart)
+    document.addEventListener('dragend', onEnd)
+    return () => {
+      document.removeEventListener('dragstart', onStart)
+      document.removeEventListener('dragend', onEnd)
+    }
   }, [])
 
   const onResizeStart = useCallback(

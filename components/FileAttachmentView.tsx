@@ -239,11 +239,9 @@ export default function FileAttachmentView({ node, updateAttributes, selected }:
 
   const isAudio = mimeType.startsWith('audio/')
 
-  // Use data-file-attachment-view + closest() so we don't depend on ref forwarding.
-  // Registered at document level (last bubbling stop) to win over Tiptap's own
-  // setDragImage call which fires on the editor-div bubbling phase.
+  // Custom drag ghost + drag animations
   useEffect(() => {
-    const handler = (e: DragEvent) => {
+    const onStart = (e: DragEvent) => {
       const target = e.target as HTMLElement | null
       const nodeEl = target?.closest<HTMLElement>('[data-file-attachment-view]')
       if (!nodeEl) return
@@ -251,9 +249,22 @@ export default function FileAttachmentView({ node, updateAttributes, selected }:
       const ghost = makeDragGhost(fileName)
       e.dataTransfer?.setDragImage(ghost, 0, Math.max(ghost.offsetHeight / 2, 8))
       setTimeout(() => ghost.remove(), 0)
+      nodeEl.classList.add('barrapad-dragging')
     }
-    document.addEventListener('dragstart', handler)
-    return () => document.removeEventListener('dragstart', handler)
+    const onEnd = (e: DragEvent) => {
+      const target = e.target as HTMLElement | null
+      const nodeEl = target?.closest<HTMLElement>('[data-file-attachment-view]')
+      if (!nodeEl) return
+      nodeEl.classList.remove('barrapad-dragging')
+      nodeEl.classList.add('barrapad-dropped')
+      nodeEl.addEventListener('animationend', () => nodeEl.classList.remove('barrapad-dropped'), { once: true })
+    }
+    document.addEventListener('dragstart', onStart)
+    document.addEventListener('dragend', onEnd)
+    return () => {
+      document.removeEventListener('dragstart', onStart)
+      document.removeEventListener('dragend', onEnd)
+    }
   }, [])
 
   const handleRename = (newName: string) => updateAttributes({ name: newName })
