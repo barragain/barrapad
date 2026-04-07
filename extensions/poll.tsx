@@ -229,6 +229,8 @@ export const Poll = Node.create({
   },
 
   addNodeView() {
-    return ReactNodeViewRenderer(PollView)
+    return ReactNodeViewRenderer(PollView, {
+      attrs: { style: 'display: inline-block' },
+    })
   },
 })

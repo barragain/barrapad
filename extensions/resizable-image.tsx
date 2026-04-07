@@ -225,7 +225,6 @@ function ResizableImageView({ node, updateAttributes, selected, editor, getPos }
   return (
     <NodeViewWrapper contentEditable={false}>
       <div
-        data-drag-handle
         data-image-view
         data-image-label={alt || title || 'Image'}
         onMouseEnter={() => setHovered(true)}
@@ -238,7 +237,7 @@ function ResizableImageView({ node, updateAttributes, selected, editor, getPos }
           cursor: resizing ? 'ew-resize' : 'grab',
         }}
       >
-        <div style={{ position: 'relative', display: 'inline-block', maxWidth: '100%' }}>
+        <div data-drag-handle style={{ position: 'relative', display: 'inline-block', maxWidth: '100%' }}>
           <img
             ref={imgRef}
             src={src}
