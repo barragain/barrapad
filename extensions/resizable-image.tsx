@@ -67,45 +67,24 @@ function ResizableImageView({ node, updateAttributes, selected, editor, getPos }
     }
   }, [editingCaption])
 
-  // Custom drag image + drag animations
-  useEffect(() => {
-    const onStart = (e: DragEvent) => {
-      const target = e.target as HTMLElement | null
-      const nodeEl = target?.closest<HTMLElement>('[data-image-view]')
-      if (!nodeEl) return
-      // Custom ghost pill
-      const label = (nodeEl.dataset.imageLabel ?? 'Image')
-      const ghost = document.createElement('div')
-      ghost.textContent = label.length > 28 ? label.slice(0, 28) + '…' : label
-      ghost.style.cssText = [
-        'position:fixed', 'top:0', 'left:-9999px',
-        'background:#D4550A', 'color:white',
-        'font:600 12px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
-        'padding:5px 10px', 'border-radius:99px',
-        'white-space:nowrap', 'pointer-events:none',
-        'box-shadow:0 2px 8px rgba(212,85,10,0.35)',
-      ].join(';')
-      document.body.appendChild(ghost)
-      e.dataTransfer?.setDragImage(ghost, 0, Math.max(ghost.offsetHeight / 2, 8))
-      setTimeout(() => ghost.remove(), 0)
-      // Add dragging class for lift animation
-      nodeEl.classList.add('barrapad-dragging')
+  // Drag handlers — applied directly on the component via onDragStart/onDragEnd
+  // so they fire BEFORE TipTap's handler and our setDragImage wins.
+  const wrapperRef = useRef<HTMLDivElement>(null)
+
+  const onDragStart = useCallback((e: React.DragEvent) => {
+    // Use the actual <img> element as drag ghost — perfectly sized, no full-width issue
+    if (imgRef.current) {
+      e.dataTransfer.setDragImage(imgRef.current, imgRef.current.offsetWidth / 2, 20)
     }
-    const onEnd = (e: DragEvent) => {
-      const target = e.target as HTMLElement | null
-      const nodeEl = target?.closest<HTMLElement>('[data-image-view]')
-      if (!nodeEl) return
-      nodeEl.classList.remove('barrapad-dragging')
-      // Add drop-settle animation
-      nodeEl.classList.add('barrapad-dropped')
-      nodeEl.addEventListener('animationend', () => nodeEl.classList.remove('barrapad-dropped'), { once: true })
-    }
-    document.addEventListener('dragstart', onStart)
-    document.addEventListener('dragend', onEnd)
-    return () => {
-      document.removeEventListener('dragstart', onStart)
-      document.removeEventListener('dragend', onEnd)
-    }
+    wrapperRef.current?.classList.add('barrapad-dragging')
+  }, [])
+
+  const onDragEnd = useCallback(() => {
+    const el = wrapperRef.current
+    if (!el) return
+    el.classList.remove('barrapad-dragging')
+    el.classList.add('barrapad-dropped')
+    el.addEventListener('animationend', () => el.classList.remove('barrapad-dropped'), { once: true })
   }, [])
 
   const onResizeStart = useCallback(
@@ -225,10 +204,14 @@ function ResizableImageView({ node, updateAttributes, selected, editor, getPos }
   return (
     <NodeViewWrapper contentEditable={false}>
       <div
+        ref={wrapperRef}
+        data-drag-handle
         data-image-view
         data-image-label={alt || title || 'Image'}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
+        onDragStart={onDragStart}
+        onDragEnd={onDragEnd}
         style={{
           display: 'flex',
           justifyContent: justify,
@@ -237,7 +220,7 @@ function ResizableImageView({ node, updateAttributes, selected, editor, getPos }
           cursor: resizing ? 'ew-resize' : 'grab',
         }}
       >
-        <div data-drag-handle style={{ position: 'relative', display: 'inline-block', maxWidth: '100%' }}>
+        <div style={{ position: 'relative', display: 'inline-block', maxWidth: '100%' }}>
           <img
             ref={imgRef}
             src={src}
