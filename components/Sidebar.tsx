@@ -68,7 +68,8 @@ export default function Sidebar({
   const stripHtml = (html: string) => {
     if (typeof window === 'undefined') return html
     const div = document.createElement('div')
-    div.innerHTML = html
+    // Insert newlines before block-level elements so textContent preserves line breaks
+    div.innerHTML = html.replace(/<\/(p|div|h[1-6]|li|br|blockquote)>/gi, '\n')
     return div.textContent ?? ''
   }
 
