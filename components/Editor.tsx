@@ -74,6 +74,10 @@ export default function EditorComponent({
 
   const lastLocalChangeTimeRef = useRef(0)
   const prevNoteIdRef = useRef<string>(note.id)
+  // Track previous note info so we can flush auto-save to the correct endpoint on note switch
+  const prevNoteRef = useRef<{ id: string; sharedToken?: string; sharedPermission?: string }>({
+    id: note.id, sharedToken: note.sharedToken, sharedPermission: note.sharedPermission,
+  })
   const remoteCursorsRef = useRef<Map<string, RemoteCursor>>(new Map())
   const myColorRef = useRef(pickColor(Math.random().toString()))
   const userNameRef = useRef('Me')
@@ -172,7 +176,33 @@ export default function EditorComponent({
     const ed = editorRef.current
     if (!ed) return
     const wasTemp = prevNoteIdRef.current.startsWith('temp-')
+
+    // ── Flush pending save for the PREVIOUS note before switching ──────────
+    // The auto-save timer and PartyKit send timer are about to be cancelled,
+    // so we must persist any unsaved content NOW, using the previous note's ID.
+    const prev = prevNoteRef.current
+    if (pendingRef.current && prev.id && !prev.id.startsWith('temp-')) {
+      const { title, html } = pendingRef.current
+      // Also flush to PartyKit so the room has the latest content for other clients
+      if (socketRef.current?.readyState === WebSocket.OPEN) {
+        const contentJson = ed.getJSON()
+        socketRef.current.send(JSON.stringify({ type: 'update', content: html, contentJson, title, ts: Date.now() }))
+      }
+      // Persist to the database via the correct endpoint
+      const url = prev.sharedToken
+        ? `/api/share/${prev.sharedToken}`
+        : `/api/notes/${prev.id}`
+      if (!prev.sharedToken || prev.sharedPermission === 'EDIT') {
+        fetch(url, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title, content: html }),
+        }).catch(() => {})
+      }
+    }
+
     prevNoteIdRef.current = note.id
+    prevNoteRef.current = { id: note.id, sharedToken: note.sharedToken, sharedPermission: note.sharedPermission }
     const currentHtml = ed.getHTML()
     // Keep content when a temp note is promoted — user may have typed while the API was in flight
     if (wasTemp && !note.id.startsWith('temp-') && (!note.content || note.content === '<p></p>')) {
