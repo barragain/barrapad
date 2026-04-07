@@ -22,6 +22,8 @@ function findTablePos(view: EditorView, wrapper: HTMLElement): number | null {
 
 /**
  * Extends the default TableView to add a drag handle.
+ * NO event listeners on the wrapper — they interfere with HTML5 drag.
+ * All drag logic lives in the ProseMirror plugin below.
  */
 class DraggableTableView extends TableView {
   constructor(node: PmNode, cellMinWidth: number) {
@@ -41,16 +43,9 @@ class DraggableTableView extends TableView {
 
     dom.insertBefore(handle, dom.firstChild)
 
-    // Drag animations — delay adding the class so the browser's drag
-    // isn't cancelled by the CSS transform + pointer-events:none
-    dom.addEventListener('dragstart', () => {
-      requestAnimationFrame(() => dom.classList.add('barrapad-dragging'))
-    })
-
+    // Only dragend — restore opacity set by the plugin's dragstart
     dom.addEventListener('dragend', () => {
-      dom.classList.remove('barrapad-dragging')
-      dom.classList.add('barrapad-dropped')
-      dom.addEventListener('animationend', () => dom.classList.remove('barrapad-dropped'), { once: true })
+      dom.style.opacity = ''
     })
   }
 }
@@ -71,18 +66,12 @@ export const DraggableTable = Table.extend({
       new Plugin({
         props: {
           handleDOMEvents: {
-            // Block ProseMirror's mousedown on the handle — prevents it from
-            // placing a text cursor or creating a competing drag tracker.
             mousedown: (_view, event) => {
               const target = event.target as HTMLElement
               if (!target.closest('.table-drag-handle')) return false
               return true
             },
 
-            // The handle has draggable="true", so the browser fires dragstart.
-            // We fully handle it: select the table, serialize the content,
-            // set dataTransfer, and set view.dragging so ProseMirror's drop
-            // handler treats this as an internal move.
             dragstart: (view, event) => {
               const target = event.target as HTMLElement
               if (!target.closest('.table-drag-handle')) return false
@@ -116,11 +105,11 @@ export const DraggableTable = Table.extend({
               }
 
               // Tell ProseMirror's drop handler this is an internal move
-              // so it deletes the source and inserts at the drop position.
               ;(view as any).dragging = { slice, move: true }
 
-              // Prevent ProseMirror's internal dragstart from running
-              // (it would fail to set things up correctly)
+              // Simple fade — no CSS class (transform/pointer-events kills drag)
+              wrapper.style.opacity = '0.4'
+
               return true
             },
           },
