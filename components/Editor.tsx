@@ -266,7 +266,17 @@ export default function EditorComponent({
             try {
               ed!.commands.setTextSelection({ from: Math.min(from, maxPos), to: Math.min(to, maxPos) })
             } catch { /* position no longer valid */ }
-            if (msg.title) onLocalChangeRef.current(msg.title, msg.content!)
+            if (msg.title) {
+              onLocalChangeRef.current(msg.title, msg.content!)
+              // On initial sync, set the title authoritatively from the room state.
+              // This ensures shared note users get the correct title, since
+              // handleLocalChange skips title updates for shared notes.
+              if (msg.type === 'sync') {
+                window.dispatchEvent(new CustomEvent('barrapad:remote-rename', {
+                  detail: { id: note.id, title: msg.title },
+                }))
+              }
+            }
           }
         }
         if (msg.type === 'sync' && msg.cursors) {

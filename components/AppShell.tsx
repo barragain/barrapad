@@ -477,7 +477,10 @@ export default function AppShell() {
     updateNotes((prev) =>
       prev.map((n) => {
         if (n.id !== activeNoteId) return n
-        // Auto-update title from the first line unless the user has explicitly renamed via the UI
+        // Never auto-derive title for shared notes — only the owner's explicit
+        // rename (via PartyKit 'title' message) should change it.
+        if (n.sharedToken) return { ...n, content, updatedAt: new Date().toISOString() }
+        // For owned notes, auto-update title from first line unless manually renamed
         const useTitle = manualTitlesRef.current.has(n.id) ? n.title : title
         return { ...n, title: useTitle, content, updatedAt: new Date().toISOString() }
       })
@@ -490,7 +493,11 @@ export default function AppShell() {
     const activeNote = notes.find(n => n.id === activeNoteId)
     if (!activeNote) return
 
-    const title = manualTitlesRef.current.has(activeNoteId) ? activeNote.title : contentTitle
+    // For shared notes, always use the note's existing title — never the content-derived one.
+    // For owned notes, respect manualTitlesRef.
+    const title = activeNote.sharedToken
+      ? activeNote.title
+      : (manualTitlesRef.current.has(activeNoteId) ? activeNote.title : contentTitle)
 
     // Shared note — save via share API
     if (activeNote.sharedToken) {
