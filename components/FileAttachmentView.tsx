@@ -240,7 +240,7 @@ export default function FileAttachmentView({ node, updateAttributes, selected }:
 
   const isAudio = mimeType.startsWith('audio/')
 
-  // Custom drag ghost + drag animations
+  // Custom drag ghost
   useEffect(() => {
     const onStart = (e: DragEvent) => {
       const target = e.target as HTMLElement | null
@@ -250,22 +250,9 @@ export default function FileAttachmentView({ node, updateAttributes, selected }:
       const ghost = makeDragGhost(fileName)
       e.dataTransfer?.setDragImage(ghost, 0, Math.max(ghost.offsetHeight / 2, 8))
       setTimeout(() => ghost.remove(), 0)
-      nodeEl.classList.add('barrapad-dragging')
-    }
-    const onEnd = (e: DragEvent) => {
-      const target = e.target as HTMLElement | null
-      const nodeEl = target?.closest<HTMLElement>('[data-file-attachment-view]')
-      if (!nodeEl) return
-      nodeEl.classList.remove('barrapad-dragging')
-      nodeEl.classList.add('barrapad-dropped')
-      nodeEl.addEventListener('animationend', () => nodeEl.classList.remove('barrapad-dropped'), { once: true })
     }
     document.addEventListener('dragstart', onStart)
-    document.addEventListener('dragend', onEnd)
-    return () => {
-      document.removeEventListener('dragstart', onStart)
-      document.removeEventListener('dragend', onEnd)
-    }
+    return () => document.removeEventListener('dragstart', onStart)
   }, [])
 
   const handleRename = (newName: string) => updateAttributes({ name: newName })

@@ -72,20 +72,12 @@ function ResizableImageView({ node, updateAttributes, selected, editor, getPos }
   const wrapperRef = useRef<HTMLDivElement>(null)
 
   const onDragStart = useCallback((e: React.DragEvent) => {
-    // Use the actual <img> element as drag ghost — perfectly sized, no full-width issue
     if (imgRef.current) {
       e.dataTransfer.setDragImage(imgRef.current, imgRef.current.offsetWidth / 2, 20)
     }
-    wrapperRef.current?.classList.add('barrapad-dragging')
   }, [])
 
-  const onDragEnd = useCallback(() => {
-    const el = wrapperRef.current
-    if (!el) return
-    el.classList.remove('barrapad-dragging')
-    el.classList.add('barrapad-dropped')
-    el.addEventListener('animationend', () => el.classList.remove('barrapad-dropped'), { once: true })
-  }, [])
+  const onDragEnd = useCallback(() => {}, [])
 
   const onResizeStart = useCallback(
     (e: React.MouseEvent) => {

@@ -1,24 +1,11 @@
 import { Table, TableView } from '@tiptap/extension-table'
 import { NodeSelection, Plugin } from '@tiptap/pm/state'
+import { DOMSerializer } from '@tiptap/pm/model'
 import type { Node as PmNode } from '@tiptap/pm/model'
-
-function makeDragGhost(label: string): HTMLElement {
-  const el = document.createElement('div')
-  el.textContent = label
-  el.style.cssText = [
-    'position:fixed', 'top:0', 'left:-9999px',
-    'background:#D4550A', 'color:white',
-    'font:600 12px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
-    'padding:5px 10px', 'border-radius:99px',
-    'white-space:nowrap', 'pointer-events:none',
-    'box-shadow:0 2px 8px rgba(212,85,10,0.35)',
-  ].join(';')
-  document.body.appendChild(el)
-  return el
-}
+import type { EditorView } from '@tiptap/pm/view'
 
 /** Resolve the table node position from a DOM element inside the table wrapper. */
-function findTablePos(view: import('@tiptap/pm/view').EditorView, wrapper: HTMLElement): number | null {
+function findTablePos(view: EditorView, wrapper: HTMLElement): number | null {
   try {
     const pos = view.posAtDOM(wrapper, 0)
     const $pos = view.state.doc.resolve(pos)
@@ -53,23 +40,6 @@ class DraggableTableView extends TableView {
     </svg>`
 
     dom.insertBefore(handle, dom.firstChild)
-
-    // Custom drag ghost + animations (fires before ProseMirror's handler)
-    dom.addEventListener('dragstart', (e: DragEvent) => {
-      const table = dom.querySelector('table')
-      const rows = table?.querySelectorAll('tr').length ?? 0
-      const cols = table?.querySelector('tr')?.children.length ?? 0
-      const ghost = makeDragGhost(`Table ${rows}\u00d7${cols}`)
-      e.dataTransfer?.setDragImage(ghost, 0, Math.max(ghost.offsetHeight / 2, 8))
-      setTimeout(() => ghost.remove(), 0)
-      dom.classList.add('barrapad-dragging')
-    })
-
-    dom.addEventListener('dragend', () => {
-      dom.classList.remove('barrapad-dragging')
-      dom.classList.add('barrapad-dropped')
-      dom.addEventListener('animationend', () => dom.classList.remove('barrapad-dropped'), { once: true })
-    })
   }
 }
 
@@ -89,16 +59,18 @@ export const DraggableTable = Table.extend({
       new Plugin({
         props: {
           handleDOMEvents: {
-            // Block ProseMirror's mousedown on the handle so it doesn't
-            // create a competing MouseDown tracker or place a text cursor.
-            mousedown: (view, event) => {
+            // Block ProseMirror's mousedown on the handle — prevents it from
+            // placing a text cursor or creating a competing drag tracker.
+            mousedown: (_view, event) => {
               const target = event.target as HTMLElement
               if (!target.closest('.table-drag-handle')) return false
               return true
             },
-            // When the browser fires dragstart (handle is draggable="true"),
-            // create a NodeSelection so ProseMirror's internal dragstart
-            // handler serializes the table and sets view.dragging for drop.
+
+            // The handle has draggable="true", so the browser fires dragstart.
+            // We fully handle it: select the table, serialize the content,
+            // set dataTransfer, and set view.dragging so ProseMirror's drop
+            // handler treats this as an internal move.
             dragstart: (view, event) => {
               const target = event.target as HTMLElement
               if (!target.closest('.table-drag-handle')) return false
@@ -109,12 +81,35 @@ export const DraggableTable = Table.extend({
               const tablePos = findTablePos(view, wrapper)
               if (tablePos === null) return false
 
+              // Select the table node
               view.dispatch(
-                view.state.tr.setSelection(NodeSelection.create(view.state.doc, tablePos))
+                view.state.tr.setSelection(
+                  NodeSelection.create(view.state.doc, tablePos)
+                )
               )
-              // Return false — let ProseMirror's internal dragstart handler
-              // pick up the NodeSelection and serialize the drag data
-              return false
+
+              // Serialize the table for dataTransfer
+              const slice = view.state.selection.content()
+              const serializer = DOMSerializer.fromSchema(view.state.schema)
+              const fragment = serializer.serializeFragment(slice.content)
+              const div = document.createElement('div')
+              div.appendChild(fragment)
+
+              const dt = event.dataTransfer
+              if (dt) {
+                dt.clearData()
+                dt.setData('text/html', div.innerHTML)
+                dt.setData('text/plain', div.textContent || '')
+                dt.effectAllowed = 'move'
+              }
+
+              // Tell ProseMirror's drop handler this is an internal move
+              // so it deletes the source and inserts at the drop position.
+              ;(view as any).dragging = { slice, move: true }
+
+              // Prevent ProseMirror's internal dragstart from running
+              // (it would fail to set things up correctly)
+              return true
             },
           },
         },
