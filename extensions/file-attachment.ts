@@ -69,17 +69,18 @@ export const FileAttachment = Node.create<FileAttachmentOptions>({
     ]
   },
 
-  renderHTML({ HTMLAttributes }) {
+  renderHTML({ node }) {
+    const { name, size, mimeType, dataUrl, align } = node.attrs
     return [
       'div',
-      mergeAttributes(this.options.HTMLAttributes, HTMLAttributes, {
+      {
         'data-file-attachment': '',
-        'data-name': HTMLAttributes.name,
-        'data-size': HTMLAttributes.size,
-        'data-mime-type': HTMLAttributes.mimeType,
-        'data-url': HTMLAttributes.dataUrl,
-        ...(HTMLAttributes.align && HTMLAttributes.align !== 'left' ? { 'data-align': HTMLAttributes.align } : {}),
-      }),
+        'data-name': name,
+        'data-size': String(size),
+        'data-mime-type': mimeType,
+        'data-url': dataUrl,
+        ...(align && align !== 'left' ? { 'data-align': align } : {}),
+      },
     ]
   },
 
