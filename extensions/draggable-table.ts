@@ -18,7 +18,7 @@ function makeDragGhost(label: string): HTMLElement {
 
 /**
  * Extends the default TableView to add a drag handle and drop animations.
- * This is passed as the `View` option to the columnResizing plugin.
+ * Passed as the `View` option to the columnResizing plugin.
  */
 class DraggableTableView extends TableView {
   constructor(node: PmNode, cellMinWidth: number) {
@@ -26,12 +26,12 @@ class DraggableTableView extends TableView {
 
     const dom = this.dom as HTMLElement
 
-    // Create drag handle (6-dot grip)
+    // Create drag handle (6-dot grip) — NOT draggable itself;
+    // ProseMirror sets `draggable=true` on the dom when it detects a drag
+    // from a non-content area of a draggable node.
     const handle = document.createElement('div')
     handle.className = 'table-drag-handle'
     handle.contentEditable = 'false'
-    handle.setAttribute('data-drag-handle', '')
-    handle.setAttribute('draggable', 'true')
     handle.innerHTML = `<svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor">
       <circle cx="3" cy="2" r="1.2"/><circle cx="7" cy="2" r="1.2"/>
       <circle cx="3" cy="7" r="1.2"/><circle cx="7" cy="7" r="1.2"/>
@@ -40,8 +40,9 @@ class DraggableTableView extends TableView {
 
     dom.insertBefore(handle, dom.firstChild)
 
-    // Custom drag ghost
-    handle.addEventListener('dragstart', (e: DragEvent) => {
+    // Custom drag ghost + animations — on the dom, not the handle,
+    // because ProseMirror initiates the drag on the dom element.
+    dom.addEventListener('dragstart', (e: DragEvent) => {
       const table = dom.querySelector('table')
       const rows = table?.querySelectorAll('tr').length ?? 0
       const cols = table?.querySelector('tr')?.children.length ?? 0

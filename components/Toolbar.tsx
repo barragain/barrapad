@@ -36,6 +36,22 @@ import ColorPicker from './ColorPicker'
 import LinkPopover from './LinkPopover'
 import '@/extensions/resizable-image'
 import { uploadImage } from '@/lib/upload-image'
+import { NodeSelection } from '@tiptap/pm/state'
+
+/** Directly dispatch alignment for a node-selected image or fileAttachment.
+ *  Bypasses the command chain which can lose NodeSelection via .focus(). */
+function setNodeAlign(editor: Editor, align: 'left' | 'center' | 'right') {
+  const { selection } = editor.state
+  if (selection instanceof NodeSelection) {
+    const { node, from } = selection
+    if (node.type.name === 'image' || node.type.name === 'fileAttachment') {
+      const tr = editor.state.tr.setNodeMarkup(from, undefined, { ...node.attrs, align })
+      editor.view.dispatch(tr)
+      return true
+    }
+  }
+  return false
+}
 
 interface ToolbarProps {
   editor: Editor | null
@@ -569,21 +585,21 @@ export default function Toolbar({ editor }: ToolbarProps) {
         {/* ── ROW 3: Alignment · Table · Image · Code ── */}
 
         <TBtn
-          onClick={() => editorState.isImageSelected ? editor.chain().focus().setImageAlign('left').run() : editorState.isFileAttachmentSelected ? editor.chain().focus().setFileAttachmentAlign('left').run() : editor.chain().focus().setTextAlign('left').run()}
+          onClick={() => { if (!setNodeAlign(editor, 'left')) editor.chain().focus().setTextAlign('left').run() }}
           active={editorState.isAlignLeft}
           label="Align left"
         >
           <AlignLeft size={iconSize} />
         </TBtn>
         <TBtn
-          onClick={() => editorState.isImageSelected ? editor.chain().focus().setImageAlign('center').run() : editorState.isFileAttachmentSelected ? editor.chain().focus().setFileAttachmentAlign('center').run() : editor.chain().focus().setTextAlign('center').run()}
+          onClick={() => { if (!setNodeAlign(editor, 'center')) editor.chain().focus().setTextAlign('center').run() }}
           active={editorState.isAlignCenter}
           label="Align center"
         >
           <AlignCenter size={iconSize} />
         </TBtn>
         <TBtn
-          onClick={() => editorState.isImageSelected ? editor.chain().focus().setImageAlign('right').run() : editorState.isFileAttachmentSelected ? editor.chain().focus().setFileAttachmentAlign('right').run() : editor.chain().focus().setTextAlign('right').run()}
+          onClick={() => { if (!setNodeAlign(editor, 'right')) editor.chain().focus().setTextAlign('right').run() }}
           active={editorState.isAlignRight}
           label="Align right"
         >
