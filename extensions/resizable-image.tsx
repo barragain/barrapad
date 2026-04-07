@@ -18,31 +18,52 @@ function ResizableImageView({ node, updateAttributes, selected, editor, getPos }
   const [resizing, setResizing] = useState(false)
   const [hovered, setHovered] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [menuVisible, setMenuVisible] = useState(false) // for animation
   const [editingCaption, setEditingCaption] = useState(false)
   const [editingAlt, setEditingAlt] = useState(false)
   const [captionValue, setCaptionValue] = useState(title ?? '')
   const [altValue, setAltValue] = useState(alt ?? '')
+  const [btnHover, setBtnHover] = useState(false)
   const startX = useRef(0)
   const startW = useRef(0)
   const imgRef = useRef<HTMLImageElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const replaceInputRef = useRef<HTMLInputElement>(null)
+  const captionRef = useRef<HTMLInputElement>(null)
+
+  // Menu open/close with animation
+  const openMenu = useCallback(() => {
+    setMenuOpen(true)
+    requestAnimationFrame(() => setMenuVisible(true))
+  }, [])
+
+  const closeMenu = useCallback(() => {
+    setMenuVisible(false)
+    setTimeout(() => setMenuOpen(false), 150)
+  }, [])
 
   // Close menu when clicking outside
   useEffect(() => {
     if (!menuOpen) return
     const handler = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as HTMLElement)) {
-        setMenuOpen(false)
+        closeMenu()
       }
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
-  }, [menuOpen])
+  }, [menuOpen, closeMenu])
 
   // Sync caption/alt when node attrs change externally
   useEffect(() => { setCaptionValue(title ?? '') }, [title])
   useEffect(() => { setAltValue(alt ?? '') }, [alt])
+
+  // Auto-focus caption input when it appears
+  useEffect(() => {
+    if (editingCaption && captionRef.current) {
+      captionRef.current.focus()
+    }
+  }, [editingCaption])
 
   // Custom drag image
   useEffect(() => {
@@ -95,29 +116,24 @@ function ResizableImageView({ node, updateAttributes, selected, editor, getPos }
   )
 
   const handleReplace = useCallback(() => {
-    const input = replaceInputRef.current
-    if (!input) return
-    input.click()
+    replaceInputRef.current?.click()
   }, [])
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !file.type.startsWith('image/')) return
     const reader = new FileReader()
-    reader.onload = () => {
-      updateAttributes({ src: reader.result as string })
-    }
+    reader.onload = () => updateAttributes({ src: reader.result as string })
     reader.readAsDataURL(file)
     e.target.value = ''
-    setMenuOpen(false)
-  }, [updateAttributes])
+    closeMenu()
+  }, [updateAttributes, closeMenu])
 
   const handleDelete = useCallback(() => {
     const pos = typeof getPos === 'function' ? getPos() : undefined
     if (pos !== undefined) {
       editor.chain().focus().setNodeSelection(pos).deleteSelection().run()
     }
-    setMenuOpen(false)
   }, [editor, getPos])
 
   const handleDownload = useCallback(() => {
@@ -125,34 +141,62 @@ function ResizableImageView({ node, updateAttributes, selected, editor, getPos }
     a.href = src
     a.download = alt || title || 'image'
     a.click()
-    setMenuOpen(false)
-  }, [src, alt, title])
+    closeMenu()
+  }, [src, alt, title, closeMenu])
 
   const handleSetAlign = useCallback((newAlign: 'left' | 'center' | 'right') => {
-    updateAttributes({ align: newAlign })
-    setMenuOpen(false)
-  }, [updateAttributes])
+    // Use editor transaction directly since updateAttributes can be swallowed
+    const pos = typeof getPos === 'function' ? getPos() : undefined
+    if (pos !== undefined) {
+      const tr = editor.state.tr.setNodeMarkup(pos, undefined, { ...node.attrs, align: newAlign })
+      editor.view.dispatch(tr)
+    }
+    closeMenu()
+  }, [editor, getPos, node.attrs, closeMenu])
 
   const handleSetWidth = useCallback((mode: 'wide' | 'full' | 'reset') => {
+    const pos = typeof getPos === 'function' ? getPos() : undefined
+    if (pos === undefined) return
+    const newAttrs = { ...node.attrs }
     if (mode === 'full') {
-      updateAttributes({ width: null, align: 'center' })
+      newAttrs.width = null
+      newAttrs.align = 'center'
     } else if (mode === 'wide') {
-      updateAttributes({ width: 700 })
+      newAttrs.width = 700
     } else {
-      updateAttributes({ width: null })
+      newAttrs.width = null
     }
-    setMenuOpen(false)
-  }, [updateAttributes])
+    const tr = editor.state.tr.setNodeMarkup(pos, undefined, newAttrs)
+    editor.view.dispatch(tr)
+    closeMenu()
+  }, [editor, getPos, node.attrs, closeMenu])
 
   const saveCaption = useCallback(() => {
-    updateAttributes({ title: captionValue || null })
+    const val = captionValue.trim() || null
+    const pos = typeof getPos === 'function' ? getPos() : undefined
+    if (pos !== undefined) {
+      const tr = editor.state.tr.setNodeMarkup(pos, undefined, { ...node.attrs, title: val })
+      editor.view.dispatch(tr)
+    }
     setEditingCaption(false)
-  }, [captionValue, updateAttributes])
+  }, [captionValue, editor, getPos, node.attrs])
 
   const saveAlt = useCallback(() => {
-    updateAttributes({ alt: altValue || null })
+    const val = altValue.trim() || null
+    const pos = typeof getPos === 'function' ? getPos() : undefined
+    if (pos !== undefined) {
+      const tr = editor.state.tr.setNodeMarkup(pos, undefined, { ...node.attrs, alt: val })
+      editor.view.dispatch(tr)
+    }
     setEditingAlt(false)
-  }, [altValue, updateAttributes])
+    closeMenu()
+  }, [altValue, editor, getPos, node.attrs, closeMenu])
+
+  const startCaption = useCallback(() => {
+    closeMenu()
+    // Small delay so the menu closes first
+    setTimeout(() => setEditingCaption(true), 160)
+  }, [closeMenu])
 
   const justify = align === 'center' ? 'center' : align === 'right' ? 'flex-end' : 'flex-start'
   const showHandle = selected || hovered || resizing
@@ -165,7 +209,7 @@ function ResizableImageView({ node, updateAttributes, selected, editor, getPos }
         data-image-view
         data-image-label={alt || title || 'Image'}
         onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => { setHovered(false); if (!menuOpen) { /* keep menu open */ } }}
+        onMouseLeave={() => setHovered(false)}
         style={{
           display: 'flex',
           justifyContent: justify,
@@ -191,55 +235,46 @@ function ResizableImageView({ node, updateAttributes, selected, editor, getPos }
             }}
           />
 
-          {/* Caption below image */}
-          {title && !editingCaption && (
-            <div style={{
-              textAlign: 'center',
-              fontSize: 13,
-              color: 'var(--muted)',
-              marginTop: 6,
-              fontStyle: 'italic',
-              lineHeight: 1.4,
-            }}>
-              {title}
-            </div>
-          )}
+          {/* ⋯ Menu button — top right, with hover animation */}
+          <button
+            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation() }}
+            onClick={(e) => { e.stopPropagation(); menuOpen ? closeMenu() : openMenu() }}
+            onMouseEnter={() => setBtnHover(true)}
+            onMouseLeave={() => setBtnHover(false)}
+            style={{
+              position: 'absolute',
+              top: 8,
+              right: 8,
+              width: 28,
+              height: 28,
+              borderRadius: 6,
+              border: 'none',
+              background: btnHover ? 'rgba(0,0,0,0.75)' : 'rgba(0,0,0,0.55)',
+              color: '#fff',
+              fontSize: 16,
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              lineHeight: 1,
+              backdropFilter: 'blur(4px)',
+              opacity: (showHandle || menuOpen) ? 1 : 0,
+              transform: btnHover ? 'scale(1.1)' : 'scale(1)',
+              transition: 'opacity 0.2s, transform 0.15s ease, background 0.15s',
+              zIndex: 20,
+              pointerEvents: (showHandle || menuOpen) ? 'auto' : 'none',
+            }}
+            title="Image options"
+          >
+            ⋯
+          </button>
 
-          {/* ⋯ Menu button — top right */}
-          {(showHandle || menuOpen) && (
-            <button
-              onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen) }}
-              style={{
-                position: 'absolute',
-                top: 8,
-                right: 8,
-                width: 28,
-                height: 28,
-                borderRadius: 6,
-                border: 'none',
-                background: 'rgba(0,0,0,0.55)',
-                color: '#fff',
-                fontSize: 16,
-                fontWeight: 700,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                lineHeight: 1,
-                backdropFilter: 'blur(4px)',
-                transition: 'opacity 0.15s',
-                zIndex: 20,
-              }}
-              title="Image options"
-            >
-              ⋯
-            </button>
-          )}
-
-          {/* Dropdown menu */}
+          {/* Dropdown menu with animation */}
           {menuOpen && (
             <div
               ref={menuRef}
+              onMouseDown={(e) => { e.preventDefault(); e.stopPropagation() }}
               style={{
                 position: 'absolute',
                 top: 42,
@@ -252,6 +287,10 @@ function ResizableImageView({ node, updateAttributes, selected, editor, getPos }
                 zIndex: 30,
                 overflow: 'hidden',
                 paddingBlock: 4,
+                opacity: menuVisible ? 1 : 0,
+                transform: menuVisible ? 'translateY(0) scale(1)' : 'translateY(-8px) scale(0.96)',
+                transformOrigin: 'top right',
+                transition: 'opacity 0.15s ease, transform 0.15s ease',
               }}
             >
               {/* Replace image */}
@@ -261,41 +300,19 @@ function ResizableImageView({ node, updateAttributes, selected, editor, getPos }
 
               <MenuSeparator />
 
-              {/* Edit caption */}
-              {editingCaption ? (
-                <div style={{ padding: '6px 14px' }}>
-                  <input
-                    autoFocus
-                    value={captionValue}
-                    onChange={(e) => setCaptionValue(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') saveCaption(); if (e.key === 'Escape') setEditingCaption(false) }}
-                    onBlur={saveCaption}
-                    placeholder="Add a caption…"
-                    style={{
-                      width: '100%',
-                      border: '1px solid var(--border)',
-                      borderRadius: 5,
-                      padding: '4px 8px',
-                      fontSize: 13,
-                      outline: 'none',
-                      fontFamily: 'inherit',
-                    }}
-                  />
-                </div>
-              ) : (
-                <MenuButton onClick={() => setEditingCaption(true)}>
-                  {title ? 'Edit caption' : 'Add caption'}
-                </MenuButton>
-              )}
+              {/* Caption — opens inline below image */}
+              <MenuButton onClick={startCaption}>
+                {title ? 'Edit caption' : 'Add caption'}
+              </MenuButton>
 
-              {/* Edit alt text */}
+              {/* Edit alt text — inline in menu */}
               {editingAlt ? (
                 <div style={{ padding: '6px 14px' }}>
                   <input
                     autoFocus
                     value={altValue}
                     onChange={(e) => setAltValue(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') saveAlt(); if (e.key === 'Escape') setEditingAlt(false) }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') saveAlt(); if (e.key === 'Escape') { setEditingAlt(false) } }}
                     onBlur={saveAlt}
                     placeholder="Describe the image…"
                     style={{
@@ -389,6 +406,60 @@ function ResizableImageView({ node, updateAttributes, selected, editor, getPos }
           />
         </div>
       </div>
+
+      {/* Caption below image — inline editable, outside the image container */}
+      {(editingCaption || title) && (
+        <div style={{
+          display: 'flex',
+          justifyContent: justify,
+          marginTop: 4,
+          marginBottom: 2,
+        }}>
+          {editingCaption ? (
+            <input
+              ref={captionRef}
+              value={captionValue}
+              onChange={(e) => setCaptionValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') saveCaption()
+                if (e.key === 'Escape') { setCaptionValue(title ?? ''); setEditingCaption(false) }
+              }}
+              onBlur={saveCaption}
+              placeholder="Type a caption…"
+              style={{
+                border: 'none',
+                borderBottom: '1.5px solid var(--accent)',
+                background: 'transparent',
+                textAlign: 'center',
+                fontSize: 13,
+                color: 'var(--ink)',
+                fontStyle: 'italic',
+                fontFamily: 'inherit',
+                outline: 'none',
+                padding: '2px 8px 4px',
+                minWidth: 180,
+                maxWidth: '80%',
+                lineHeight: 1.5,
+              }}
+            />
+          ) : (
+            <div
+              onClick={() => setEditingCaption(true)}
+              style={{
+                textAlign: 'center',
+                fontSize: 13,
+                color: 'var(--muted)',
+                fontStyle: 'italic',
+                lineHeight: 1.4,
+                cursor: 'text',
+                padding: '2px 8px',
+              }}
+            >
+              {title}
+            </div>
+          )}
+        </div>
+      )}
     </NodeViewWrapper>
   )
 }
@@ -404,6 +475,7 @@ function MenuButton({ children, onClick, danger, active }: {
   const [hover, setHover] = useState(false)
   return (
     <button
+      onMouseDown={(e) => { e.preventDefault(); e.stopPropagation() }}
       onClick={(e) => { e.stopPropagation(); onClick() }}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
@@ -438,23 +510,27 @@ function AlignButton({ children, onClick, active, title }: {
   active: boolean
   title: string
 }) {
+  const [hover, setHover] = useState(false)
   return (
     <button
+      onMouseDown={(e) => { e.preventDefault(); e.stopPropagation() }}
       onClick={(e) => { e.stopPropagation(); onClick() }}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
       title={title}
       style={{
         width: 32,
         height: 28,
         border: '1px solid',
-        borderColor: active ? 'var(--accent)' : 'var(--border)',
+        borderColor: active ? 'var(--accent)' : hover ? 'var(--muted)' : 'var(--border)',
         borderRadius: 5,
-        background: active ? 'rgba(212,85,10,0.08)' : 'transparent',
+        background: active ? 'rgba(212,85,10,0.08)' : hover ? 'rgba(0,0,0,0.03)' : 'transparent',
         color: active ? 'var(--accent)' : 'var(--muted)',
         cursor: 'pointer',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        transition: 'all 0.1s',
+        transition: 'all 0.12s ease',
       }}
     >
       {children}
