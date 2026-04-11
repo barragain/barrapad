@@ -518,21 +518,41 @@ export default function CommentSidebar({
     return () => window.removeEventListener('barrapad:comment-new', handler)
   }, [])
 
-  // Listen for comment highlight clicks — find the matching thread
+  // Listen for comment highlight clicks + notification clicks — find the matching thread
   useEffect(() => {
     const handler = (e: Event) => {
       const { markCommentId } = (e as CustomEvent<{ markCommentId: string }>).detail
       if (markCommentId) {
-        const thread = comments.find((c) => c.commentId === markCommentId && !c.parentId)
-        if (thread) {
-          setLocalActive(thread.id)
-          onActiveCommentChange?.(thread.id)
+        // May need to fetch first if comments aren't loaded yet
+        const doActivate = (list: CommentThread[]) => {
+          const thread = list.find((c) => c.commentId === markCommentId && !c.parentId)
+          if (thread) {
+            setLocalActive(thread.id)
+            onActiveCommentChange?.(thread.id)
+            // Highlight + scroll to the mark in the editor
+            document.querySelectorAll('.comment-highlight.comment-active').forEach((el) => el.classList.remove('comment-active'))
+            const els = document.querySelectorAll(`[data-comment-id="${markCommentId}"]`)
+            els.forEach((el) => {
+              el.classList.add('comment-active')
+              void (el as HTMLElement).offsetWidth
+            })
+            if (els[0]) els[0].scrollIntoView({ behavior: 'smooth', block: 'center' })
+          }
+        }
+        if (comments.length > 0) {
+          doActivate(comments)
+        } else {
+          // Comments not loaded yet — fetch first, then activate
+          fetch(`/api/notes/${noteId}/comments`).then((r) => r.ok ? r.json() : []).then((data: CommentThread[]) => {
+            setComments(data)
+            setTimeout(() => doActivate(data), 50)
+          }).catch(() => {})
         }
       }
     }
     window.addEventListener('barrapad:comment-activate-mark', handler)
     return () => window.removeEventListener('barrapad:comment-activate-mark', handler)
-  }, [comments, onActiveCommentChange])
+  }, [comments, noteId, onActiveCommentChange])
 
   // Fetch comments
   const fetchComments = useCallback(async () => {
@@ -567,6 +587,8 @@ export default function CommentSidebar({
         editor.commands.unsetCommentMark(pendingMarkId)
       }
       setPendingMarkId(null)
+      // Remove active highlight from editor
+      document.querySelectorAll('.comment-highlight.comment-active').forEach((el) => el.classList.remove('comment-active'))
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, fetchComments])
@@ -601,15 +623,28 @@ export default function CommentSidebar({
     setLocalActive(newActive)
     onActiveCommentChange?.(newActive)
 
-    // Scroll to the highlight in the editor
-    if (newActive && editor) {
-      const thread = rootComments.find((c) => c.id === commentId)
-      if (thread?.commentId) {
-        const el = document.querySelector(`[data-comment-id="${thread.commentId}"]`)
-        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      }
-    }
+    // Scroll to the highlight in the editor + flash it
+    highlightMarkInEditor(newActive ? commentId : null)
   }
+
+  /** Add comment-active class to the corresponding mark elements, scroll into view */
+  const highlightMarkInEditor = useCallback((threadId: string | null) => {
+    // Remove any existing active highlights
+    document.querySelectorAll('.comment-highlight.comment-active').forEach((el) => {
+      el.classList.remove('comment-active')
+    })
+    if (!threadId) return
+    const thread = comments.find((c) => c.id === threadId && !c.parentId)
+    if (!thread?.commentId) return
+    const els = document.querySelectorAll(`[data-comment-id="${thread.commentId}"]`)
+    els.forEach((el) => {
+      el.classList.add('comment-active')
+      // Re-trigger animation by forcing reflow
+      void (el as HTMLElement).offsetWidth
+    })
+    const first = els[0]
+    if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [comments])
 
   const handleNewComment = async (text: string, mentionIds: string[] = []) => {
     if (!pendingMarkId || !noteId) return

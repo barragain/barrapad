@@ -1005,6 +1005,21 @@ export default function AppShell() {
                   )
                   fetch(`/api/notifications/${n.id}`, { method: 'PATCH' }).catch(() => {})
                 }
+                // If it's a comment notification, open the sidebar and highlight the thread
+                if (n.type === 'comment' || n.type === 'comment_reply' || n.type === 'comment_mention' || n.type === 'comment_resolved') {
+                  const meta = (n.metadata ?? {}) as Record<string, unknown>
+                  // Small delay to let the note switch complete first
+                  setTimeout(() => {
+                    window.dispatchEvent(new Event('barrapad:toggle-comments'))
+                    if (meta.markCommentId) {
+                      setTimeout(() => {
+                        window.dispatchEvent(new CustomEvent('barrapad:comment-activate-mark', {
+                          detail: { markCommentId: meta.markCommentId },
+                        }))
+                      }, 300)
+                    }
+                  }, 200)
+                }
               }}
             />
           )}

@@ -93,49 +93,47 @@ export async function POST(
   // Determine the note title for notifications
   const noteTitle = note.title || 'a note'
 
-  // Notify mentioned users
-  if (body.mentions && body.mentions.length > 0) {
-    for (const mentionedId of body.mentions) {
-      if (mentionedId === userId) continue
+  // Collect all mentioned userIds so we never double-notify them
+  const mentionedSet = new Set(body.mentions ?? [])
+  mentionedSet.delete(userId) // never notify yourself
+
+  // Notify mentioned users — this is the ONLY notification they get
+  for (const mentionedId of mentionedSet) {
+    await pushNotification({
+      userId: mentionedId,
+      type: 'comment_mention',
+      noteId,
+      noteTitle,
+      message: `${userName} mentioned you in a comment on "${noteTitle}"`,
+      fromUserId: userId,
+      fromName: userName,
+      fromAvatar: userAvatar,
+      metadata: { commentId: comment.id, markCommentId: comment.commentId },
+    })
+  }
+
+  // Notify non-mentioned users about the comment
+  if (body.parentId) {
+    // Reply — notify the root comment author (if not already mentioned)
+    const rootComment = await prisma.comment.findUnique({ where: { id: body.parentId } })
+    if (rootComment && rootComment.userId !== userId && !mentionedSet.has(rootComment.userId)) {
       await pushNotification({
-        userId: mentionedId,
-        type: 'comment_mention',
+        userId: rootComment.userId,
+        type: 'comment_reply',
         noteId,
         noteTitle,
-        message: `${userName} mentioned you in a comment on "${noteTitle}"`,
+        message: `${userName} replied to your comment on "${noteTitle}"`,
         fromUserId: userId,
         fromName: userName,
         fromAvatar: userAvatar,
-        metadata: { commentId: comment.id },
+        metadata: { commentId: comment.id, markCommentId: rootComment.commentId },
       })
     }
-  }
-
-  // Notify about the comment itself
-  if (body.parentId) {
-    // Reply — notify the root comment author
-    const rootComment = await prisma.comment.findUnique({ where: { id: body.parentId } })
-    if (rootComment && rootComment.userId !== userId) {
-      const alreadyMentioned = body.mentions?.includes(rootComment.userId)
-      if (!alreadyMentioned) {
-        await pushNotification({
-          userId: rootComment.userId,
-          type: 'comment_reply',
-          noteId,
-          noteTitle,
-          message: `${userName} replied to your comment on "${noteTitle}"`,
-          fromUserId: userId,
-          fromName: userName,
-          fromAvatar: userAvatar,
-          metadata: { commentId: comment.id },
-        })
-      }
-    }
   } else {
-    // Root comment — notify note owner + all collaborators (except commenter and mentioned)
+    // Root comment — notify note owner + collaborators (skip commenter + mentioned)
     const collaborators = await prisma.noteCollaborator.findMany({ where: { noteId } })
     const notifyIds = [note.userId, ...collaborators.map((c) => c.userId)]
-      .filter((id) => id !== userId && !body.mentions?.includes(id))
+      .filter((id) => id !== userId && !mentionedSet.has(id))
     const uniqueIds = [...new Set(notifyIds)]
 
     for (const targetId of uniqueIds) {
@@ -148,7 +146,7 @@ export async function POST(
         fromUserId: userId,
         fromName: userName,
         fromAvatar: userAvatar,
-        metadata: { commentId: comment.id },
+        metadata: { commentId: comment.id, markCommentId: comment.commentId },
       })
     }
   }

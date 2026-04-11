@@ -24,6 +24,16 @@
   background: transparent;
   border-bottom: none;
 }
+.comment-highlight.comment-active {
+  background: rgba(212, 85, 10, 0.25);
+  border-bottom-color: #D4550A;
+  animation: comment-pulse 1.5s ease-in-out;
+}
+@keyframes comment-pulse {
+  0% { background: rgba(212, 85, 10, 0.50); }
+  50% { background: rgba(212, 85, 10, 0.15); }
+  100% { background: rgba(212, 85, 10, 0.25); }
+}
 
 @theme {
   --color-sidebar: #F5F2ED;
