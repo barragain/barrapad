@@ -12,6 +12,7 @@ import {
   X,
 } from 'lucide-react'
 import type { Editor } from '@tiptap/react'
+import type { MentionableUser } from '@/types'
 
 export interface CommentThread {
   id: string
@@ -82,66 +83,212 @@ function Avatar({ src, name, size = 28 }: { src?: string; name: string; size?: n
 function CommentInput({
   placeholder,
   onSubmit,
+  onMentionSelect,
+  noteId,
   autoFocus,
 }: {
   placeholder: string
-  onSubmit: (text: string) => void
+  onSubmit: (text: string, mentionIds: string[]) => void
+  onMentionSelect?: (user: MentionableUser) => void
+  noteId?: string
   autoFocus?: boolean
 }) {
   const [text, setText] = useState('')
+  const [mentionIds, setMentionIds] = useState<string[]>([])
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null)
+  const [mentionResults, setMentionResults] = useState<MentionableUser[]>([])
+  const [mentionIndex, setMentionIndex] = useState(0)
   const ref = useRef<HTMLTextAreaElement>(null)
+  const fetchRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
-    if (autoFocus) ref.current?.focus()
+    if (autoFocus) setTimeout(() => ref.current?.focus(), 50)
   }, [autoFocus])
+
+  // Fetch mention suggestions
+  useEffect(() => {
+    if (mentionQuery === null) { setMentionResults([]); return }
+    fetchRef.current?.abort()
+    const ctrl = new AbortController()
+    fetchRef.current = ctrl
+
+    const doFetch = async () => {
+      try {
+        let url: string
+        if (!mentionQuery && noteId) {
+          url = `/api/notes/${noteId}/collaborators`
+        } else if (mentionQuery) {
+          url = `/api/users/search?q=${encodeURIComponent(mentionQuery)}`
+        } else {
+          setMentionResults([]); return
+        }
+        const res = await fetch(url, { signal: ctrl.signal })
+        if (!res.ok) return
+        const data = await res.json()
+        // Collaborators endpoint returns different shape
+        if (!mentionQuery && noteId) {
+          setMentionResults((data as Array<{ userId: string; username: string; displayName: string; avatarUrl: string }>).map((c) => ({
+            id: c.userId, username: c.username,
+            displayName: c.displayName || c.username || 'Unknown',
+            imageUrl: c.avatarUrl, email: '',
+          })))
+        } else {
+          setMentionResults(data as MentionableUser[])
+        }
+        setMentionIndex(0)
+      } catch {}
+    }
+    doFetch()
+    return () => ctrl.abort()
+  }, [mentionQuery, noteId])
+
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value
+    setText(val)
+
+    // Detect @mention trigger
+    const pos = e.target.selectionStart
+    const before = val.slice(0, pos)
+    const match = before.match(/@(\w*)$/)
+    if (match) {
+      setMentionQuery(match[1])
+    } else {
+      setMentionQuery(null)
+    }
+  }
+
+  const insertMention = (user: MentionableUser) => {
+    const pos = ref.current?.selectionStart ?? text.length
+    const before = text.slice(0, pos)
+    const after = text.slice(pos)
+    const match = before.match(/@(\w*)$/)
+    if (match) {
+      const newBefore = before.slice(0, match.index) + `@${user.displayName} `
+      setText(newBefore + after)
+      setMentionIds((prev) => [...prev, user.id])
+      onMentionSelect?.(user)
+    }
+    setMentionQuery(null)
+    ref.current?.focus()
+  }
 
   const handleSubmit = () => {
     if (!text.trim()) return
-    onSubmit(text.trim())
+    onSubmit(text.trim(), mentionIds)
     setText('')
+    setMentionIds([])
+    setMentionQuery(null)
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (mentionQuery !== null && mentionResults.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        setMentionIndex((i) => (i + 1) % mentionResults.length)
+        return
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        setMentionIndex((i) => (i + mentionResults.length - 1) % mentionResults.length)
+        return
+      }
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault()
+        insertMention(mentionResults[mentionIndex])
+        return
+      }
+      if (e.key === 'Escape') {
+        setMentionQuery(null)
+        return
+      }
+    }
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleSubmit()
+    }
   }
 
   return (
-    <div style={{ display: 'flex', gap: 6, alignItems: 'flex-end' }}>
-      <textarea
-        ref={ref}
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault()
-            handleSubmit()
-          }
-        }}
-        placeholder={placeholder}
-        rows={1}
-        style={{
-          flex: 1, resize: 'none', border: '1px solid var(--border)',
-          borderRadius: 8, padding: '8px 10px', fontSize: 12,
-          background: 'var(--editor-bg)', color: 'var(--ink)',
-          fontFamily: 'inherit', lineHeight: 1.4,
-          outline: 'none', minHeight: 34, maxHeight: 120,
-        }}
-        onInput={(e) => {
-          const el = e.currentTarget
-          el.style.height = 'auto'
-          el.style.height = Math.min(el.scrollHeight, 120) + 'px'
-        }}
-      />
-      <button
-        onClick={handleSubmit}
-        disabled={!text.trim()}
-        style={{
-          width: 32, height: 32, borderRadius: 8, border: 'none',
-          background: text.trim() ? '#D4550A' : 'var(--border)',
-          color: text.trim() ? '#fff' : 'var(--muted)',
-          cursor: text.trim() ? 'pointer' : 'default',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          flexShrink: 0, transition: 'background 150ms ease',
-        }}
-      >
-        <Send size={14} />
-      </button>
+    <div style={{ position: 'relative' }}>
+      {/* Mention dropdown */}
+      {mentionQuery !== null && mentionResults.length > 0 && (
+        <div style={{
+          position: 'absolute', bottom: '100%', left: 0, right: 0,
+          marginBottom: 4, background: 'var(--editor-bg)',
+          border: '1px solid var(--border)', borderRadius: 10,
+          boxShadow: '0 4px 16px rgba(0,0,0,0.10)',
+          maxHeight: 180, overflowY: 'auto', zIndex: 50,
+        }}>
+          {mentionResults.map((user, i) => (
+            <button
+              key={user.id}
+              onClick={() => insertMention(user)}
+              onMouseEnter={() => setMentionIndex(i)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                width: '100%', padding: '7px 10px', border: 'none',
+                background: i === mentionIndex ? 'rgba(212,85,10,0.08)' : 'transparent',
+                cursor: 'pointer', textAlign: 'left', fontSize: 12,
+              }}
+            >
+              {user.imageUrl ? (
+                <img src={user.imageUrl} alt="" style={{ width: 22, height: 22, borderRadius: '50%', objectFit: 'cover' }} />
+              ) : (
+                <div style={{
+                  width: 22, height: 22, borderRadius: '50%', background: '#D4550A',
+                  color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 10, fontWeight: 600,
+                }}>
+                  {user.displayName.charAt(0).toUpperCase()}
+                </div>
+              )}
+              <div>
+                <div style={{ fontWeight: 600, color: 'var(--ink)', fontSize: 12 }}>{user.displayName}</div>
+                {user.username && (
+                  <div style={{ fontSize: 10, color: 'var(--muted)' }}>@{user.username}</div>
+                )}
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 6, alignItems: 'flex-end' }}>
+        <textarea
+          ref={ref}
+          value={text}
+          onChange={handleChange}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder}
+          rows={1}
+          style={{
+            flex: 1, resize: 'none', border: '1px solid var(--border)',
+            borderRadius: 8, padding: '8px 10px', fontSize: 12,
+            background: 'var(--editor-bg)', color: 'var(--ink)',
+            fontFamily: 'inherit', lineHeight: 1.4,
+            outline: 'none', minHeight: 34, maxHeight: 120,
+          }}
+          onInput={(e) => {
+            const el = e.currentTarget
+            el.style.height = 'auto'
+            el.style.height = Math.min(el.scrollHeight, 120) + 'px'
+          }}
+        />
+        <button
+          onClick={handleSubmit}
+          disabled={!text.trim()}
+          style={{
+            width: 32, height: 32, borderRadius: 8, border: 'none',
+            background: text.trim() ? '#D4550A' : 'var(--border)',
+            color: text.trim() ? '#fff' : 'var(--muted)',
+            cursor: text.trim() ? 'pointer' : 'default',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexShrink: 0, transition: 'background 150ms ease',
+          }}
+        >
+          <Send size={14} />
+        </button>
+      </div>
     </div>
   )
 }
@@ -163,7 +310,7 @@ function ThreadCard({
   currentUserId: string
   noteOwnerId: string
   onClick: () => void
-  onReply: (text: string) => void
+  onReply: (text: string, mentionIds?: string[]) => void
   onResolve: (resolved: boolean) => void
   onDelete: (commentId: string) => void
 }) {
@@ -262,8 +409,9 @@ function ThreadCard({
             <>
               {showReply ? (
                 <CommentInput
-                  placeholder="Reply... (use @mention)"
-                  onSubmit={(text) => { onReply(text); setShowReply(false) }}
+                  placeholder="Reply... (type @ to mention)"
+                  noteId={thread.noteId}
+                  onSubmit={(text, mentions) => { onReply(text, mentions); setShowReply(false) }}
                   autoFocus
                 />
               ) : (
@@ -412,7 +560,15 @@ export default function CommentSidebar({
       fetchComments()
       fetchedRef.current = true
     }
-    if (!open) fetchedRef.current = false
+    if (!open) {
+      fetchedRef.current = false
+      // Clean up orphaned marks when sidebar closes with an unsaved pending comment
+      if (pendingMarkId && editor) {
+        editor.commands.unsetCommentMark(pendingMarkId)
+      }
+      setPendingMarkId(null)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, fetchComments])
 
   // Listen for real-time comment events
@@ -455,20 +611,21 @@ export default function CommentSidebar({
     }
   }
 
-  const handleNewComment = async (text: string) => {
+  const handleNewComment = async (text: string, mentionIds: string[] = []) => {
     if (!pendingMarkId || !noteId) return
+    const markId = pendingMarkId
+    setPendingMarkId(null)
     const res = await fetch(`/api/notes/${noteId}/comments`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: text, commentId: pendingMarkId }),
+      body: JSON.stringify({ content: text, commentId: markId, mentions: mentionIds }),
     })
-    setPendingMarkId(null)
     if (res.ok) {
       fetchComments()
       window.dispatchEvent(new CustomEvent('barrapad:comment-broadcast', { detail: { noteId } }))
     } else {
       // Remove the mark if the comment failed to save
-      if (editor) editor.commands.unsetCommentMark(pendingMarkId)
+      if (editor) editor.commands.unsetCommentMark(markId)
     }
   }
 
@@ -478,17 +635,13 @@ export default function CommentSidebar({
     setPendingMarkId(null)
   }
 
-  const handleReply = async (parentId: string, text: string) => {
-    // Extract @mentions from text
-    const mentionMatches = text.match(/@(\w+)/g) ?? []
-    // For now just send the text — mentions are best-effort
+  const handleReply = async (parentId: string, text: string, mentionIds: string[] = []) => {
     await fetch(`/api/notes/${noteId}/comments`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: text, parentId }),
+      body: JSON.stringify({ content: text, parentId, mentions: mentionIds }),
     })
     fetchComments()
-    // Broadcast to other clients
     window.dispatchEvent(new CustomEvent('barrapad:comment-broadcast', { detail: { noteId } }))
   }
 
@@ -605,7 +758,8 @@ export default function CommentSidebar({
             New comment
           </div>
           <CommentInput
-            placeholder="Write a comment..."
+            placeholder="Write a comment... (type @ to mention)"
+            noteId={noteId}
             onSubmit={handleNewComment}
             autoFocus
           />
@@ -651,7 +805,7 @@ export default function CommentSidebar({
                   currentUserId={user?.id ?? ''}
                   noteOwnerId={noteOwnerId}
                   onClick={() => handleClickThread(thread.id)}
-                  onReply={(text) => handleReply(thread.id, text)}
+                  onReply={(text, mentions) => handleReply(thread.id, text, mentions)}
                   onResolve={(resolved) => handleResolve(thread.id, resolved)}
                   onDelete={handleDelete}
                 />
