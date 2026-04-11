@@ -545,18 +545,23 @@ export default function CommentSidebar({
 
   return (
     <motion.div
-      initial={{ width: 0, opacity: 0 }}
-      animate={{ width: 320, opacity: 1 }}
-      exit={{ width: 0, opacity: 0 }}
-      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+      initial={{ x: 20, opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
+      exit={{ x: 20, opacity: 0 }}
+      transition={{ type: 'spring', stiffness: 500, damping: 32 }}
       style={{
+        position: 'absolute',
+        top: 0,
+        right: 0,
+        width: 320,
         height: '100%',
         borderLeft: '1px solid var(--border)',
         background: 'var(--sidebar-bg)',
+        boxShadow: '-4px 0 16px rgba(0,0,0,0.06)',
         overflow: 'hidden',
-        flexShrink: 0,
         display: 'flex',
         flexDirection: 'column',
+        zIndex: 30,
       }}
     >
       {/* Header */}

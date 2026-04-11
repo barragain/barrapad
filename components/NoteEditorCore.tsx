@@ -680,11 +680,11 @@ export default function NoteEditorCore({
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
+    <div style={{ position: 'relative', height: '100%', overflow: 'hidden' }}>
     <div
       ref={editorAreaRef}
       className={`flex flex-col h-full overflow-hidden${className ? ` ${className}` : ''}`}
-      style={{ background: 'var(--editor-bg)', flex: 1, minWidth: 0, ...rootStyle }}
+      style={{ background: 'var(--editor-bg)', ...rootStyle }}
     >
       {/* Toolbar — always in flow to prevent layout shift; fades in/out */}
       {editor && editable && (
