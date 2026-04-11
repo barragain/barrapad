@@ -198,12 +198,14 @@ function ResizableImageView({ node, updateAttributes, selected, editor, getPos }
 
   // Apply alignment margins on the OUTER TipTap wrapper (the one with fit-content).
   // Margins on the inner NodeViewWrapper don't work because it fills its parent.
+  // No dependency array — must run on every render because drag/drop recreates
+  // the parent element without changing `align`, so [align]-only would miss it.
   useEffect(() => {
     const outer = wrapperRef.current?.parentElement
     if (!outer) return
     outer.style.marginLeft = align === 'right' || align === 'center' ? 'auto' : ''
     outer.style.marginRight = align === 'center' ? 'auto' : ''
-  }, [align])
+  })
 
   const showHandle = selected || hovered || resizing
   const isFullWidth = !width && align === 'center'

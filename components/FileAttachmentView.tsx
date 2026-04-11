@@ -242,12 +242,14 @@ export default function FileAttachmentView({ node, updateAttributes, selected }:
   const wrapperRef = useRef<HTMLDivElement>(null)
 
   // Apply alignment margins on the OUTER TipTap wrapper (the one with fit-content).
+  // No dependency array — must run on every render because drag/drop recreates
+  // the parent element without changing `align`, so [align]-only would miss it.
   useEffect(() => {
     const outer = wrapperRef.current?.parentElement
     if (!outer) return
     outer.style.marginLeft = align === 'right' || align === 'center' ? 'auto' : ''
     outer.style.marginRight = align === 'center' ? 'auto' : ''
-  }, [align])
+  })
 
   // Custom drag ghost + drag animations
   useEffect(() => {

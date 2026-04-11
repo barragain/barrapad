@@ -183,6 +183,10 @@ body {
   flex: 0 0 auto;
   margin-top: 0.1em;
 }
+.ProseMirror ul[data-type="taskList"] li[data-checked="true"] > div {
+  text-decoration: line-through;
+  opacity: 0.5;
+}
 
 .ProseMirror code {
   background: rgba(0,0,0,0.06);
