@@ -100,6 +100,9 @@ export default function AppShell() {
   // Lazy init from cache — renders instantly, no loading state needed
   const [notes, setNotes] = useState<Note[]>(() => loadCachedNotes())
   const [activeNoteId, setActiveNoteId] = useState<string | null>(() => loadCachedNotes()[0]?.id ?? null)
+  // Incremented every time fetchNotes applies newer server content — lets the
+  // Editor know it should re-check its content against the latest note.content.
+  const [serverFetchVersion, setServerFetchVersion] = useState(0)
   const [sharedNotes, setSharedNotes] = useState<SharedAccessRecord[]>([])
   const [showShare, setShowShare] = useState(false)
   const [showAppearance, setShowAppearance] = useState(false)
@@ -376,10 +379,25 @@ export default function AppShell() {
         setNotes(prev => {
           // Preserve open virtual shared-notes alongside the fresh owned notes
           const virtual = prev.filter(n => n.sharedToken)
-          const next = [...ownedData, ...virtual]
+          // Smart merge: only replace a local note with the server version when
+          // the server's updatedAt is >= the local one. This prevents fetchNotes
+          // from overwriting unsaved local edits or content that was synced via
+          // PartyKit but hasn't been auto-saved to the database yet.
+          const merged = ownedData.map(serverNote => {
+            const localNote = prev.find(n => n.id === serverNote.id)
+            if (localNote && !localNote.sharedToken) {
+              const localTime = new Date(localNote.updatedAt).getTime()
+              const serverTime = new Date(serverNote.updatedAt).getTime()
+              if (localTime > serverTime) return localNote // keep locally-newer content
+            }
+            return serverNote
+          })
+          const next = [...merged, ...virtual]
           saveCachedNotes(next)
           return next
         })
+        // Signal Editor to re-check its content against the latest server data
+        setServerFetchVersion(v => v + 1)
         setActiveNoteId((prev) => {
           if (prev && (prev.startsWith('shared-') || ownedData.some((n) => n.id === prev))) return prev
           return ownedData[0]?.id ?? null
@@ -1077,6 +1095,7 @@ export default function AppShell() {
             <EditorWrapper
               note={activeNote}
               allTags={allTags}
+              serverFetchVersion={serverFetchVersion}
               onLocalChange={handleLocalChange}
               onAutoSave={handleAutoSave}
               onManualSave={handleManualSaveContent}

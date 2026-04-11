@@ -22,7 +22,9 @@ export async function GET() {
     tags: parseTags(n.tags),
     isShared: n._count.shareLinks > 0,
     _count: undefined,
-  })))
+  })), {
+    headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' },
+  })
 }
 
 export async function POST() {

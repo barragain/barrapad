@@ -47,7 +47,9 @@ export async function GET(
   const note = await prisma.note.findUnique({ where: { id: params.id } })
   if (!note || note.userId !== userId) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  return NextResponse.json({ id: note.id })
+  return NextResponse.json({ id: note.id }, {
+    headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' },
+  })
 }
 
 export async function PATCH(

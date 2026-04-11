@@ -65,7 +65,9 @@ export async function GET() {
     ...collabRecords,
   ]
 
-  return NextResponse.json(result)
+  return NextResponse.json(result, {
+    headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' },
+  })
 }
 
 export async function DELETE(req: NextRequest) {

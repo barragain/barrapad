@@ -8,6 +8,7 @@ const Editor = dynamic(() => import('./Editor'), { ssr: false })
 interface EditorWrapperProps {
   note: Note
   allTags: Tag[]
+  serverFetchVersion: number
   onLocalChange: (title: string, content: string) => void
   onAutoSave: (title: string, content: string) => void
   onManualSave: (title: string, content: string) => void

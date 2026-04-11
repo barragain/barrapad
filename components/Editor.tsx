@@ -22,6 +22,8 @@ function formatDate(dateStr: string) {
 interface EditorProps {
   note: Note
   allTags: Tag[]
+  /** Incremented when fetchNotes returns newer content from the server */
+  serverFetchVersion: number
   /** Called immediately on every change — updates localStorage only, no API */
   onLocalChange: (title: string, content: string) => void
   /** Called after 1s idle, blur, or tab switch — syncs to API */
@@ -38,6 +40,7 @@ interface EditorProps {
 export default function EditorComponent({
   note,
   allTags,
+  serverFetchVersion,
   onLocalChange,
   onAutoSave,
   onManualSave,
@@ -69,8 +72,10 @@ export default function EditorComponent({
 
   const onLocalChangeRef = useRef(onLocalChange)
   const onTagsChangeRef = useRef(onTagsChange)
+  const onAutoSaveRef = useRef(onAutoSave)
   useEffect(() => { onLocalChangeRef.current = onLocalChange }, [onLocalChange])
   useEffect(() => { onTagsChangeRef.current = onTagsChange }, [onTagsChange])
+  useEffect(() => { onAutoSaveRef.current = onAutoSave }, [onAutoSave])
 
   // Track the note's "real" title from state so the PartyKit broadcast uses it
   // instead of the content-derived title (which ignores manual renames).
@@ -232,6 +237,33 @@ export default function EditorComponent({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [note.id])
 
+  // ── Server content refresh ───────────────────────────────────────────────
+  // When fetchNotes returns newer content from the database, the notes state
+  // updates but the Editor keeps showing stale content (the note-switching
+  // effect above only fires on note.id changes). This effect bridges that
+  // gap: when serverFetchVersion increments, re-check the editor content
+  // against the authoritative note.content and update if they diverge.
+  useEffect(() => {
+    if (serverFetchVersion === 0) return  // skip initial render
+    const ed = editorRef.current
+    if (!ed || !editorReady) return
+    // If the user has been typing since the note was opened, their local
+    // edits take priority — the auto-save will push them to the server.
+    if (lastLocalChangeTimeRef.current > 0) return
+    // If we're waiting for the initial PartyKit sync, don't interfere
+    if (pendingSyncRef.current) return
+    const currentHtml = ed.getHTML()
+    if (note.content && currentHtml !== note.content) {
+      const { from, to } = ed.state.selection
+      ed.commands.setContent(note.content, { emitUpdate: false })
+      const maxPos = ed.state.doc.content.size
+      try {
+        ed.commands.setTextSelection({ from: Math.min(from, maxPos), to: Math.min(to, maxPos) })
+      } catch { /* position no longer valid */ }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serverFetchVersion, editorReady])
+
   // ── PartyKit ──────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!editorReady || note.id.startsWith('temp-')) return
@@ -246,6 +278,7 @@ export default function EditorComponent({
         content?: string
         contentJson?: Record<string, unknown>
         title?: string
+        updatedAt?: string
         tags?: Tag[]
         cursors?: RemoteCursor[]
         id?: string; from?: number; to?: number; name?: string; color?: string; ts?: number
@@ -277,6 +310,20 @@ export default function EditorComponent({
                   detail: { id: note.id, title: msg.title },
                 }))
               }
+              // Persist PartyKit room content to the database — covers edge cases
+              // where the room has content that was never saved (e.g. failed
+              // beforeunload XHR, or content received from another client after
+              // the database was last saved). Uses onAutoSaveRef to avoid stale
+              // closures since this runs inside the long-lived PartyKit effect.
+              const syncTitle = msg.title || noteTitleRef.current || ''
+              pendingRef.current = { title: syncTitle, html: msg.content! }
+              if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
+              autoSaveTimerRef.current = setTimeout(() => {
+                if (!pendingRef.current) return
+                const { title: t, html: h } = pendingRef.current
+                pendingRef.current = null
+                onAutoSaveRef.current(t, h)
+              }, 2_000)
             } else {
               // For regular updates: only sync the content, keep local title
               const localTitle = noteTitleRef.current || ''

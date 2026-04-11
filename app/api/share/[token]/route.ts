@@ -74,6 +74,8 @@ export async function GET(
       tags: parseTags(access.note.tags),
       permission: access.permission,
       updatedAt: access.note.updatedAt,
+    }, {
+      headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' },
     })
   }
 
@@ -87,6 +89,8 @@ export async function GET(
     tags: parseTags(link.note.tags),
     permission: link.permission,
     updatedAt: link.note.updatedAt,
+  }, {
+    headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' },
   })
 }
 
