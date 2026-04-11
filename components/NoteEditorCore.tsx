@@ -25,7 +25,10 @@ import { ResizableImage } from '@/extensions/resizable-image'
 import { Footnote } from '@/extensions/footnote'
 import { Poll } from '@/extensions/poll'
 import { CollabCursor } from '@/extensions/collab-cursor'
+import { CommentMark } from '@/extensions/comment-mark'
 import Toolbar from './Toolbar'
+import CommentSidebar from './CommentSidebar'
+import type { CommentThread } from './CommentSidebar'
 import LinkPopover from './LinkPopover'
 import ContextMenu from './ContextMenu'
 import type { ContextMenuItem } from './ContextMenu'
@@ -55,6 +58,7 @@ import {
   BarChart2,
   Tag as TagIcon,
   Wand2,
+  MessageSquare,
 } from 'lucide-react'
 import { isCorrectSync, suggestSync, ensureLoaded } from '@/utils/spellcheck'
 import { SpellCheck, SPELL_KEY } from '@/extensions/spell-check'
@@ -108,6 +112,9 @@ export interface NoteEditorCoreProps {
   /** Callback when a #note mention is clicked */
   onNoteMentionClick?: (noteId: string) => void
 
+  /** Callback when user adds a comment via context menu or keyboard shortcut */
+  onAddComment?: (commentId: string) => void
+
   className?: string
   rootStyle?: React.CSSProperties
 }
@@ -126,6 +133,7 @@ export default function NoteEditorCore({
   noteId,
   onMentionInserted,
   onNoteMentionClick,
+  onAddComment,
   className,
   rootStyle,
 }: NoteEditorCoreProps) {
@@ -152,9 +160,47 @@ export default function NoteEditorCore({
   const contextClickRef = useRef<{ x: number; y: number; editorPos?: number }>({ x: 0, y: 0 })
   const ctxImageRef = useRef<HTMLInputElement>(null)
   const ctxFileRef = useRef<HTMLInputElement>(null)
+  const [commentSidebarOpen, setCommentSidebarOpen] = useState(false)
+  const [activeCommentThreadId, setActiveCommentThreadId] = useState<string | null>(null)
   const [ctxIsRecording, setCtxIsRecording] = useState(false)
   const ctxMediaRecorderRef = useRef<MediaRecorder | null>(null)
   const ctxChunksRef = useRef<BlobPart[]>([])
+
+  // ── Comment highlight click handler ──────────────────────────────────────
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const { commentId: cid } = (e as CustomEvent<{ commentId: string }>).detail
+      if (cid) {
+        setCommentSidebarOpen(true)
+        // Find the thread with this mark commentId and activate it
+        // The sidebar will handle scrolling to the thread
+        window.dispatchEvent(new CustomEvent('barrapad:comment-activate-mark', { detail: { markCommentId: cid } }))
+      }
+    }
+    window.addEventListener('barrapad:comment-click', handler)
+    return () => window.removeEventListener('barrapad:comment-click', handler)
+  }, [])
+
+  // Handle comment creation from context menu
+  const handleAddComment = useCallback((markCommentId: string) => {
+    setCommentSidebarOpen(true)
+    // Dispatch event so the sidebar knows a new comment is being created
+    window.dispatchEvent(new CustomEvent('barrapad:comment-new', { detail: { noteId, markCommentId } }))
+  }, [noteId])
+
+  // Listen for toolbar toggle-comments and comment-new events
+  useEffect(() => {
+    const toggleHandler = () => setCommentSidebarOpen((v) => !v)
+    const newHandler = (e: Event) => {
+      setCommentSidebarOpen(true)
+    }
+    window.addEventListener('barrapad:toggle-comments', toggleHandler)
+    window.addEventListener('barrapad:comment-new', newHandler)
+    return () => {
+      window.removeEventListener('barrapad:toggle-comments', toggleHandler)
+      window.removeEventListener('barrapad:comment-new', newHandler)
+    }
+  }, [])
 
   // ── Spell-check word lookup ───────────────────────────────────────────────
   const getWordAtPos = useCallback((pos: number): { word: string; from: number; to: number } | null => {
@@ -204,6 +250,7 @@ export default function NoteEditorCore({
       SpellCheck,
       UserMention,
       NoteMention,
+      CommentMark,
     ],
     content: initialContent,
     editable,
@@ -508,6 +555,13 @@ export default function NoteEditorCore({
         { type: 'item', label: 'Copy', icon: <Copy size={13} />, onClick: () => { navigator.clipboard.writeText(selectedText); setContextMenu(null) }},
         { type: 'item', label: 'Cut', icon: <Scissors size={13} />, onClick: () => { navigator.clipboard.writeText(selectedText); ed.chain().focus().deleteSelection().run(); setContextMenu(null) }},
         { type: 'separator' },
+        { type: 'item', label: 'Comment', icon: <MessageSquare size={13} />, onClick: () => {
+          setContextMenu(null)
+          const cid = `c-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+          ed.chain().focus().setCommentMark(cid).run()
+          handleAddComment(cid)
+        }},
+        { type: 'separator' },
         addTagItem,
       ]})
       return
@@ -626,10 +680,11 @@ export default function NoteEditorCore({
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
+    <div style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
     <div
       ref={editorAreaRef}
       className={`flex flex-col h-full overflow-hidden${className ? ` ${className}` : ''}`}
-      style={{ background: 'var(--editor-bg)', ...rootStyle }}
+      style={{ background: 'var(--editor-bg)', flex: 1, minWidth: 0, ...rootStyle }}
     >
       {/* Toolbar — always in flow to prevent layout shift; fades in/out */}
       {editor && editable && (
@@ -741,6 +796,15 @@ export default function NoteEditorCore({
             id="barrapad-editor-content"
             style={{ background: 'var(--editor-bg)', borderRadius: 11, WebkitTouchCallout: 'none' } as React.CSSProperties}
             onClick={(e) => {
+              // Click on a comment highlight → open that thread
+              const commentEl = (e.target as HTMLElement).closest('.comment-highlight') as HTMLElement | null
+              if (commentEl) {
+                const cid = commentEl.getAttribute('data-comment-id')
+                if (cid) {
+                  window.dispatchEvent(new CustomEvent('barrapad:comment-click', { detail: { commentId: cid } }))
+                  return
+                }
+              }
               if ((e.target as HTMLElement).closest('[contenteditable="false"]')) return
               editor?.commands.focus()
             }}
@@ -818,6 +882,20 @@ export default function NoteEditorCore({
           )}
         </div>
       </div>
+    </div>
+    {/* Comment sidebar */}
+    <AnimatePresence>
+      {commentSidebarOpen && (
+        <CommentSidebar
+          noteId={noteId ?? ''}
+          editor={editor}
+          open={commentSidebarOpen}
+          onClose={() => setCommentSidebarOpen(false)}
+          activeCommentId={activeCommentThreadId}
+          onActiveCommentChange={setActiveCommentThreadId}
+        />
+      )}
+    </AnimatePresence>
     </div>
   )
 }

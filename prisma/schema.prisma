@@ -18,8 +18,32 @@ model Note {
   shareLinks      ShareLink[]
   collaborators   NoteCollaborator[]
   accessRequests  AccessRequest[]
+  comments        Comment[]
 
   @@index([userId])
+}
+
+model Comment {
+  id          String    @id @default(cuid())
+  noteId      String
+  note        Note      @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  userId      String
+  userName    String    @default("")
+  userAvatar  String    @default("")
+  content     String
+  parentId    String?
+  parent      Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies     Comment[] @relation("CommentReplies")
+  commentId   String    @default("")
+  resolved    Boolean   @default(false)
+  resolvedBy  String?
+  resolvedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([noteId])
+  @@index([parentId])
+  @@index([commentId])
 }
 
 model NoteCollaborator {

@@ -31,7 +31,7 @@ export interface SharedAccessRecord {
 
 export interface CollabNotification {
   id: string
-  type: 'mention' | 'shared' | 'deleted' | 'permission_changed' | 'opened' | 'access_request' | 'access_response'
+  type: 'mention' | 'shared' | 'deleted' | 'permission_changed' | 'opened' | 'access_request' | 'access_response' | 'comment' | 'comment_reply' | 'comment_mention' | 'comment_resolved'
   noteId?: string
   noteTitle: string
   message: string

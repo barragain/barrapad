@@ -274,7 +274,7 @@ export default function EditorComponent({
 
     socket.addEventListener('message', (evt) => {
       type Msg = {
-        type: 'sync' | 'update' | 'presence' | 'cursor' | 'cursor-leave' | 'tags' | 'title' | 'delete'
+        type: 'sync' | 'update' | 'presence' | 'cursor' | 'cursor-leave' | 'tags' | 'title' | 'delete' | 'comment-update'
         content?: string
         contentJson?: Record<string, unknown>
         title?: string
@@ -361,6 +361,13 @@ export default function EditorComponent({
       if (msg.type === 'cursor-leave' && msg.id) {
         remoteCursorsRef.current.delete(msg.id)
         if (ed) setCursors(ed, [...remoteCursorsRef.current.values()])
+      }
+
+      if (msg.type === 'comment-update') {
+        // Another client changed comments — tell the sidebar to refresh
+        window.dispatchEvent(new CustomEvent('barrapad:comment-update', {
+          detail: { noteId: (msg as Record<string, unknown>).noteId ?? note.id },
+        }))
       }
 
       if (msg.type === 'delete') {
@@ -453,6 +460,16 @@ export default function EditorComponent({
       body: JSON.stringify({ mentionedUserId, noteId: realNoteId, noteTitle: title }),
     }).catch(() => {})
   }, [note.id, note.sharedNoteId])
+
+  // ── Comment sync via PartyKit ─────────────────────────────────────────────
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ noteId: string }>).detail
+      socketRef.current?.send(JSON.stringify({ type: 'comment-update', noteId: detail.noteId }))
+    }
+    window.addEventListener('barrapad:comment-broadcast', handler)
+    return () => window.removeEventListener('barrapad:comment-broadcast', handler)
+  }, [])
 
   // ── Tags sync ─────────────────────────────────────────────────────────────
   const handleTagsChangeWithSync = useCallback((tags: Tag[]) => {

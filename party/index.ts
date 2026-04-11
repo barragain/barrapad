@@ -6,6 +6,7 @@ type ClientMessage =
   | { type: 'title'; title: string }
   | { type: 'delete' }
   | { type: 'cursor'; from: number; to: number; name: string; color: string; imageUrl?: string; mx?: number; my?: number }
+  | { type: 'comment-update'; noteId: string }
 
 type CursorState = { id: string; from: number; to: number; name: string; color: string; imageUrl?: string; mx?: number; my?: number }
 
@@ -84,6 +85,10 @@ export default class NoteParty implements Party.Server {
     if (data.type === 'delete') {
       await this.room.storage.put('deleted', true)
       this.room.broadcast(JSON.stringify({ type: 'delete' } satisfies ServerMessage))
+    }
+
+    if (data.type === 'comment-update') {
+      this.room.broadcast(JSON.stringify({ type: 'comment-update', noteId: data.noteId }), [sender.id])
     }
 
     if (data.type === 'cursor') {

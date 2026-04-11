@@ -30,6 +30,7 @@ import {
   SeparatorHorizontal,
   Superscript,
   BarChart2,
+  MessageSquare,
 } from 'lucide-react'
 import TablePicker from './TablePicker'
 import ColorPicker from './ColorPicker'
@@ -720,6 +721,25 @@ export default function Toolbar({ editor }: ToolbarProps) {
           label="Poll"
         >
           <BarChart2 size={iconSize} />
+        </TBtn>
+
+        {/* Comment */}
+        <TBtn
+          onClick={() => {
+            const sel = editor.state.selection
+            if (sel.empty) {
+              // No selection — just toggle the sidebar
+              window.dispatchEvent(new Event('barrapad:toggle-comments'))
+            } else {
+              // Selection — create a comment mark and open sidebar
+              const cid = `c-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+              editor.chain().focus().setCommentMark(cid).run()
+              window.dispatchEvent(new CustomEvent('barrapad:comment-new', { detail: { markCommentId: cid } }))
+            }
+          }}
+          label="Comment"
+        >
+          <MessageSquare size={iconSize} />
         </TBtn>
       </div>
 

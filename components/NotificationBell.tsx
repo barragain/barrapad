@@ -14,6 +14,10 @@ const TYPE_COLOR: Record<string, string> = {
   mention: '#8b5cf6',
   access_request: '#f59e0b',
   access_response: '#22c55e',
+  comment: '#D4550A',
+  comment_reply: '#D4550A',
+  comment_mention: '#8b5cf6',
+  comment_resolved: '#22c55e',
 }
 
 const TYPE_LABEL: Record<string, string> = {
@@ -24,6 +28,10 @@ const TYPE_LABEL: Record<string, string> = {
   mention: 'Mention',
   access_request: 'Access request',
   access_response: 'Access response',
+  comment: 'Comment',
+  comment_reply: 'Reply',
+  comment_mention: 'Mentioned',
+  comment_resolved: 'Resolved',
 }
 
 interface Props {
