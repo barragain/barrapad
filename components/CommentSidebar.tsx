@@ -663,7 +663,7 @@ export default function CommentSidebar({
 
   /** Add comment-active class to the corresponding mark elements, scroll into view */
   const highlightMarkInEditor = useCallback((threadId: string | null) => {
-    // Remove any existing active highlights
+    // Remove all existing active highlights first
     document.querySelectorAll('.comment-highlight.comment-active').forEach((el) => {
       el.classList.remove('comment-active')
     })
@@ -671,13 +671,13 @@ export default function CommentSidebar({
     const thread = comments.find((c) => c.id === threadId && !c.parentId)
     if (!thread?.commentId) return
     const els = document.querySelectorAll(`[data-comment-id="${thread.commentId}"]`)
-    els.forEach((el) => {
-      el.classList.add('comment-active')
-      // Re-trigger animation by forcing reflow
-      void (el as HTMLElement).offsetWidth
+    // Force reflow BEFORE adding class so animation restarts cleanly
+    els.forEach((el) => void (el as HTMLElement).offsetWidth)
+    // Now add the class — animation starts fresh
+    requestAnimationFrame(() => {
+      els.forEach((el) => el.classList.add('comment-active'))
+      if (els[0]) els[0].scrollIntoView({ behavior: 'smooth', block: 'center' })
     })
-    const first = els[0]
-    if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' })
   }, [comments])
 
   const handleNewComment = async (text: string, mentionIds: string[] = []) => {
