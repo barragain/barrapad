@@ -270,7 +270,7 @@ function CommentInput({
             borderRadius: 8, padding: '8px 10px', fontSize: 12,
             background: 'var(--editor-bg)', color: 'var(--ink)',
             fontFamily: 'inherit', lineHeight: 1.4,
-            outline: 'none', minHeight: 34, maxHeight: 120,
+            outline: 'none', minHeight: 44, maxHeight: 120,
           }}
           onInput={(e) => {
             const el = e.currentTarget

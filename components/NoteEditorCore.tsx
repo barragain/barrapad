@@ -879,42 +879,49 @@ export default function NoteEditorCore({
           )}
 
           {/* Floating comment bubble on text selection */}
-          {commentBubble && (
-            <button
-              onMouseDown={(e) => {
-                e.preventDefault()  // keep editor selection
-                const ed = editorRef.current
-                if (!ed) return
-                const cid = `c-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
-                ed.chain().focus().setCommentMark(cid).run()
-                handleAddComment(cid)
-                setCommentBubble(null)
-              }}
-              style={{
-                position: 'fixed',
-                left: commentBubble.x,
-                top: commentBubble.y,
-                transform: 'translateX(-50%)',
-                zIndex: 40,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 4,
-                padding: '4px 10px',
-                borderRadius: 8,
-                border: '1px solid var(--border)',
-                background: 'var(--editor-bg)',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
-                color: '#D4550A',
-                fontSize: 11,
-                fontWeight: 600,
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              <MessageSquare size={13} />
-              Comment
-            </button>
-          )}
+          <AnimatePresence>
+            {commentBubble && (
+              <motion.button
+                key="comment-bubble"
+                initial={{ opacity: 0, y: 6, scale: 0.9 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 4, scale: 0.95 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 28, mass: 0.5 }}
+                onMouseDown={(e) => {
+                  e.preventDefault()  // keep editor selection
+                  const ed = editorRef.current
+                  if (!ed) return
+                  const cid = `c-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+                  ed.chain().focus().setCommentMark(cid).run()
+                  handleAddComment(cid)
+                  setCommentBubble(null)
+                }}
+                style={{
+                  position: 'fixed',
+                  left: commentBubble.x,
+                  top: commentBubble.y,
+                  transform: 'translateX(-50%)',
+                  zIndex: 40,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  padding: '4px 10px',
+                  borderRadius: 8,
+                  border: '1px solid var(--border)',
+                  background: 'var(--editor-bg)',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+                  color: '#D4550A',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <MessageSquare size={13} />
+                Comment
+              </motion.button>
+            )}
+          </AnimatePresence>
 
           {/* Mention profile hover card */}
           <MentionProfilePopover />
