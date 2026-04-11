@@ -729,14 +729,7 @@ export default function Toolbar({ editor }: ToolbarProps) {
         {/* Comment */}
         <button
           onClick={() => {
-            const sel = editor.state.selection
-            if (sel.empty) {
-              window.dispatchEvent(new Event('barrapad:toggle-comments'))
-            } else {
-              const cid = `c-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
-              editor.chain().focus().setCommentMark(cid).run()
-              window.dispatchEvent(new CustomEvent('barrapad:comment-new', { detail: { markCommentId: cid } }))
-            }
+            window.dispatchEvent(new Event('barrapad:toggle-comments'))
           }}
           className="flex items-center gap-1 rounded-lg"
           style={{
@@ -753,10 +746,10 @@ export default function Toolbar({ editor }: ToolbarProps) {
           onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(212, 85, 10, 0.08)' }}
           onMouseDown={(e) => { e.preventDefault(); (e.currentTarget as HTMLElement).style.transform = 'scale(0.95)' }}
           onMouseUp={(e) => { (e.currentTarget as HTMLElement).style.transform = 'scale(1)' }}
-          title="Comment"
+          title="Comments"
         >
           <MessageSquare size={isMobile ? 14 : 13} />
-          {!isMobile && <span>Comment</span>}
+          {!isMobile && <span>Comments</span>}
         </button>
       </div>
 

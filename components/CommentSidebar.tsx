@@ -39,6 +39,10 @@ interface CommentSidebarProps {
   /** Active comment mark ID (clicked highlight) */
   activeCommentId?: string | null
   onActiveCommentChange?: (commentId: string | null) => void
+  /** Mark ID for a newly created comment that needs input */
+  pendingMarkId?: string | null
+  /** Called when the pending mark is consumed (submitted or cancelled) */
+  onPendingMarkConsumed?: () => void
 }
 
 function timeAgo(dateStr: string): string {
@@ -497,26 +501,18 @@ export default function CommentSidebar({
   onClose,
   activeCommentId,
   onActiveCommentChange,
+  pendingMarkId: pendingMarkIdProp,
+  onPendingMarkConsumed,
 }: CommentSidebarProps) {
   const { user } = useUser()
   const [comments, setComments] = useState<CommentThread[]>([])
   const [showResolved, setShowResolved] = useState(false)
   const [localActive, setLocalActive] = useState<string | null>(null)
   const [noteOwnerId, setNoteOwnerId] = useState('')
-  const [pendingMarkId, setPendingMarkId] = useState<string | null>(null)
-  const fetchedRef = useRef(false)
+  // Use prop as the source of truth for pending mark
+  const pendingMarkId = pendingMarkIdProp ?? null
 
   const active = activeCommentId ?? localActive
-
-  // Listen for new comment creation (from context menu or toolbar)
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const { markCommentId } = (e as CustomEvent<{ markCommentId: string }>).detail
-      if (markCommentId) setPendingMarkId(markCommentId)
-    }
-    window.addEventListener('barrapad:comment-new', handler)
-    return () => window.removeEventListener('barrapad:comment-new', handler)
-  }, [])
 
   // Listen for comment highlight clicks + notification clicks — find the matching thread
   useEffect(() => {
@@ -583,8 +579,8 @@ export default function CommentSidebar({
       // Clean up orphaned marks when sidebar closes with an unsaved pending comment
       if (pendingMarkId && editor) {
         editor.commands.unsetCommentMark(pendingMarkId)
+        onPendingMarkConsumed?.()
       }
-      setPendingMarkId(null)
       setLocalActive(null)
       // Remove active highlight from editor
       document.querySelectorAll('.comment-highlight.comment-active').forEach((el) => el.classList.remove('comment-active'))
@@ -683,7 +679,7 @@ export default function CommentSidebar({
   const handleNewComment = async (text: string, mentionIds: string[] = []) => {
     if (!pendingMarkId || !noteId) return
     const markId = pendingMarkId
-    setPendingMarkId(null)
+    onPendingMarkConsumed?.()
     const res = await fetch(`/api/notes/${noteId}/comments`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -701,7 +697,7 @@ export default function CommentSidebar({
   const handleCancelNewComment = () => {
     // Remove the mark since no comment was created
     if (pendingMarkId && editor) editor.commands.unsetCommentMark(pendingMarkId)
-    setPendingMarkId(null)
+    onPendingMarkConsumed?.()
   }
 
   const handleReply = async (parentId: string, text: string, mentionIds: string[] = []) => {

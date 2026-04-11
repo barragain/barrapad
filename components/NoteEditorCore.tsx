@@ -162,6 +162,8 @@ export default function NoteEditorCore({
   const ctxFileRef = useRef<HTMLInputElement>(null)
   const [commentSidebarOpen, setCommentSidebarOpen] = useState(false)
   const [activeCommentThreadId, setActiveCommentThreadId] = useState<string | null>(null)
+  const [pendingCommentMarkId, setPendingCommentMarkId] = useState<string | null>(null)
+  const [commentBubble, setCommentBubble] = useState<{ x: number; y: number } | null>(null)
   const [ctxIsRecording, setCtxIsRecording] = useState(false)
   const ctxMediaRecorderRef = useRef<MediaRecorder | null>(null)
   const ctxChunksRef = useRef<BlobPart[]>([])
@@ -181,17 +183,20 @@ export default function NoteEditorCore({
     return () => window.removeEventListener('barrapad:comment-click', handler)
   }, [])
 
-  // Handle comment creation from context menu
+  // Handle comment creation from context menu or toolbar
   const handleAddComment = useCallback((markCommentId: string) => {
+    setPendingCommentMarkId(markCommentId)
     setCommentSidebarOpen(true)
-    // Dispatch event so the sidebar knows a new comment is being created
-    window.dispatchEvent(new CustomEvent('barrapad:comment-new', { detail: { noteId, markCommentId } }))
-  }, [noteId])
+  }, [])
 
   // Listen for toolbar toggle-comments and comment-new events
   useEffect(() => {
     const toggleHandler = () => setCommentSidebarOpen((v) => !v)
     const newHandler = (e: Event) => {
+      const detail = (e as CustomEvent<{ markCommentId: string }>).detail
+      if (detail?.markCommentId) {
+        setPendingCommentMarkId(detail.markCommentId)
+      }
       setCommentSidebarOpen(true)
     }
     window.addEventListener('barrapad:toggle-comments', toggleHandler)
@@ -339,10 +344,22 @@ export default function NoteEditorCore({
 
       onUpdate?.(html, text, title)
     },
-    onBlur: () => onBlur?.(),
+    onBlur: () => { onBlur?.(); setCommentBubble(null) },
     onSelectionUpdate: ({ editor: ed }) => {
       const { from, to } = ed.state.selection
       onSelectionUpdate?.(from, to)
+
+      // Show/hide floating comment bubble on text selection
+      if (from !== to && editable) {
+        try {
+          const coords = ed.view.coordsAtPos(to)
+          setCommentBubble({ x: coords.left, y: coords.top - 36 })
+        } catch {
+          setCommentBubble(null)
+        }
+      } else {
+        setCommentBubble(null)
+      }
     },
   })
 
@@ -861,6 +878,44 @@ export default function NoteEditorCore({
             </div>
           )}
 
+          {/* Floating comment bubble on text selection */}
+          {commentBubble && (
+            <button
+              onMouseDown={(e) => {
+                e.preventDefault()  // keep editor selection
+                const ed = editorRef.current
+                if (!ed) return
+                const cid = `c-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+                ed.chain().focus().setCommentMark(cid).run()
+                handleAddComment(cid)
+                setCommentBubble(null)
+              }}
+              style={{
+                position: 'fixed',
+                left: commentBubble.x,
+                top: commentBubble.y,
+                transform: 'translateX(-50%)',
+                zIndex: 40,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+                padding: '4px 10px',
+                borderRadius: 8,
+                border: '1px solid var(--border)',
+                background: 'var(--editor-bg)',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+                color: '#D4550A',
+                fontSize: 11,
+                fontWeight: 600,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              <MessageSquare size={13} />
+              Comment
+            </button>
+          )}
+
           {/* Mention profile hover card */}
           <MentionProfilePopover />
 
@@ -890,9 +945,11 @@ export default function NoteEditorCore({
           noteId={noteId ?? ''}
           editor={editor}
           open={commentSidebarOpen}
-          onClose={() => setCommentSidebarOpen(false)}
+          onClose={() => { setCommentSidebarOpen(false); setPendingCommentMarkId(null) }}
           activeCommentId={activeCommentThreadId}
           onActiveCommentChange={setActiveCommentThreadId}
+          pendingMarkId={pendingCommentMarkId}
+          onPendingMarkConsumed={() => setPendingCommentMarkId(null)}
         />
       )}
     </AnimatePresence>
