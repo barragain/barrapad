@@ -723,24 +723,41 @@ export default function Toolbar({ editor }: ToolbarProps) {
           <BarChart2 size={iconSize} />
         </TBtn>
 
+        {/* Separator before comment — visually separate collaboration from formatting */}
+        <div style={{ width: 1, height: 18, background: 'var(--border)', margin: '0 4px', flexShrink: 0 }} />
+
         {/* Comment */}
-        <TBtn
+        <button
           onClick={() => {
             const sel = editor.state.selection
             if (sel.empty) {
-              // No selection — just toggle the sidebar
               window.dispatchEvent(new Event('barrapad:toggle-comments'))
             } else {
-              // Selection — create a comment mark and open sidebar
               const cid = `c-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
               editor.chain().focus().setCommentMark(cid).run()
               window.dispatchEvent(new CustomEvent('barrapad:comment-new', { detail: { markCommentId: cid } }))
             }
           }}
-          label="Comment"
+          className="flex items-center gap-1 rounded-lg"
+          style={{
+            padding: isMobile ? '6px 10px' : '4px 8px',
+            fontSize: 11,
+            fontWeight: 600,
+            color: '#D4550A',
+            background: 'rgba(212, 85, 10, 0.08)',
+            border: '1px solid rgba(212, 85, 10, 0.18)',
+            cursor: 'pointer',
+            transition: 'background 120ms ease, transform 130ms cubic-bezier(0.34,1.56,0.64,1)',
+          }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(212, 85, 10, 0.15)' }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(212, 85, 10, 0.08)' }}
+          onMouseDown={(e) => { e.preventDefault(); (e.currentTarget as HTMLElement).style.transform = 'scale(0.95)' }}
+          onMouseUp={(e) => { (e.currentTarget as HTMLElement).style.transform = 'scale(1)' }}
+          title="Comment"
         >
-          <MessageSquare size={iconSize} />
-        </TBtn>
+          <MessageSquare size={isMobile ? 14 : 13} />
+          {!isMobile && <span>Comment</span>}
+        </button>
       </div>
 
       {/* ── Mobile bottom sheets ── */}
