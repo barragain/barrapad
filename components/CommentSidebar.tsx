@@ -576,17 +576,16 @@ export default function CommentSidebar({
   }, [noteId])
 
   useEffect(() => {
-    if (open && !fetchedRef.current) {
+    if (open) {
+      // Always re-fetch when sidebar opens so new comments are visible
       fetchComments()
-      fetchedRef.current = true
-    }
-    if (!open) {
-      fetchedRef.current = false
+    } else {
       // Clean up orphaned marks when sidebar closes with an unsaved pending comment
       if (pendingMarkId && editor) {
         editor.commands.unsetCommentMark(pendingMarkId)
       }
       setPendingMarkId(null)
+      setLocalActive(null)
       // Remove active highlight from editor
       document.querySelectorAll('.comment-highlight.comment-active').forEach((el) => el.classList.remove('comment-active'))
     }
@@ -602,6 +601,41 @@ export default function CommentSidebar({
     window.addEventListener('barrapad:comment-update', handler)
     return () => window.removeEventListener('barrapad:comment-update', handler)
   }, [noteId, fetchComments])
+
+  // Detect orphaned comments — marks deleted from the editor
+  useEffect(() => {
+    if (!editor || !open || comments.length === 0 || !noteId) return
+
+    const checkOrphans = () => {
+      // Collect all mark commentIds currently in the document
+      const markIds = new Set<string>()
+      editor.state.doc.descendants((node) => {
+        node.marks.forEach((mark) => {
+          if (mark.type.name === 'commentMark' && mark.attrs.commentId) {
+            markIds.add(mark.attrs.commentId as string)
+          }
+        })
+      })
+
+      // Find root comments whose marks are gone
+      const orphans = comments.filter(
+        (c) => !c.parentId && c.commentId && !markIds.has(c.commentId)
+      )
+
+      if (orphans.length > 0) {
+        for (const orphan of orphans) {
+          fetch(`/api/notes/${noteId}/comments/${orphan.id}`, { method: 'DELETE' }).catch(() => {})
+        }
+        fetchComments()
+        window.dispatchEvent(new CustomEvent('barrapad:comment-broadcast', { detail: { noteId } }))
+      }
+    }
+
+    // Check after a content update settles (debounced)
+    const handler = () => { setTimeout(checkOrphans, 500) }
+    editor.on('update', handler)
+    return () => { editor.off('update', handler) }
+  }, [editor, open, comments, noteId, fetchComments])
 
   // Group into threads (root + replies)
   const rootComments = comments.filter((c) => !c.parentId)
