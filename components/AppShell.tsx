@@ -489,12 +489,20 @@ export default function AppShell() {
     })
   }, [])
 
-  /** Immediate: update localStorage only, no API call */
-  const handleLocalChange = useCallback((title: string, content: string) => {
-    if (!activeNoteId) return
+  // Notes ref so save callbacks can read the current notes array without being
+  // recreated on every notes change (which would also recreate the Editor's
+  // memoized handlers and risk stale captures inside long-lived effects).
+  const notesRef = useRef<Note[]>(notes)
+  useEffect(() => { notesRef.current = notes }, [notes])
+
+  /** Immediate: update localStorage only, no API call.
+   *  noteId comes from the Editor (live ref at edit time) — we MUST NOT trust
+   *  closure-captured activeNoteId, which can lag behind during note switches. */
+  const handleLocalChange = useCallback((noteId: string, title: string, content: string) => {
+    if (!noteId) return
     updateNotes((prev) =>
       prev.map((n) => {
-        if (n.id !== activeNoteId) return n
+        if (n.id !== noteId) return n
         // Never auto-derive title for shared notes — only the owner's explicit
         // rename (via PartyKit 'title' message) should change it.
         if (n.sharedToken) return { ...n, content, updatedAt: new Date().toISOString() }
@@ -503,25 +511,27 @@ export default function AppShell() {
         return { ...n, title: useTitle, content, updatedAt: new Date().toISOString() }
       })
     )
-  }, [activeNoteId, updateNotes])
+  }, [updateNotes])
 
-  /** Background sync to API — triggered by blur / tab switch / 30s idle */
-  const handleAutoSave = useCallback(async (contentTitle: string, content: string) => {
-    if (!activeNoteId || activeNoteId.startsWith('temp-')) return
-    const activeNote = notes.find(n => n.id === activeNoteId)
-    if (!activeNote) return
+  /** Background sync to API. The noteId is supplied by the caller — do NOT
+   *  fall back to activeNoteId, that's how content from one note ends up
+   *  saved against a different note's id during rapid switches. */
+  const handleAutoSave = useCallback(async (noteId: string, contentTitle: string, content: string) => {
+    if (!noteId || noteId.startsWith('temp-')) return
+    const targetNote = notesRef.current.find(n => n.id === noteId)
+    if (!targetNote) return
 
     // For shared notes, always use the note's existing title — never the content-derived one.
     // For owned notes, respect manualTitlesRef.
-    const title = activeNote.sharedToken
-      ? activeNote.title
-      : (manualTitlesRef.current.has(activeNoteId) ? activeNote.title : contentTitle)
+    const title = targetNote.sharedToken
+      ? targetNote.title
+      : (manualTitlesRef.current.has(noteId) ? targetNote.title : contentTitle)
 
     // Shared note — save via share API
-    if (activeNote.sharedToken) {
-      if (activeNote.sharedPermission !== 'EDIT') return
+    if (targetNote.sharedToken) {
+      if (targetNote.sharedPermission !== 'EDIT') return
       try {
-        await fetch(`/api/share/${activeNote.sharedToken}`, {
+        await fetch(`/api/share/${targetNote.sharedToken}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ title, content }),
@@ -532,14 +542,14 @@ export default function AppShell() {
 
     setAutoSaving(true)
     try {
-      await fetch(`/api/notes/${activeNoteId}`, {
+      await fetch(`/api/notes/${noteId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title, content }),
       })
     } catch {}
     setAutoSaving(false)
-  }, [activeNoteId, notes])
+  }, [])
 
   /** Deduplicated list of all tags across all notes — passed to TagInput for suggestions */
   const allTags = useMemo<Tag[]>(() => {
@@ -577,14 +587,15 @@ export default function AppShell() {
     } catch {}
   }, [activeNoteId, notes, updateNotes])
 
-  /** Manual save — triggered by the Save button */
-  const handleManualSaveContent = useCallback(async (title: string, content: string) => {
-    if (!activeNoteId || activeNoteId.startsWith('temp-')) return
-    const activeNote = notes.find(n => n.id === activeNoteId)
-    if (activeNote?.sharedToken) {
-      if (activeNote.sharedPermission !== 'EDIT') return
+  /** Manual save — triggered by the Save button. Same noteId discipline as autosave. */
+  const handleManualSaveContent = useCallback(async (noteId: string, title: string, content: string) => {
+    if (!noteId || noteId.startsWith('temp-')) return
+    const targetNote = notesRef.current.find(n => n.id === noteId)
+    if (!targetNote) return
+    if (targetNote.sharedToken) {
+      if (targetNote.sharedPermission !== 'EDIT') return
       try {
-        await fetch(`/api/share/${activeNote.sharedToken}`, {
+        await fetch(`/api/share/${targetNote.sharedToken}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ title, content }),
@@ -594,14 +605,14 @@ export default function AppShell() {
     }
     setManualSaving(true)
     try {
-      await fetch(`/api/notes/${activeNoteId}`, {
+      await fetch(`/api/notes/${noteId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title, content }),
       })
     } catch {}
     setManualSaving(false)
-  }, [activeNoteId, notes])
+  }, [])
 
   const handleNewNote = async () => {
     const tempId = `temp-${Date.now()}`

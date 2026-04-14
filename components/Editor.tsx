@@ -24,12 +24,16 @@ interface EditorProps {
   allTags: Tag[]
   /** Incremented when fetchNotes returns newer content from the server */
   serverFetchVersion: number
-  /** Called immediately on every change — updates localStorage only, no API */
-  onLocalChange: (title: string, content: string) => void
-  /** Called after 1s idle, blur, or tab switch — syncs to API */
-  onAutoSave: (title: string, content: string) => void
+  /** Called immediately on every change — updates localStorage only, no API.
+   *  noteId is captured at the moment the change happened so the parent never
+   *  trusts a stale closure of `activeNoteId`. */
+  onLocalChange: (noteId: string, title: string, content: string) => void
+  /** Called after 1s idle, blur, or tab switch — syncs to API. noteId is the
+   *  note this save was scheduled for; the parent must save to THIS id, not
+   *  whatever its current activeNoteId happens to be. */
+  onAutoSave: (noteId: string, title: string, content: string) => void
   /** Called when the user explicitly presses Save */
-  onManualSave: (title: string, content: string) => void
+  onManualSave: (noteId: string, title: string, content: string) => void
   onTagsChange: (tags: Tag[]) => void
   /** Called when the note is deleted by any collaborator — remove it from state */
   onNoteDeleted?: (noteId: string) => void
@@ -54,7 +58,9 @@ export default function EditorComponent({
   const [deleted, setDeleted] = useState(false)
 
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const pendingRef = useRef<{ title: string; html: string } | null>(null)
+  // pendingRef carries the noteId the edit was made against so a stale save
+  // can be detected and dropped instead of overwriting a different note.
+  const pendingRef = useRef<{ title: string; html: string; noteId: string } | null>(null)
 
   const socketRef = useRef<PartySocket | null>(null)
   const sendTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -106,16 +112,26 @@ export default function EditorComponent({
   }, [user])
 
   // ── Auto-save flush ───────────────────────────────────────────────────────
+  // Always uses the LIVE note.id from the ref + a callback ref for onAutoSave.
+  // Both layers are intentional: the ref guarantees "this save is for THIS note
+  // right now, not whatever closure was captured when the timer was scheduled."
+  const liveNoteIdRef = useRef(note.id)
+  useEffect(() => { liveNoteIdRef.current = note.id }, [note.id])
+
   const flushAutoSave = useCallback(() => {
     if (!pendingRef.current) return
-    const { title, html } = pendingRef.current
+    const { title, html, noteId } = pendingRef.current
     pendingRef.current = null
     if (autoSaveTimerRef.current) {
       clearTimeout(autoSaveTimerRef.current)
       autoSaveTimerRef.current = null
     }
-    onAutoSave(title, html)
-  }, [onAutoSave])
+    // Critical safety check: only save if the current note hasn't changed since
+    // this save was queued. Otherwise we'd save the OLD note's content under
+    // the NEW note's ID (cross-note contamination — the data-loss bug).
+    if (noteId !== liveNoteIdRef.current) return
+    onAutoSaveRef.current(noteId, title, html)
+  }, [])
 
   // ── NoteEditorCore callbacks ──────────────────────────────────────────────
   const handleEditorReady = useCallback((ed: Editor) => {
@@ -124,7 +140,11 @@ export default function EditorComponent({
   }, [])
 
   const handleUpdate = useCallback((html: string, _text: string, title: string) => {
-    onLocalChange(title, html)
+    // Capture the live note id at the moment of the edit. NoteEditorCore now
+    // routes onUpdate through a ref so we always see the LATEST handleUpdate,
+    // but we still bind every save to a specific noteId for defense in depth.
+    const editNoteId = liveNoteIdRef.current
+    onLocalChangeRef.current(editNoteId, title, html)
 
     // Don't broadcast while waiting for the initial sync after a note-switch —
     // sending stale content would overwrite remote edits made while we were away.
@@ -132,23 +152,22 @@ export default function EditorComponent({
 
     lastLocalChangeTimeRef.current = Date.now()
 
-    // Use the note's actual title from state (which respects manual renames)
-    // rather than the raw content-derived title. After onLocalChange runs,
-    // noteTitleRef is updated via the useEffect on note.title.
-    // We read it inside the timeout so it reflects the latest state.
     if (sendTimerRef.current) clearTimeout(sendTimerRef.current)
     sendTimerRef.current = setTimeout(() => {
+      // Bail if the user has switched notes since this broadcast was queued —
+      // we'd otherwise leak the old note's content into the new note's room.
+      if (editNoteId !== liveNoteIdRef.current) return
       const broadcastTitle = noteTitleRef.current || title
       const contentJson = editorRef.current?.getJSON()
       socketRef.current?.send(JSON.stringify({ type: 'update', content: html, contentJson, title: broadcastTitle, ts: lastLocalChangeTimeRef.current }))
     }, 50)
 
     const effectiveTitle = noteTitleRef.current || title
-    pendingRef.current = { title: effectiveTitle, html }
+    pendingRef.current = { title: effectiveTitle, html, noteId: editNoteId }
 
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
     autoSaveTimerRef.current = setTimeout(() => { flushAutoSave() }, 1_000)
-  }, [onLocalChange, flushAutoSave])
+  }, [flushAutoSave])
 
   const handleSelectionUpdate = useCallback((from: number, to: number) => {
     if (sendCursorTimerRef.current) clearTimeout(sendCursorTimerRef.current)
@@ -194,8 +213,11 @@ export default function EditorComponent({
     // ── Flush pending save for the PREVIOUS note before switching ──────────
     // PartyKit flush is handled in the PartyKit effect's cleanup (runs before
     // this setup), but we still need to persist to the database.
+    // CRITICAL: only flush if pendingRef belongs to the previous note. If for
+    // any reason it carries a different noteId (e.g. an in-flight edit raced
+    // with the switch), we MUST NOT save it under the wrong URL.
     const prev = prevNoteRef.current
-    if (pendingRef.current && prev.id && !prev.id.startsWith('temp-')) {
+    if (pendingRef.current && prev.id && !prev.id.startsWith('temp-') && pendingRef.current.noteId === prev.id) {
       const { title, html } = pendingRef.current
       const url = prev.sharedToken
         ? `/api/share/${prev.sharedToken}`
@@ -216,7 +238,7 @@ export default function EditorComponent({
     if (wasTemp && !note.id.startsWith('temp-') && (!note.content || note.content === '<p></p>')) {
       const text = ed.getText()
       const title = text.split('\n')[0]?.trim().slice(0, 100) || 'Untitled'
-      pendingRef.current = { title, html: currentHtml }
+      pendingRef.current = { title, html: currentHtml, noteId: note.id }
       return
     }
     if (currentHtml !== note.content) {
@@ -305,7 +327,7 @@ export default function EditorComponent({
             // or the initial 'sync' (which is authoritative).
             if (msg.type === 'sync') {
               if (msg.title) {
-                onLocalChangeRef.current(msg.title, msg.content!)
+                onLocalChangeRef.current(liveNoteIdRef.current, msg.title, msg.content!)
                 window.dispatchEvent(new CustomEvent('barrapad:remote-rename', {
                   detail: { id: note.id, title: msg.title },
                 }))
@@ -316,18 +338,23 @@ export default function EditorComponent({
               // the database was last saved). Uses onAutoSaveRef to avoid stale
               // closures since this runs inside the long-lived PartyKit effect.
               const syncTitle = msg.title || noteTitleRef.current || ''
-              pendingRef.current = { title: syncTitle, html: msg.content! }
+              const syncNoteId = liveNoteIdRef.current
+              pendingRef.current = { title: syncTitle, html: msg.content!, noteId: syncNoteId }
               if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
               autoSaveTimerRef.current = setTimeout(() => {
                 if (!pendingRef.current) return
-                const { title: t, html: h } = pendingRef.current
+                // Drop the save if the user navigated away or if the pending
+                // entry is for a different note than this timer was scheduled for.
+                if (pendingRef.current.noteId !== syncNoteId) return
+                if (syncNoteId !== liveNoteIdRef.current) return
+                const { title: t, html: h, noteId: nid } = pendingRef.current
                 pendingRef.current = null
-                onAutoSaveRef.current(t, h)
+                onAutoSaveRef.current(nid, t, h)
               }, 2_000)
             } else {
               // For regular updates: only sync the content, keep local title
               const localTitle = noteTitleRef.current || ''
-              onLocalChangeRef.current(localTitle, msg.content!)
+              onLocalChangeRef.current(liveNoteIdRef.current, localTitle, msg.content!)
             }
           }
         }
@@ -380,9 +407,13 @@ export default function EditorComponent({
     return () => {
       // Flush any pending content to the PartyKit room BEFORE closing the socket,
       // so other clients (and the room's stored state) have the latest content.
-      // The note-switching effect can't do this because React runs all cleanups
-      // before all setups — by the time that effect runs, this socket is already gone.
-      if (pendingRef.current && socket.readyState === WebSocket.OPEN) {
+      // Only flush if pendingRef belongs to THIS note — otherwise we'd leak
+      // content from one note into another note's room.
+      if (
+        pendingRef.current &&
+        pendingRef.current.noteId === note.id &&
+        socket.readyState === WebSocket.OPEN
+      ) {
         const { title, html } = pendingRef.current
         const contentJson = editorRef.current?.getJSON()
         socket.send(JSON.stringify({ type: 'update', content: html, contentJson, title, ts: Date.now() }))
@@ -405,6 +436,8 @@ export default function EditorComponent({
     const handler = () => {
       if (!pendingRef.current || note.id.startsWith('temp-')) return
       if (note.sharedToken && note.sharedPermission === 'READ') return
+      // Don't save a stale pending entry to the wrong note.
+      if (pendingRef.current.noteId !== note.id) return
       const { title, html } = pendingRef.current
       try {
         const xhr = new XMLHttpRequest()
@@ -429,7 +462,7 @@ export default function EditorComponent({
     const title = text.split('\n')[0]?.trim().slice(0, 100) || 'Untitled'
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
     pendingRef.current = null
-    onManualSave(title, html)
+    onManualSave(liveNoteIdRef.current, title, html)
   }, [onManualSave])
 
   useEffect(() => {

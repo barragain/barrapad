@@ -9,9 +9,9 @@ interface EditorWrapperProps {
   note: Note
   allTags: Tag[]
   serverFetchVersion: number
-  onLocalChange: (title: string, content: string) => void
-  onAutoSave: (title: string, content: string) => void
-  onManualSave: (title: string, content: string) => void
+  onLocalChange: (noteId: string, title: string, content: string) => void
+  onAutoSave: (noteId: string, title: string, content: string) => void
+  onManualSave: (noteId: string, title: string, content: string) => void
   onTagsChange: (tags: Tag[]) => void
   onNoteDeleted?: (noteId: string) => void
   onNoteMentionClick?: (noteId: string) => void

@@ -140,6 +140,19 @@ export default function NoteEditorCore({
   // Internal editor ref — always in sync with the Tiptap instance
   const editorRef = useRef<Editor | null>(null)
 
+  // Callback refs — TipTap's useEditor captures handler closures at mount time and
+  // does not refresh them when props change. Routing through refs ensures every
+  // editor event calls the LATEST callback, so a parent that recreates handlers
+  // when the active note changes can't have its old callbacks fire on new content.
+  // Without this, switching notes would leave the editor calling the previous
+  // note's onUpdate/onBlur, causing cross-note contamination during autosave.
+  const onUpdateRef = useRef(onUpdate)
+  const onBlurRef = useRef(onBlur)
+  const onSelectionUpdateRef = useRef(onSelectionUpdate)
+  useEffect(() => { onUpdateRef.current = onUpdate }, [onUpdate])
+  useEffect(() => { onBlurRef.current = onBlur }, [onBlur])
+  useEffect(() => { onSelectionUpdateRef.current = onSelectionUpdate }, [onSelectionUpdate])
+
   // Sync-guard refs — use parent's if provided, otherwise own internal ones
   const _ownIsLocallyEditingRef = useRef(false)
   const _ownLocalEditTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -342,12 +355,12 @@ export default function NoteEditorCore({
       if (activeLocalEditTimeoutRef.current) clearTimeout(activeLocalEditTimeoutRef.current)
       activeLocalEditTimeoutRef.current = setTimeout(() => { activeIsLocallyEditingRef.current = false }, 1500)
 
-      onUpdate?.(html, text, title)
+      onUpdateRef.current?.(html, text, title)
     },
-    onBlur: () => { onBlur?.(); setCommentBubble(null) },
+    onBlur: () => { onBlurRef.current?.(); setCommentBubble(null) },
     onSelectionUpdate: ({ editor: ed }) => {
       const { from, to } = ed.state.selection
-      onSelectionUpdate?.(from, to)
+      onSelectionUpdateRef.current?.(from, to)
 
       // Show/hide floating comment bubble on text selection
       if (from !== to && editable) {
