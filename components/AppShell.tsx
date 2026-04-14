@@ -369,8 +369,8 @@ export default function AppShell() {
   const fetchNotes = async () => {
     try {
       const [notesRes, sharedRes] = await Promise.all([
-        fetch('/api/notes'),
-        fetch('/api/shared-notes'),
+        fetch('/api/notes', { cache: 'no-store' }),
+        fetch('/api/shared-notes', { cache: 'no-store' }),
       ])
       let ownedData: Note[] = []
       if (notesRes.ok) {
@@ -379,16 +379,18 @@ export default function AppShell() {
         setNotes(prev => {
           // Preserve open virtual shared-notes alongside the fresh owned notes
           const virtual = prev.filter(n => n.sharedToken)
-          // Smart merge: only replace a local note with the server version when
-          // the server's updatedAt is >= the local one. This prevents fetchNotes
-          // from overwriting unsaved local edits or content that was synced via
-          // PartyKit but hasn't been auto-saved to the database yet.
+          // Smart merge: keep the local copy only when it has unsaved edits
+          // (tracked in dirtyVersionsRef). This replaces the old updatedAt
+          // comparison, which failed whenever a client's clock drifted ahead
+          // of the server — local timestamps would look "newer" forever and
+          // cross-device changes would never appear. Dirty tracking is the
+          // truth about "are there edits not yet persisted," independent of
+          // any clock.
+          const dirty = dirtyVersionsRef.current
           const merged = ownedData.map(serverNote => {
             const localNote = prev.find(n => n.id === serverNote.id)
-            if (localNote && !localNote.sharedToken) {
-              const localTime = new Date(localNote.updatedAt).getTime()
-              const serverTime = new Date(serverNote.updatedAt).getTime()
-              if (localTime > serverTime) return localNote // keep locally-newer content
+            if (localNote && !localNote.sharedToken && dirty.has(serverNote.id)) {
+              return localNote
             }
             return serverNote
           })
@@ -495,11 +497,26 @@ export default function AppShell() {
   const notesRef = useRef<Note[]>(notes)
   useEffect(() => { notesRef.current = notes }, [notes])
 
+  // Dirty version counter per note — replaces the old clock-based smart merge.
+  // Every handleLocalChange bumps the version; a save "clears" the dirty flag
+  // only when the version at the moment the save started still matches the
+  // current version (i.e. nothing was typed while the save was in flight).
+  // This sidesteps two problems the updatedAt comparison had:
+  //   (a) client clock skew permanently pinning local over server
+  //   (b) a save's success response clearing dirty even though the user has
+  //       already typed more since the save started, causing fetchNotes to
+  //       then overwrite the new unsaved content with stale server data.
+  const dirtyVersionsRef = useRef<Map<string, number>>(new Map())
+
   /** Immediate: update localStorage only, no API call.
    *  noteId comes from the Editor (live ref at edit time) — we MUST NOT trust
    *  closure-captured activeNoteId, which can lag behind during note switches. */
   const handleLocalChange = useCallback((noteId: string, title: string, content: string) => {
     if (!noteId) return
+    // Bump the dirty version so any in-flight save can detect that new edits
+    // happened while it was running and refuse to clear the dirty flag.
+    const cur = dirtyVersionsRef.current.get(noteId) ?? 0
+    dirtyVersionsRef.current.set(noteId, cur + 1)
     updateNotes((prev) =>
       prev.map((n) => {
         if (n.id !== noteId) return n
@@ -527,26 +544,38 @@ export default function AppShell() {
       ? targetNote.title
       : (manualTitlesRef.current.has(noteId) ? targetNote.title : contentTitle)
 
+    // Capture the dirty version at save-start. If it's unchanged when the
+    // save completes, we can clear the flag. If the user typed more in the
+    // meantime, leave the flag so the smart merge still protects those edits.
+    const versionAtSaveStart = dirtyVersionsRef.current.get(noteId) ?? 0
+    const clearIfStillClean = () => {
+      if (dirtyVersionsRef.current.get(noteId) === versionAtSaveStart) {
+        dirtyVersionsRef.current.delete(noteId)
+      }
+    }
+
     // Shared note — save via share API
     if (targetNote.sharedToken) {
       if (targetNote.sharedPermission !== 'EDIT') return
       try {
-        await fetch(`/api/share/${targetNote.sharedToken}`, {
+        const res = await fetch(`/api/share/${targetNote.sharedToken}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ title, content }),
         })
+        if (res.ok) clearIfStillClean()
       } catch {}
       return
     }
 
     setAutoSaving(true)
     try {
-      await fetch(`/api/notes/${noteId}`, {
+      const res = await fetch(`/api/notes/${noteId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title, content }),
       })
+      if (res.ok) clearIfStillClean()
     } catch {}
     setAutoSaving(false)
   }, [])
@@ -592,24 +621,32 @@ export default function AppShell() {
     if (!noteId || noteId.startsWith('temp-')) return
     const targetNote = notesRef.current.find(n => n.id === noteId)
     if (!targetNote) return
+    const versionAtSaveStart = dirtyVersionsRef.current.get(noteId) ?? 0
+    const clearIfStillClean = () => {
+      if (dirtyVersionsRef.current.get(noteId) === versionAtSaveStart) {
+        dirtyVersionsRef.current.delete(noteId)
+      }
+    }
     if (targetNote.sharedToken) {
       if (targetNote.sharedPermission !== 'EDIT') return
       try {
-        await fetch(`/api/share/${targetNote.sharedToken}`, {
+        const res = await fetch(`/api/share/${targetNote.sharedToken}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ title, content }),
         })
+        if (res.ok) clearIfStillClean()
       } catch {}
       return
     }
     setManualSaving(true)
     try {
-      await fetch(`/api/notes/${noteId}`, {
+      const res = await fetch(`/api/notes/${noteId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title, content }),
       })
+      if (res.ok) clearIfStillClean()
     } catch {}
     setManualSaving(false)
   }, [])

@@ -213,21 +213,17 @@ export default function EditorComponent({
     // ── Flush pending save for the PREVIOUS note before switching ──────────
     // PartyKit flush is handled in the PartyKit effect's cleanup (runs before
     // this setup), but we still need to persist to the database.
+    // Route through onAutoSave so AppShell's dirty-version tracking gets
+    // cleared on success — otherwise the note stays "dirty" forever and
+    // fetchNotes would keep clinging to the local copy, hiding remote edits.
     // CRITICAL: only flush if pendingRef belongs to the previous note. If for
     // any reason it carries a different noteId (e.g. an in-flight edit raced
     // with the switch), we MUST NOT save it under the wrong URL.
     const prev = prevNoteRef.current
     if (pendingRef.current && prev.id && !prev.id.startsWith('temp-') && pendingRef.current.noteId === prev.id) {
       const { title, html } = pendingRef.current
-      const url = prev.sharedToken
-        ? `/api/share/${prev.sharedToken}`
-        : `/api/notes/${prev.id}`
       if (!prev.sharedToken || prev.sharedPermission === 'EDIT') {
-        fetch(url, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title, content: html }),
-        }).catch(() => {})
+        onAutoSaveRef.current(prev.id, title, html)
       }
     }
 
