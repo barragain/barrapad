@@ -146,22 +146,29 @@ export default function EditorComponent({
     const editNoteId = liveNoteIdRef.current
     onLocalChangeRef.current(editNoteId, title, html)
 
-    // Don't broadcast while waiting for the initial sync after a note-switch —
-    // sending stale content would overwrite remote edits made while we were away.
-    if (pendingSyncRef.current) return
-
     lastLocalChangeTimeRef.current = Date.now()
 
-    if (sendTimerRef.current) clearTimeout(sendTimerRef.current)
-    sendTimerRef.current = setTimeout(() => {
-      // Bail if the user has switched notes since this broadcast was queued —
-      // we'd otherwise leak the old note's content into the new note's room.
-      if (editNoteId !== liveNoteIdRef.current) return
-      const broadcastTitle = noteTitleRef.current || title
-      const contentJson = editorRef.current?.getJSON()
-      socketRef.current?.send(JSON.stringify({ type: 'update', content: html, contentJson, title: broadcastTitle, ts: lastLocalChangeTimeRef.current }))
-    }, 50)
+    // PartyKit broadcast — skip while waiting for the initial sync after a
+    // note-switch to prevent stale content from overwriting the room's state.
+    // IMPORTANT: this guard must NOT block the auto-save pipeline below —
+    // edits must always be persisted to the database regardless of PartyKit.
+    if (!pendingSyncRef.current) {
+      if (sendTimerRef.current) clearTimeout(sendTimerRef.current)
+      sendTimerRef.current = setTimeout(() => {
+        // Bail if the user has switched notes since this broadcast was queued —
+        // we'd otherwise leak the old note's content into the new note's room.
+        if (editNoteId !== liveNoteIdRef.current) return
+        const broadcastTitle = noteTitleRef.current || title
+        const contentJson = editorRef.current?.getJSON()
+        socketRef.current?.send(JSON.stringify({ type: 'update', content: html, contentJson, title: broadcastTitle, ts: lastLocalChangeTimeRef.current }))
+      }, 50)
+    }
 
+    // Auto-save pipeline — ALWAYS runs, even while waiting for PartyKit sync.
+    // This ensures edits are persisted to the database regardless of whether
+    // the WebSocket connection is up. Without this, a slow or failed PartyKit
+    // connection would strand all edits in localStorage, causing cross-device
+    // data loss.
     const effectiveTitle = noteTitleRef.current || title
     pendingRef.current = { title: effectiveTitle, html, noteId: editNoteId }
 
@@ -230,13 +237,30 @@ export default function EditorComponent({
     prevNoteIdRef.current = note.id
     prevNoteRef.current = { id: note.id, sharedToken: note.sharedToken, sharedPermission: note.sharedPermission }
     const currentHtml = ed.getHTML()
-    // Keep content when a temp note is promoted — user may have typed while the API was in flight
-    if (wasTemp && !note.id.startsWith('temp-') && (!note.content || note.content === '<p></p>')) {
+    // ── Temp → real promotion ─────────────────────────────────────────────
+    // When a temp note is promoted to a real ID, the editor already has the
+    // correct content from the temp phase. We must queue it for database
+    // persistence under the new real ID — otherwise it only exists in
+    // localStorage and will be wiped the next time fetchNotes runs.
+    if (wasTemp && !note.id.startsWith('temp-')) {
       const text = ed.getText()
       const title = text.split('\n')[0]?.trim().slice(0, 100) || 'Untitled'
-      pendingRef.current = { title, html: currentHtml, noteId: note.id }
+      const html = currentHtml
+      if (html && html !== '<p></p>') {
+        pendingRef.current = { title, html, noteId: note.id }
+        if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
+        autoSaveTimerRef.current = setTimeout(() => { flushAutoSave() }, 1_000)
+      } else {
+        pendingRef.current = null
+      }
+      isLocallyEditingRef.current = false
+      pendingSyncRef.current = true
+      if (localEditTimeoutRef.current) clearTimeout(localEditTimeoutRef.current)
+      if (sendTimerRef.current) { clearTimeout(sendTimerRef.current); sendTimerRef.current = null }
+      if (sendCursorTimerRef.current) { clearTimeout(sendCursorTimerRef.current); sendCursorTimerRef.current = null }
       return
     }
+    // ── Normal note switch ────────────────────────────────────────────────
     if (currentHtml !== note.content) {
       ed.commands.setContent(note.content || '', { emitUpdate: false })
     }
@@ -290,6 +314,14 @@ export default function EditorComponent({
     const socket = new PartySocket({ host: PARTYKIT_HOST, room })
     socketRef.current = socket
 
+    // Safety timeout: if PartyKit doesn't send a sync within 5 seconds,
+    // unblock the auto-save pipeline anyway. Without this, a failed or
+    // slow WebSocket connection would leave pendingSyncRef true forever,
+    // preventing ALL PartyKit broadcasts for the lifetime of this view.
+    const syncSafetyTimeout = setTimeout(() => {
+      pendingSyncRef.current = false
+    }, 5_000)
+
     socket.addEventListener('message', (evt) => {
       type Msg = {
         type: 'sync' | 'update' | 'presence' | 'cursor' | 'cursor-leave' | 'tags' | 'title' | 'delete' | 'comment-update'
@@ -305,7 +337,10 @@ export default function EditorComponent({
       const ed = editorRef.current
 
       if (msg.type === 'sync' || msg.type === 'update') {
-        if (msg.type === 'sync') pendingSyncRef.current = false  // server state received — safe to broadcast again
+        if (msg.type === 'sync') {
+          pendingSyncRef.current = false  // server state received — safe to broadcast again
+          clearTimeout(syncSafetyTimeout)
+        }
         if (msg.content && msg.content !== '') {
           const safeToApply = ed && (msg.type === 'sync' || !isLocallyEditingRef.current)
           if (safeToApply) {
@@ -401,6 +436,7 @@ export default function EditorComponent({
     })
 
     return () => {
+      clearTimeout(syncSafetyTimeout)
       // Flush any pending content to the PartyKit room BEFORE closing the socket,
       // so other clients (and the room's stored state) have the latest content.
       // Only flush if pendingRef belongs to THIS note — otherwise we'd leak

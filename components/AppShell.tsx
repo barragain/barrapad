@@ -672,6 +672,11 @@ export default function AppShell() {
         return
       }
       const note = (await res.json()) as Note
+      // Capture temp note content BEFORE replacing it — we need to persist
+      // content typed during the temp phase to the database under the real ID.
+      const tempNote = notesRef.current.find(n => n.id === tempId)
+      const tempContent = tempNote?.content
+      const tempTitle = tempNote?.title || 'Untitled'
       // Preserve any content/title typed while the API request was in flight
       updateNotes((prev) => {
         const temp = prev.find((n) => n.id === tempId)
@@ -679,6 +684,28 @@ export default function AppShell() {
         return prev.map((n) => (n.id === tempId ? merged : n))
       })
       setActiveNoteId(note.id)
+      // Transfer the dirty flag from temp → real so fetchNotes won't overwrite
+      // local content with the server's empty content before auto-save fires.
+      const tempDirty = dirtyVersionsRef.current.get(tempId)
+      if (tempDirty !== undefined) {
+        dirtyVersionsRef.current.delete(tempId)
+        dirtyVersionsRef.current.set(note.id, tempDirty)
+      }
+      // Immediately persist content typed during temp phase to the database.
+      // The Editor's auto-save may also fire, but this guarantees content reaches
+      // the server even if the user closes the tab or switches devices immediately.
+      if (tempContent && tempContent !== '' && tempContent !== '<p></p>') {
+        const versionAtSave = dirtyVersionsRef.current.get(note.id) ?? 0
+        fetch(`/api/notes/${note.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: tempTitle, content: tempContent }),
+        }).then(r => {
+          if (r.ok && dirtyVersionsRef.current.get(note.id) === versionAtSave) {
+            dirtyVersionsRef.current.delete(note.id)
+          }
+        }).catch(() => {})
+      }
     } catch {
       updateNotes((prev) => prev.filter((n) => n.id !== tempId))
     }
