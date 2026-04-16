@@ -556,10 +556,11 @@ body {
   user-select: text;
 }
 
-/* Suppress iOS callout popup (the native Copy/Define/Share overlay)
-   while keeping the text selection handles working */
+/* Allow native iOS text selection (double-tap to select word, long-press
+   to select + show Copy/Define/Share). Previously suppressed with
+   -webkit-touch-callout:none which broke all touch selection gestures. */
 #barrapad-editor-content {
-  -webkit-touch-callout: none;
+  -webkit-touch-callout: default;
 }
 
 /* ── Table drag & resize ───────────────────────────────────────────────── */

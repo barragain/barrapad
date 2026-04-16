@@ -919,7 +919,7 @@ export default function NoteEditorCore({
           {/* Editor canvas */}
           <div
             id="barrapad-editor-content"
-            style={{ background: 'var(--editor-bg)', borderRadius: 11, WebkitTouchCallout: 'none' } as React.CSSProperties}
+            style={{ background: 'var(--editor-bg)', borderRadius: 11 }}
             onClick={(e) => {
               // Click on a comment highlight → open that thread
               const commentEl = (e.target as HTMLElement).closest('.comment-highlight') as HTMLElement | null
@@ -931,7 +931,12 @@ export default function NoteEditorCore({
                 }
               }
               if ((e.target as HTMLElement).closest('[contenteditable="false"]')) return
-              editor?.commands.focus()
+              // Only focus if clicking outside the editable area (e.g. padding).
+              // Clicking inside ProseMirror's content already focuses it natively.
+              // Forcing focus() here disrupts double-tap word selection on mobile.
+              if (!(e.target as HTMLElement).closest('.ProseMirror')) {
+                editor?.commands.focus()
+              }
             }}
             onContextMenu={handleContextMenu}
           >
