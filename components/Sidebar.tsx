@@ -10,6 +10,8 @@ import {
   HelpCircle,
   Settings,
   Trash2,
+  Pencil,
+  Check,
 } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import { Users, Link2 } from 'lucide-react'
@@ -31,6 +33,10 @@ interface SidebarProps {
   onRemoveSharedNote: (noteId: string, token: string) => void
   onRenameSharedNote: (token: string, noteId: string, newTitle: string) => void
   onDeleteSharedNote: (noteId: string, token: string) => void
+  /** Rename a tag across all notes that use it */
+  onRenameTag?: (oldLabel: string, newLabel: string, newColor: string) => void
+  /** Delete a tag from all notes */
+  onDeleteTag?: (label: string) => void
 }
 
 export default function Sidebar({
@@ -46,6 +52,8 @@ export default function Sidebar({
   onRemoveSharedNote,
   onRenameSharedNote,
   onDeleteSharedNote,
+  onRenameTag,
+  onDeleteTag,
 }: SidebarProps) {
   const { user, isSignedIn } = useUser()
   const [search, setSearch] = useState('')
@@ -58,12 +66,33 @@ export default function Sidebar({
   const [renameValue, setRenameValue] = useState('')
   const [renamingSharedToken, setRenamingSharedToken] = useState<string | null>(null)
   const [renameSharedValue, setRenameSharedValue] = useState('')
+  // Tag context menu + inline editing
+  const [tagCtx, setTagCtx] = useState<{ tag: Tag; x: number; y: number } | null>(null)
+  const tagCtxRef = useRef<HTMLDivElement>(null)
+  const [editingTagLabel, setEditingTagLabel] = useState<string | null>(null)
+  const [editTagName, setEditTagName] = useState('')
+  const [editTagColor, setEditTagColor] = useState('')
+  const editTagRef = useRef<HTMLInputElement>(null)
 
   // Preload the about GIF as soon as the sidebar mounts so it's cached by the time the user clicks ?
   useEffect(() => {
     const img = new window.Image()
     img.src = '/about-gif.gif'
   }, [])
+
+  // Close tag context menu on outside click
+  useEffect(() => {
+    if (!tagCtx) return
+    const handler = (e: MouseEvent) => {
+      if (tagCtxRef.current && !tagCtxRef.current.contains(e.target as Node)) setTagCtx(null)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [tagCtx])
+
+  useEffect(() => {
+    if (editingTagLabel) editTagRef.current?.focus()
+  }, [editingTagLabel])
 
   const stripHtml = (html: string) => {
     if (typeof window === 'undefined') return html
@@ -169,10 +198,54 @@ export default function Sidebar({
           <div className="flex flex-wrap gap-1">
             {allSidebarTags.map(tag => {
               const isActive = activeTagLabels.includes(tag.label)
+              // Inline edit mode for this tag
+              if (editingTagLabel === tag.label) {
+                return (
+                  <span key={tag.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                    <input
+                      ref={editTagRef}
+                      value={editTagName}
+                      onChange={e => setEditTagName(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' && editTagName.trim()) {
+                          onRenameTag?.(tag.label, editTagName.trim(), editTagColor)
+                          setEditingTagLabel(null)
+                        }
+                        if (e.key === 'Escape') setEditingTagLabel(null)
+                        e.stopPropagation()
+                      }}
+                      style={{
+                        fontSize: 10, fontWeight: 500, padding: '2px 6px', borderRadius: 10,
+                        border: `1.5px solid ${editTagColor}`, background: 'var(--editor-bg)',
+                        color: 'var(--ink)', outline: 'none', width: 70,
+                      }}
+                    />
+                    <input
+                      type="color"
+                      value={editTagColor}
+                      onChange={e => setEditTagColor(e.target.value)}
+                      style={{ width: 16, height: 16, border: 'none', padding: 0, cursor: 'pointer', borderRadius: 3 }}
+                    />
+                    <button
+                      onClick={() => {
+                        if (editTagName.trim()) onRenameTag?.(tag.label, editTagName.trim(), editTagColor)
+                        setEditingTagLabel(null)
+                      }}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: '#16A34A', display: 'flex' }}
+                    >
+                      <Check size={12} />
+                    </button>
+                  </span>
+                )
+              }
               return (
                 <button
                   key={tag.label}
                   onClick={() => toggleTagFilter(tag.label)}
+                  onContextMenu={(e) => {
+                    e.preventDefault()
+                    setTagCtx({ tag, x: e.clientX, y: e.clientY })
+                  }}
                   style={{
                     fontSize: 10, fontWeight: 500,
                     padding: '2px 7px', borderRadius: 12,
@@ -197,6 +270,52 @@ export default function Sidebar({
               </button>
             )}
           </div>
+          {/* Tag context menu */}
+          {tagCtx && (
+            <div
+              ref={tagCtxRef}
+              style={{
+                position: 'fixed', left: tagCtx.x, top: tagCtx.y, zIndex: 100,
+                background: 'var(--editor-bg)', border: '1px solid var(--border)',
+                borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+                padding: 4, minWidth: 140,
+              }}
+            >
+              <button
+                onClick={() => {
+                  setEditingTagLabel(tagCtx.tag.label)
+                  setEditTagName(tagCtx.tag.label)
+                  setEditTagColor(tagCtx.tag.color)
+                  setTagCtx(null)
+                }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+                  padding: '7px 10px', borderRadius: 7, border: 'none', background: 'transparent',
+                  fontSize: 12, color: 'var(--ink)', cursor: 'pointer', textAlign: 'left',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'var(--border)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+              >
+                <Pencil size={12} /> Edit tag
+              </button>
+              <button
+                onClick={() => {
+                  onDeleteTag?.(tagCtx.tag.label)
+                  setActiveTagLabels(prev => prev.filter(l => l !== tagCtx.tag.label))
+                  setTagCtx(null)
+                }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+                  padding: '7px 10px', borderRadius: 7, border: 'none', background: 'transparent',
+                  fontSize: 12, color: '#DC2626', cursor: 'pointer', textAlign: 'left',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(220,38,38,0.08)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+              >
+                <Trash2 size={12} /> Delete from all notes
+              </button>
+            </div>
+          )}
         </div>
       )}
 

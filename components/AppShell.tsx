@@ -616,6 +616,47 @@ export default function AppShell() {
     } catch {}
   }, [activeNoteId, notes, updateNotes])
 
+  /** Rename a tag across ALL notes that use it */
+  const handleRenameTag = useCallback(async (oldLabel: string, newLabel: string, newColor: string) => {
+    const affectedNotes: { id: string; tags: Tag[] }[] = []
+    updateNotes(prev => prev.map(n => {
+      const idx = (n.tags ?? []).findIndex(t => t.label.toLowerCase() === oldLabel.toLowerCase())
+      if (idx === -1) return n
+      const newTags = [...(n.tags ?? [])]
+      newTags[idx] = { ...newTags[idx], label: newLabel, color: newColor }
+      affectedNotes.push({ id: n.id, tags: newTags })
+      return { ...n, tags: newTags }
+    }))
+    // Persist to API for each affected note
+    for (const { id, tags } of affectedNotes) {
+      if (id.startsWith('temp-') || id.startsWith('shared-')) continue
+      fetch(`/api/notes/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tags }),
+      }).catch(() => {})
+    }
+  }, [updateNotes])
+
+  /** Delete a tag from ALL notes */
+  const handleDeleteTag = useCallback(async (label: string) => {
+    const affectedNotes: { id: string; tags: Tag[] }[] = []
+    updateNotes(prev => prev.map(n => {
+      const filtered = (n.tags ?? []).filter(t => t.label.toLowerCase() !== label.toLowerCase())
+      if (filtered.length === (n.tags ?? []).length) return n
+      affectedNotes.push({ id: n.id, tags: filtered })
+      return { ...n, tags: filtered }
+    }))
+    for (const { id, tags } of affectedNotes) {
+      if (id.startsWith('temp-') || id.startsWith('shared-')) continue
+      fetch(`/api/notes/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tags }),
+      }).catch(() => {})
+    }
+  }, [updateNotes])
+
   /** Manual save — triggered by the Save button. Same noteId discipline as autosave. */
   const handleManualSaveContent = useCallback(async (noteId: string, title: string, content: string) => {
     if (!noteId || noteId.startsWith('temp-')) return
@@ -987,6 +1028,8 @@ export default function AppShell() {
           onRemoveSharedNote={handleRemoveSharedNote}
           onRenameSharedNote={handleRenameSharedNote}
           onDeleteSharedNote={handleDeleteSharedNote}
+          onRenameTag={handleRenameTag}
+          onDeleteTag={handleDeleteTag}
         />
       </div>
 

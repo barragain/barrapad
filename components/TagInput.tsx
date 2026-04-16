@@ -305,6 +305,33 @@ export default function TagInput({ tags, allTags, onChange, readOnly = false }: 
                     <span style={{ fontSize: 10, color: 'var(--muted)' }}>Custom</span>
                   </div>
 
+                  {/* Current tags on this note — edit/delete inline */}
+                  {tags.length > 0 && !input && (
+                    <div style={{ borderTop: '1px solid var(--border)', marginTop: 6, paddingTop: 6 }}>
+                      <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--muted)', marginBottom: 4 }}>Current tags</div>
+                      {tags.map(tag => (
+                        <div key={tag.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 0' }}>
+                          <span style={{ width: 8, height: 8, borderRadius: '50%', background: tag.color, flexShrink: 0 }} />
+                          <span style={{ fontSize: 11, color: 'var(--ink)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tag.label}</span>
+                          <button
+                            onPointerDown={e => { e.preventDefault(); startEditTag(tag) }}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', color: 'var(--muted)', display: 'flex' }}
+                            title="Edit"
+                          >
+                            <Pencil size={10} />
+                          </button>
+                          <button
+                            onPointerDown={e => { e.preventDefault(); removeTag(tag.id) }}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', color: '#DC2626', display: 'flex' }}
+                            title="Delete"
+                          >
+                            <Trash2 size={10} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
                   {suggestions.length > 0 && (
                     <div className="barrapad-tag-suggestions">
                       {suggestions.map(tag => (
