@@ -192,10 +192,12 @@ export default function EditorComponent({
   useEffect(() => { setDeleted(false) }, [note.id])
 
   // Polling fallback: if the PartyKit delete broadcast was missed, detect deletion
-  // via a periodic API check. Covers race conditions where the socket wasn't
-  // connected when the broadcast fired.
+  // via a periodic API check. Requires 3 consecutive 404s before declaring deleted
+  // to avoid false positives from transient network issues or cold starts.
+  const consecutive404Ref = useRef(0)
   useEffect(() => {
     if (note.id.startsWith('temp-')) return
+    consecutive404Ref.current = 0
 
     const check = async () => {
       try {
@@ -203,8 +205,15 @@ export default function EditorComponent({
           ? `/api/share/${note.sharedToken}`
           : `/api/notes/${note.id}`
         const res = await fetch(url, { method: 'GET' })
-        if (res.status === 404) setDeleted(true)
-      } catch {}
+        if (res.status === 404) {
+          consecutive404Ref.current++
+          if (consecutive404Ref.current >= 3) setDeleted(true)
+        } else {
+          consecutive404Ref.current = 0
+        }
+      } catch {
+        // Network error — don't count as 404
+      }
     }
 
     const interval = setInterval(check, 5_000)
