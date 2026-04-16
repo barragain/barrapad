@@ -441,8 +441,10 @@ export default function NoteEditorCore({
       const { from, to } = ed.state.selection
       onSelectionUpdateRef.current?.(from, to)
 
-      // Show/hide floating comment bubble on text selection
-      if (from !== to && editable) {
+      // Show/hide floating comment bubble on text selection.
+      // On mobile, skip — the native selection popup (Copy/Paste/Share)
+      // covers the same area. Users can use the toolbar Comment button instead.
+      if (from !== to && editable && !isTouchRef.current) {
         try {
           const coords = ed.view.coordsAtPos(to)
           setCommentBubble({ x: coords.left, y: coords.top - 36 })
