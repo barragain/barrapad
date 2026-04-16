@@ -182,6 +182,40 @@ async function load(): Promise<Spell> {
   ]
   for (const w of modernWords) spell.add(w)
 
+  // Add British English spellings so they're not flagged as misspelled
+  const britishWords = [
+    'colour', 'colours', 'coloured', 'colouring', 'colourful',
+    'favour', 'favours', 'favourite', 'favourites', 'favoured',
+    'honour', 'honours', 'honoured', 'honouring', 'honourable',
+    'labour', 'labours', 'laboured', 'labouring',
+    'neighbour', 'neighbours', 'neighbourhood', 'neighbouring',
+    'behaviour', 'behaviours', 'behavioural',
+    'humour', 'humours', 'humoured', 'humorous',
+    'rumour', 'rumours', 'rumoured',
+    'savour', 'savours', 'savoury',
+    'vapour', 'vapours',
+    'centre', 'centres', 'centred',
+    'metre', 'metres', 'litre', 'litres',
+    'theatre', 'theatres', 'fibre', 'fibres',
+    'analyse', 'analysed', 'analysing', 'analyses',
+    'organise', 'organised', 'organising', 'organisation',
+    'realise', 'realised', 'realising',
+    'recognise', 'recognised', 'recognising',
+    'specialise', 'specialised', 'specialising',
+    'apologise', 'apologised', 'apologising',
+    'criticise', 'criticised', 'criticising',
+    'minimise', 'maximise', 'optimise', 'prioritise', 'summarise', 'customise',
+    'licence', 'defence', 'offence', 'practise', 'pretence',
+    'catalogue', 'dialogue', 'prologue',
+    'cheque', 'cheques', 'grey', 'tyre', 'tyres',
+    'programme', 'programmes', 'judgement', 'acknowledgement',
+    'ageing', 'aeroplane', 'aluminium', 'jewellery',
+    'maths', 'plough', 'sceptical', 'sceptic',
+    'whilst', 'amongst', 'towards', 'forwards', 'backwards', 'afterwards',
+    'learnt', 'spelt', 'dreamt', 'burnt', 'leapt', 'smelt',
+  ]
+  for (const w of britishWords) spell.add(w)
+
   // Add ALL contractions, possessives, and informal shortenings
   const contractions = [
     // ── Standard negatives ──
@@ -346,6 +380,46 @@ const CONTRACTION_MAP: Record<string, string> = {
   thn: "then", whne: "when", jsut: "just", liek: "like",
   form: "from", frome: "from", ot: "to", fo: "of", si: "is",
   nto: "not", nit: "not", aer: "are", wsa: "was", cna: "can",
+
+  // ── British → American English ──
+  colour: "color", colours: "colors", coloured: "colored", colouring: "coloring",
+  favour: "favor", favours: "favors", favourite: "favorite", favourites: "favorites",
+  honour: "honor", honours: "honors", honoured: "honored", honouring: "honoring",
+  labour: "labor", labours: "labors", laboured: "labored", labouring: "laboring",
+  neighbour: "neighbor", neighbours: "neighbors", neighbourhood: "neighborhood",
+  behaviour: "behavior", behaviours: "behaviors",
+  humour: "humor", humours: "humors", humoured: "humored",
+  rumour: "rumor", rumours: "rumors",
+  savour: "savor", savours: "savors",
+  vapour: "vapor", vapours: "vapors",
+  centre: "center", centres: "centers",
+  metre: "meter", metres: "meters",
+  litre: "liter", litres: "liters",
+  theatre: "theater", theatres: "theaters",
+  fibre: "fiber", fibres: "fibers",
+  analyse: "analyze", analysed: "analyzed", analysing: "analyzing",
+  organise: "organize", organised: "organized", organising: "organizing",
+  realise: "realize", realised: "realized", realising: "realizing",
+  recognise: "recognize", recognised: "recognized", recognising: "recognizing",
+  specialise: "specialize", specialised: "specialized",
+  apologise: "apologize", apologised: "apologized",
+  criticise: "criticize", criticised: "criticized",
+  minimise: "minimize", maximise: "maximize",
+  optimise: "optimize", prioritise: "prioritize",
+  summarise: "summarize", customise: "customize",
+  licence: "license", defence: "defense", offence: "offense",
+  practise: "practice", pretence: "pretense",
+  catalogue: "catalog", dialogue: "dialog", prologue: "prolog",
+  cheque: "check", grey: "gray", tyre: "tire", tyres: "tires",
+  programme: "program", programmes: "programs",
+  judgement: "judgment", acknowledgement: "acknowledgment",
+  ageing: "aging", aeroplane: "airplane",
+  aluminium: "aluminum", jewellery: "jewelry",
+  maths: "math", plough: "plow",
+  sceptical: "skeptical", sceptic: "skeptic",
+  whilst: "while", amongst: "among", towards: "toward",
+  learnt: "learned", spelt: "spelled", dreamt: "dreamed",
+  burnt: "burned", leapt: "leaped", smelt: "smelled",
 }
 
 /** Returns up to 5 suggestions, or null if dict not loaded yet */

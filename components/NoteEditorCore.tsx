@@ -549,12 +549,6 @@ export default function NoteEditorCore({
     // can select text. The custom context menu is a desktop-only feature.
     if (isTouchRef.current) return
 
-    // If the right-clicked word is misspelled (has .spell-error class), let the
-    // browser's native context menu show instead — it has smart OS-level spell
-    // suggestions. Our custom menu handles everything else (formatting, etc.).
-    const clickTarget = e.target as HTMLElement
-    if (clickTarget.closest('.spell-error') && ed.state.selection.empty) return
-
     e.preventDefault()
 
     const x = e.clientX
