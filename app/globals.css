@@ -2,12 +2,8 @@
 @import "tailwindcss";
 @import "prosemirror-tables/style/tables.css";
 
-/* Custom spell-check underlines (replaces native browser spell-check) */
-.spell-error {
-  text-decoration-line: underline;
-  text-decoration-style: wavy;
-  text-decoration-color: #ef4444;
-}
+/* Spell-check uses browser-native underlines. The SpellCheck extension
+   re-triggers them after ProseMirror DOM rebuilds via spellcheck attr toggle. */
 
 /* Comment highlight marks */
 .comment-highlight {

@@ -61,7 +61,7 @@ import {
   MessageSquare,
 } from 'lucide-react'
 import { isCorrectSync, suggestSync, ensureLoaded } from '@/utils/spellcheck'
-import { SpellCheck, SPELL_KEY } from '@/extensions/spell-check'
+import { SpellCheck } from '@/extensions/spell-check'
 import { UserMention } from '@/extensions/user-mention'
 import { NoteMention } from '@/extensions/note-mention'
 import MentionProfilePopover from './MentionProfilePopover'
@@ -296,9 +296,10 @@ export default function NoteEditorCore({
     content: initialContent,
     editable,
     editorProps: {
-      // Native browser spell-check is disabled — our SpellCheck extension
-      // draws its own decorations via nspell so they survive programmatic edits.
-      attributes: { spellcheck: 'false' },
+      // Native browser spell-check is enabled for smart, OS-level suggestions.
+      // The SpellCheck extension re-triggers the browser's spellcheck after
+      // ProseMirror DOM rebuilds so underlines don't vanish on content changes.
+      attributes: { spellcheck: 'true' },
       // Serialize task lists with checkbox characters for clipboard text, so
       // pasting into Notion/Google Docs shows ☐/☑ instead of plain bullets.
       clipboardTextSerializer: (slice) => {
@@ -459,16 +460,11 @@ export default function NoteEditorCore({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor])
 
-  // Once the nspell dictionary finishes loading, re-run decorations so that
-  // existing content (loaded before the dict was ready) gets underlines.
+  // Eagerly load the nspell dictionary so context-menu spell suggestions
+  // are ready by the time the user right-clicks a misspelled word.
   useEffect(() => {
-    if (!editor) return
-    ensureLoaded().then(() => {
-      if (!editor.isDestroyed) {
-        editor.view.dispatch(editor.view.state.tr.setMeta(SPELL_KEY, true))
-      }
-    })
-  }, [editor])
+    ensureLoaded().catch(() => {})
+  }, [])
 
   // Sync noteId into editor storage for @mention collaborator lookups
   useEffect(() => {
