@@ -521,10 +521,18 @@ export default function Toolbar({ editor }: ToolbarProps) {
               <div style={{ padding: '8px 8px 4px' }}>
                 <ColorPicker
                   value={editor.getAttributes('textStyle').color as string ?? '#000000'}
-                  onChange={(color) => editor.chain().focus().setColor(color).run()}
+                  onChange={(value) => {
+                    // If the user picks a gradient from the gradient tab, apply it
+                    // as a gradient mark instead of a color (CSS color doesn't support gradients)
+                    if (value.includes('gradient')) {
+                      editor.chain().focus().unsetColor().setGradientText(value).run()
+                    } else {
+                      editor.chain().focus().unsetGradientText().setColor(value).run()
+                    }
+                  }}
                   mode="color"
                 />
-                <button onClick={() => { editor.chain().focus().unsetColor().run(); setShowColor(false) }} style={{ marginTop: 8, width: '100%', padding: '5px 0', fontSize: 11, color: '#9b9b9b', background: '#F5F0E8', border: '1px solid #E5E0D8', borderRadius: 6, cursor: 'pointer' }}>
+                <button onClick={() => { editor.chain().focus().unsetColor().unsetGradientText().run(); setShowColor(false) }} style={{ marginTop: 8, width: '100%', padding: '5px 0', fontSize: 11, color: '#9b9b9b', background: '#F5F0E8', border: '1px solid #E5E0D8', borderRadius: 6, cursor: 'pointer' }}>
                   Unset color
                 </button>
               </div>
@@ -793,10 +801,16 @@ export default function Toolbar({ editor }: ToolbarProps) {
         <MobileSheet onClose={closeAll} title="Text color">
           <ColorPicker
             value={editor.getAttributes('textStyle').color as string ?? '#000000'}
-            onChange={(color) => editor.chain().setColor(color).run()}
+            onChange={(value) => {
+              if (value.includes('gradient')) {
+                editor.chain().unsetColor().setGradientText(value).run()
+              } else {
+                editor.chain().unsetGradientText().setColor(value).run()
+              }
+            }}
             mode="color"
           />
-          <button onClick={() => { editor.chain().unsetColor().run(); closeAll() }} style={{ marginTop: 12, width: '100%', padding: '10px 0', fontSize: 13, color: '#9b9b9b', background: 'var(--sidebar-bg)', border: '1px solid var(--border)', borderRadius: 8, cursor: 'pointer' }}>
+          <button onClick={() => { editor.chain().unsetColor().unsetGradientText().run(); closeAll() }} style={{ marginTop: 12, width: '100%', padding: '10px 0', fontSize: 13, color: '#9b9b9b', background: 'var(--sidebar-bg)', border: '1px solid var(--border)', borderRadius: 8, cursor: 'pointer' }}>
             Unset color
           </button>
         </MobileSheet>
