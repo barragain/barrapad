@@ -182,21 +182,71 @@ async function load(): Promise<Spell> {
   ]
   for (const w of modernWords) spell.add(w)
 
-  // Add common contractions — many Hunspell dictionaries don't include them
+  // Add ALL contractions, possessives, and informal shortenings
   const contractions = [
+    // ── Standard negatives ──
     "doesn't", "don't", "won't", "can't", "isn't", "wasn't", "weren't",
     "aren't", "hasn't", "haven't", "hadn't", "wouldn't", "couldn't",
-    "shouldn't", "didn't", "mustn't", "needn't",
-    "I've", "you've", "we've", "they've",
-    "you're", "they're", "we're",
-    "I'll", "you'll", "we'll", "they'll", "he'll", "she'll", "it'll",
-    "I'd", "you'd", "we'd", "they'd", "he'd", "she'd", "it'd",
-    "he's", "she's", "it's", "that's", "who's", "what's", "where's",
-    "how's", "there's", "here's", "let's", "ain't", "o'clock",
-    "I'm", "would've", "could've", "should've", "might've", "must've",
-    "who've", "that'll", "there'll", "who'll", "what'll",
-    "wasn't", "weren't", "hasn't", "haven't",
-    "y'all", "ma'am", "ne'er", "e'er", "ol'",
+    "shouldn't", "didn't", "mustn't", "needn't", "shan't", "mightn't",
+    "daren't", "oughtn't", "usedn't",
+
+    // ── Pronoun + verb ──
+    "I'm", "I've", "I'd", "I'll",
+    "you're", "you've", "you'd", "you'll",
+    "he's", "he'd", "he'll",
+    "she's", "she'd", "she'll",
+    "it's", "it'd", "it'll",
+    "we're", "we've", "we'd", "we'll",
+    "they're", "they've", "they'd", "they'll",
+
+    // ── Question words ──
+    "who's", "who'd", "who'll", "who've",
+    "what's", "what'd", "what'll", "what're", "what've",
+    "where's", "where'd", "where'll", "where've",
+    "when's", "when'd", "when'll",
+    "why's", "why'd", "why'll",
+    "how's", "how'd", "how'll",
+
+    // ── Demonstratives / other ──
+    "that's", "that'd", "that'll",
+    "there's", "there'd", "there'll", "there've",
+    "here's", "here'd", "here'll",
+    "let's", "ain't", "o'clock",
+    "one's", "someone's", "everyone's", "anyone's", "nobody's",
+    "somebody's", "everybody's", "anybody's",
+    "nothing's", "something's", "everything's", "anything's",
+
+    // ── Have contractions ──
+    "would've", "could've", "should've", "might've", "must've",
+    "may've", "need've", "ought've",
+    "would'nt've", "couldn't've", "shouldn't've",
+
+    // ── Double contractions / informal ──
+    "y'all", "y'all's", "ma'am", "ne'er", "e'er", "ol'",
+    "it'd've", "who'd've", "that'd've",
+    "'twas", "'tis", "'til", "'em", "'cause", "'bout", "'round",
+
+    // ── Informal verb contractions ──
+    "gonna", "wanna", "gotta", "kinda", "sorta", "oughta",
+    "coulda", "woulda", "shoulda", "musta", "mighta",
+    "hafta", "hasta", "oughtta", "supposta", "useta",
+    "lemme", "gimme", "gotcha", "getcha", "betcha",
+    "dunno", "doncha", "dontcha", "didja", "wouldja", "couldja",
+    "whatcha", "howdy", "innit", "init",
+    "c'mon", "c'mere", "s'pose", "s'more", "s'mores",
+    "ma'am", "cap'n", "gov'nor",
+
+    // ── Possessive 's (common proper nouns people type) ──
+    "it's", "that's", "what's", "who's", "there's",
+    "today's", "tomorrow's", "yesterday's",
+    "Monday's", "Tuesday's", "Wednesday's", "Thursday's",
+    "Friday's", "Saturday's", "Sunday's",
+    "January's", "February's", "March's",
+    "mom's", "dad's", "brother's", "sister's",
+    "friend's", "friends'", "teacher's", "boss's",
+    "company's", "team's", "world's", "year's", "month's", "week's",
+    "day's", "night's", "morning's", "evening's",
+    "life's", "child's", "children's", "people's", "women's", "men's",
   ]
   for (const w of contractions) spell.add(w)
 
@@ -224,20 +274,78 @@ export function ensureLoaded(): Promise<void> {
 // Common contraction patterns — when nspell doesn't suggest the apostrophe form,
 // we prepend it so "doesn" → "doesn't", "cant" → "can't", etc.
 const CONTRACTION_MAP: Record<string, string> = {
+  // ── Negatives (missing apostrophe) ──
   doesnt: "doesn't", dont: "don't", wont: "won't", cant: "can't",
   isnt: "isn't", wasnt: "wasn't", werent: "weren't", arent: "aren't",
   hasnt: "hasn't", havent: "haven't", hadnt: "hadn't",
   wouldnt: "wouldn't", couldnt: "couldn't", shouldnt: "shouldn't",
   didnt: "didn't", mustnt: "mustn't", neednt: "needn't",
-  ive: "I've", youve: "you've", weve: "we've", theyve: "they've",
-  youre: "you're", theyre: "they're", were: "we're",
-  ill: "I'll", youll: "you'll", well: "we'll", theyll: "they'll",
-  hed: "he'd", shed: "she'd", youd: "you'd", theyd: "they'd", wed: "we'd",
-  hes: "he's", shes: "she's", thats: "that's", whos: "who's",
-  whats: "what's", wheres: "where's", hows: "how's",
-  lets: "let's", its: "it's", theres: "there's", heres: "here's",
-  im: "I'm", aint: "ain't", oclock: "o'clock",
+  shant: "shan't", mightnt: "mightn't", darent: "daren't",
+  oughtnt: "oughtn't",
+
+  // ── Pronoun + am/is/are/have/had/will/would ──
+  im: "I'm", ive: "I've", id: "I'd", ill: "I'll",
+  youre: "you're", youve: "you've", youd: "you'd", youll: "you'll",
+  hes: "he's", hed: "he'd", hell: "he'll",
+  shes: "she's", shed: "she'd", shell: "she'll",
+  its: "it's", itd: "it'd", itll: "it'll",
+  were: "we're", weve: "we've", wed: "we'd", well: "we'll",
+  theyre: "they're", theyve: "they've", theyd: "they'd", theyll: "they'll",
+
+  // ── Question words ──
+  whos: "who's", whod: "who'd", wholl: "who'll", whove: "who've",
+  whats: "what's", whatd: "what'd", whatll: "what'll", whatre: "what're",
+  wheres: "where's", whered: "where'd", wherell: "where'll",
+  whens: "when's", whend: "when'd", whenll: "when'll",
+  whys: "why's", whyd: "why'd", whyll: "why'll",
+  hows: "how's", howd: "how'd", howll: "how'll",
+
+  // ── Demonstratives / other ──
+  thats: "that's", thatd: "that'd", thatll: "that'll",
+  theres: "there's", thered: "there'd", therell: "there'll", thereve: "there've",
+  heres: "here's", hered: "here'd", herell: "here'll",
+  lets: "let's", aint: "ain't", oclock: "o'clock",
+  everyones: "everyone's", someones: "someone's", anyones: "anyone's",
+  nobodys: "nobody's", somethings: "something's", everythings: "everything's",
+  nothings: "nothing's", anythings: "anything's",
+
+  // ── Have contractions ──
   wouldve: "would've", couldve: "could've", shouldve: "should've",
+  mightve: "might've", mustve: "must've", mayve: "may've",
+
+  // ── Double negatives (missing apostrophes) ──
+  wouldntve: "wouldn't've", couldntve: "couldn't've", shouldntve: "shouldn't've",
+
+  // ── Informal (no apostrophe typed) ──
+  yall: "y'all", cmon: "c'mon", cmere: "c'mere",
+  twas: "'twas", tis: "'tis", til: "'til",
+  bout: "'bout", cause: "'cause", round: "'round",
+  spose: "s'pose", smore: "s'more", smores: "s'mores",
+
+  // ── Common typos → intended word ──
+  teh: "the", adn: "and", ahve: "have", hte: "the",
+  taht: "that", waht: "what", wiht: "with", thier: "their",
+  recieve: "receive", acheive: "achieve", beleive: "believe",
+  occurence: "occurrence", occured: "occurred", seperate: "separate",
+  definately: "definitely", definatly: "definitely", defintely: "definitely",
+  accomodate: "accommodate", calender: "calendar", cemetary: "cemetery",
+  concious: "conscious", embarass: "embarrass", enviroment: "environment",
+  goverment: "government", harrass: "harass", independant: "independent",
+  neccessary: "necessary", priviledge: "privilege", refered: "referred",
+  succesful: "successful", tommorow: "tomorrow", tommorrow: "tomorrow",
+  untill: "until", wierd: "weird", wich: "which", becuase: "because",
+  becasue: "because", beacuse: "because", enought: "enough",
+  throught: "through", thougt: "thought", togheter: "together",
+  togther: "together", knowlege: "knowledge", langugage: "language",
+  necesary: "necessary", occassion: "occasion", posession: "possession",
+  profesional: "professional", recomend: "recommend", remeber: "remember",
+  rember: "remember", shedule: "schedule", strenght: "strength",
+  suprise: "surprise", truely: "truly", vaccum: "vacuum",
+  writting: "writing", writen: "written",
+  hacve: "have", hav: "have", ahd: "had", nad: "and",
+  thn: "then", whne: "when", jsut: "just", liek: "like",
+  form: "from", frome: "from", ot: "to", fo: "of", si: "is",
+  nto: "not", nit: "not", aer: "are", wsa: "was", cna: "can",
 }
 
 /** Returns up to 5 suggestions, or null if dict not loaded yet */
