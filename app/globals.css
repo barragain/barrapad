@@ -2,11 +2,16 @@
 @import "tailwindcss";
 @import "prosemirror-tables/style/tables.css";
 
-/* Custom spell-check underlines — persistent across ProseMirror DOM rebuilds */
+/* Custom spell-check underlines — persistent across ProseMirror DOM rebuilds.
+   Browser native spellcheck is enabled for its smart suggestions in the context
+   menu, but we hide its underlines to avoid doubling with our nspell decorations. */
 .spell-error {
   text-decoration-line: underline;
   text-decoration-style: wavy;
   text-decoration-color: #ef4444;
+}
+::spelling-error {
+  text-decoration: none;
 }
 
 /* Comment highlight marks */

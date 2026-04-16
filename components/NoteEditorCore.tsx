@@ -296,10 +296,12 @@ export default function NoteEditorCore({
     content: initialContent,
     editable,
     editorProps: {
-      // Native browser spell-check is disabled — our SpellCheck extension
-      // draws its own decorations via nspell so they survive ProseMirror DOM
-      // rebuilds (native underlines vanish when nodes are replaced).
-      attributes: { spellcheck: 'false' },
+      // Native browser spell-check is ENABLED so the browser's smart suggestions
+      // appear in its native context menu when right-clicking misspelled words.
+      // Our nspell SpellCheck extension provides persistent underlines (decorations
+      // that survive ProseMirror DOM rebuilds, unlike native browser underlines).
+      // CSS hides the browser's native underlines to avoid doubling up.
+      attributes: { spellcheck: 'true' },
       // Serialize task lists with checkbox characters for clipboard text, so
       // pasting into Notion/Google Docs shows ☐/☑ instead of plain bullets.
       clipboardTextSerializer: (slice) => {
@@ -544,6 +546,13 @@ export default function NoteEditorCore({
     // On touch devices, let the browser handle long-press natively so users
     // can select text. The custom context menu is a desktop-only feature.
     if (isTouchRef.current) return
+
+    // If the right-clicked word is misspelled (has .spell-error class), let the
+    // browser's native context menu show instead — it has smart OS-level spell
+    // suggestions. Our custom menu handles everything else (formatting, etc.).
+    const target = e.target as HTMLElement
+    if (target.closest('.spell-error') && ed.state.selection.empty) return
+
     e.preventDefault()
 
     const x = e.clientX
