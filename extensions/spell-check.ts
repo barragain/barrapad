@@ -34,7 +34,7 @@ export const SpellCheck = Extension.create({
                 requestAnimationFrame(() => {
                   el.setAttribute('spellcheck', 'true')
                 })
-              }, 150) // debounce: wait 150ms after last change before refreshing
+              }, 50) // debounce: wait 50ms after last change before refreshing
             },
             destroy() {
               if (refreshTimer) clearTimeout(refreshTimer)
