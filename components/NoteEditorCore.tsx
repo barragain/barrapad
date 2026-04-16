@@ -550,8 +550,8 @@ export default function NoteEditorCore({
     // If the right-clicked word is misspelled (has .spell-error class), let the
     // browser's native context menu show instead — it has smart OS-level spell
     // suggestions. Our custom menu handles everything else (formatting, etc.).
-    const target = e.target as HTMLElement
-    if (target.closest('.spell-error') && ed.state.selection.empty) return
+    const clickTarget = e.target as HTMLElement
+    if (clickTarget.closest('.spell-error') && ed.state.selection.empty) return
 
     e.preventDefault()
 
