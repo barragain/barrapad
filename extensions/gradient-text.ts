@@ -30,12 +30,7 @@ export const GradientText = Mark.create<GradientTextOptions>({
         renderHTML: (attributes) => {
           if (!attributes.gradient) return {}
           return {
-            style: [
-              `background-image: ${attributes.gradient as string}`,
-              '-webkit-background-clip: text',
-              '-webkit-text-fill-color: transparent',
-              'background-clip: text',
-            ].join('; '),
+            style: `background-image: ${attributes.gradient as string}; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent`,
           }
         },
       },
