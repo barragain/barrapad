@@ -16,6 +16,9 @@ declare module '@tiptap/core' {
 export const GradientText = Mark.create<GradientTextOptions>({
   name: 'gradientText',
 
+  // Allow gradient on all node types including headings
+  excludes: '',
+
   addOptions() {
     return {
       HTMLAttributes: {},
@@ -35,6 +38,9 @@ export const GradientText = Mark.create<GradientTextOptions>({
               '-webkit-background-clip: text',
               '-webkit-text-fill-color: transparent',
               'background-clip: text',
+              // Ensure gradient overrides inherited text color in headings
+              'display: inline',
+              'box-decoration-break: clone',
             ].join('; '),
           }
         },

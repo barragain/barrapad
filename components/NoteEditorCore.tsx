@@ -159,6 +159,29 @@ export default function NoteEditorCore({
   const activeIsLocallyEditingRef = parentIsLocallyEditingRef ?? _ownIsLocallyEditingRef
   const activeLocalEditTimeoutRef = parentLocalEditTimeoutRef ?? _ownLocalEditTimeoutRef
 
+  // Touch detection — on mobile, let the browser handle long-press for native
+  // text selection instead of showing the custom context menu.
+  const isTouchRef = useRef(false)
+  useEffect(() => {
+    const onTouch = () => { isTouchRef.current = true }
+    const onMouse = () => { isTouchRef.current = false }
+    document.addEventListener('touchstart', onTouch, { passive: true })
+    document.addEventListener('mousedown', onMouse, { passive: true })
+    return () => {
+      document.removeEventListener('touchstart', onTouch)
+      document.removeEventListener('mousedown', onMouse)
+    }
+  }, [])
+
+  // Mobile detection for toolbar collapse
+  const [isMobileView, setIsMobileView] = useState(false)
+  useEffect(() => {
+    const check = () => setIsMobileView(window.innerWidth < 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
+
   // UI state
   const editorAreaRef = useRef<HTMLDivElement>(null)
   const editorContainerRef = useRef<HTMLDivElement>(null)
@@ -276,6 +299,22 @@ export default function NoteEditorCore({
       // Native browser spell-check is disabled — our SpellCheck extension
       // draws its own decorations via nspell so they survive programmatic edits.
       attributes: { spellcheck: 'false' },
+      // Serialize task lists with checkbox characters for clipboard text, so
+      // pasting into Notion/Google Docs shows ☐/☑ instead of plain bullets.
+      clipboardTextSerializer: (slice) => {
+        const lines: string[] = []
+        slice.content.forEach((node) => {
+          if (node.type.name === 'taskList') {
+            node.content.forEach((item) => {
+              const checked = item.attrs.checked ? '☑' : '☐'
+              lines.push(`${checked} ${item.textContent}`)
+            })
+          } else {
+            lines.push(node.textContent)
+          }
+        })
+        return lines.join('\n')
+      },
       handleDrop(_, event, _slice, moved) {
         if (moved) return false
         const files = event.dataTransfer?.files
@@ -307,6 +346,7 @@ export default function NoteEditorCore({
       handlePaste(_, event) {
         const ed = editorRef.current
         if (!ed) return false
+        // 1. Direct image files (screenshot paste, file copy)
         const items = event.clipboardData?.items
         if (items) {
           for (const item of Array.from(items)) {
@@ -320,6 +360,7 @@ export default function NoteEditorCore({
             }
           }
         }
+        // 2. Non-image files
         const files = event.clipboardData?.files
         if (files && files.length > 0) {
           for (const file of Array.from(files)) {
@@ -336,6 +377,41 @@ export default function NoteEditorCore({
               }
               reader.readAsDataURL(file)
               return true
+            }
+          }
+        }
+        // 3. HTML clipboard with embedded images (Google Keyboard, mobile clipboard,
+        //    images copied from web pages). Extract <img> src URLs and insert them.
+        const html = event.clipboardData?.getData('text/html')
+        if (html) {
+          const parser = new DOMParser()
+          const doc = parser.parseFromString(html, 'text/html')
+          const imgs = doc.querySelectorAll('img')
+          if (imgs.length > 0) {
+            // Check if the HTML is JUST images (no meaningful text content)
+            const textContent = doc.body?.textContent?.trim() ?? ''
+            if (textContent.length === 0 || imgs.length > 0) {
+              let handled = false
+              for (const img of Array.from(imgs)) {
+                const src = img.getAttribute('src')
+                if (!src) continue
+                handled = true
+                if (src.startsWith('data:')) {
+                  // Data URL — convert to file and upload
+                  fetch(src).then(r => r.blob()).then(blob => {
+                    const file = new File([blob], 'pasted-image.png', { type: blob.type })
+                    return uploadImage(file)
+                  }).then(url => {
+                    deselect(ed); ed.chain().focus().setImage({ src: url }).run()
+                  }).catch(() => {
+                    deselect(ed); ed.chain().focus().setImage({ src }).run()
+                  })
+                } else if (src.startsWith('http://') || src.startsWith('https://')) {
+                  // External URL — insert directly
+                  deselect(ed); ed.chain().focus().setImage({ src }).run()
+                }
+              }
+              if (handled) return true
             }
           }
         }
@@ -464,6 +540,9 @@ export default function NoteEditorCore({
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     const ed = editorRef.current
     if (!ed || !editable) return
+    // On touch devices, let the browser handle long-press natively so users
+    // can select text. The custom context menu is a desktop-only feature.
+    if (isTouchRef.current) return
     e.preventDefault()
 
     const x = e.clientX
@@ -716,15 +795,21 @@ export default function NoteEditorCore({
       className={`flex flex-col h-full overflow-hidden${className ? ` ${className}` : ''}`}
       style={{ background: 'var(--editor-bg)', ...rootStyle }}
     >
-      {/* Toolbar — always in flow to prevent layout shift; fades in/out */}
+      {/* Toolbar — on desktop: fades in/out (stays in flow to prevent layout shift).
+          On mobile: fully hidden when not focused so it doesn't leave a blank gap
+          that clips the note content when the user scrolls. */}
       {editor && editable && (
         <div
           ref={toolbarRef}
-          style={{
-            opacity: isEditorFocused ? 1 : 0,
-            pointerEvents: isEditorFocused ? 'auto' : 'none',
-            transition: 'opacity 0.15s ease',
-          }}
+          style={
+            isMobileView
+              ? { display: isEditorFocused ? 'block' : 'none' }
+              : {
+                  opacity: isEditorFocused ? 1 : 0,
+                  pointerEvents: isEditorFocused ? 'auto' : 'none',
+                  transition: 'opacity 0.15s ease',
+                }
+          }
         >
           <Toolbar editor={editor} />
         </div>
