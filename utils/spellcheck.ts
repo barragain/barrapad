@@ -56,6 +56,24 @@ async function load(): Promise<Spell> {
   ]
   for (const w of modernWords) spell.add(w)
 
+  // Add common contractions — many Hunspell dictionaries don't include them
+  const contractions = [
+    "doesn't", "don't", "won't", "can't", "isn't", "wasn't", "weren't",
+    "aren't", "hasn't", "haven't", "hadn't", "wouldn't", "couldn't",
+    "shouldn't", "didn't", "mustn't", "needn't",
+    "I've", "you've", "we've", "they've",
+    "you're", "they're", "we're",
+    "I'll", "you'll", "we'll", "they'll", "he'll", "she'll", "it'll",
+    "I'd", "you'd", "we'd", "they'd", "he'd", "she'd", "it'd",
+    "he's", "she's", "it's", "that's", "who's", "what's", "where's",
+    "how's", "there's", "here's", "let's", "ain't", "o'clock",
+    "I'm", "would've", "could've", "should've", "might've", "must've",
+    "who've", "that'll", "there'll", "who'll", "what'll",
+    "wasn't", "weren't", "hasn't", "haven't",
+    "y'all", "ma'am", "ne'er", "e'er", "ol'",
+  ]
+  for (const w of contractions) spell.add(w)
+
   loading = false
   queue.forEach((fn) => fn())
   return spell
