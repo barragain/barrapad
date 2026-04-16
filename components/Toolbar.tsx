@@ -19,7 +19,6 @@ import {
   ImageIcon,
   Code2,
   ChevronDown,
-  Sparkles,
   AlignLeft,
   AlignCenter,
   AlignRight,
@@ -275,7 +274,6 @@ export default function Toolbar({ editor }: ToolbarProps) {
   const [showTextStyle, setShowTextStyle] = useState(false)
   const [showColor, setShowColor] = useState(false)
   const [showHighlight, setShowHighlight] = useState(false)
-  const [showGradient, setShowGradient] = useState(false)
   const [showTable, setShowTable] = useState(false)
   const [showLink, setShowLink] = useState(false)
   const [linkPos, setLinkPos] = useState<{ left: number; top: number } | null>(null)
@@ -336,7 +334,6 @@ export default function Toolbar({ editor }: ToolbarProps) {
     setShowTextStyle(false)
     setShowColor(false)
     setShowHighlight(false)
-    setShowGradient(false)
     setShowTable(false)
     setShowLink(false)
     setLinkPos(null)
@@ -421,11 +418,10 @@ export default function Toolbar({ editor }: ToolbarProps) {
     setShowTextStyle(false)
     setShowColor(false)
     setShowHighlight(false)
-    setShowGradient(false)
     setShowTable(false)
   }
 
-  const hasAnyDropdown = showTextStyle || showColor || showHighlight || showGradient || showTable || showLink
+  const hasAnyDropdown = showTextStyle || showColor || showHighlight || showTable || showLink
 
   return (
     <>
@@ -465,7 +461,6 @@ export default function Toolbar({ editor }: ToolbarProps) {
               setShowTextStyle((v) => !v)
               setShowColor(false)
               setShowHighlight(false)
-              setShowGradient(false)
               setShowLink(false)
               setShowTable(false)
             }}
@@ -511,7 +506,7 @@ export default function Toolbar({ editor }: ToolbarProps) {
         {/* Text color */}
         <div className="relative z-50">
           <TBtn
-            onClick={() => { setShowColor((v) => !v); setShowTextStyle(false); setShowHighlight(false); setShowGradient(false); setShowLink(false); setShowTable(false) }}
+            onClick={() => { setShowColor((v) => !v); setShowTextStyle(false); setShowHighlight(false); setShowLink(false); setShowTable(false) }}
             label="Text color"
           >
             <Palette size={iconSize} />
@@ -543,7 +538,7 @@ export default function Toolbar({ editor }: ToolbarProps) {
         {/* Highlight */}
         <div className="relative z-50">
           <TBtn
-            onClick={() => { setShowHighlight((v) => !v); setShowTextStyle(false); setShowColor(false); setShowGradient(false); setShowLink(false); setShowTable(false) }}
+            onClick={() => { setShowHighlight((v) => !v); setShowTextStyle(false); setShowColor(false); setShowLink(false); setShowTable(false) }}
             active={editorState.isHighlight}
             label="Highlight"
           >
@@ -560,33 +555,6 @@ export default function Toolbar({ editor }: ToolbarProps) {
                 <button onClick={() => { editor.chain().focus().unsetHighlight().run(); setShowHighlight(false) }} style={{ marginTop: 8, width: '100%', padding: '5px 0', fontSize: 11, color: '#9b9b9b', background: '#F5F0E8', border: '1px solid #E5E0D8', borderRadius: 6, cursor: 'pointer' }}>
                   Unset highlight
                 </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Gradient text */}
-        <div className="relative z-50">
-          <TBtn
-            onClick={() => { setShowGradient((v) => !v); setShowTextStyle(false); setShowColor(false); setShowHighlight(false); setShowLink(false); setShowTable(false) }}
-            active={editorState.isGradient}
-            label="Gradient"
-          >
-            <Sparkles size={iconSize} />
-          </TBtn>
-          {showGradient && !isMobile && (
-            <div className="absolute top-full left-0 mt-1 z-50 bg-white border border-[#E5E0D8] rounded-xl shadow-xl overflow-hidden">
-              <div style={{ padding: '8px 8px 4px' }}>
-                <ColorPicker
-                  value={editorState.isGradient ? (editor.getAttributes('gradientText').gradient as string ?? 'linear-gradient(90deg, #D4550A, #3b82f6)') : 'linear-gradient(90deg, #D4550A, #3b82f6)'}
-                  onChange={(gradient) => editor.chain().focus().setGradientText(gradient).run()}
-                  mode="gradient"
-                />
-                {editorState.isGradient && (
-                  <button onClick={() => { editor.chain().focus().unsetGradientText().run(); setShowGradient(false) }} style={{ marginTop: 8, width: '100%', padding: '5px 0', fontSize: 11, color: '#9b9b9b', background: '#F5F0E8', border: '1px solid #E5E0D8', borderRadius: 6, cursor: 'pointer' }}>
-                    Unset gradient
-                  </button>
-                )}
               </div>
             </div>
           )}
@@ -632,7 +600,7 @@ export default function Toolbar({ editor }: ToolbarProps) {
         {/* Table */}
         <div className="relative z-50">
           <TBtn
-            onClick={() => { setShowTable((v) => !v); setShowTextStyle(false); setShowColor(false); setShowHighlight(false); setShowGradient(false); setShowLink(false) }}
+            onClick={() => { setShowTable((v) => !v); setShowTextStyle(false); setShowColor(false); setShowHighlight(false); setShowLink(false) }}
             label="Table"
           >
             <Table size={iconSize} />
@@ -826,21 +794,6 @@ export default function Toolbar({ editor }: ToolbarProps) {
           <button onClick={() => { editor.chain().unsetHighlight().run(); closeAll() }} style={{ marginTop: 12, width: '100%', padding: '10px 0', fontSize: 13, color: '#9b9b9b', background: 'var(--sidebar-bg)', border: '1px solid var(--border)', borderRadius: 8, cursor: 'pointer' }}>
             Unset highlight
           </button>
-        </MobileSheet>
-      )}
-
-      {isMobile && showGradient && (
-        <MobileSheet onClose={closeAll} title="Gradient">
-          <ColorPicker
-            value={editorState.isGradient ? (editor.getAttributes('gradientText').gradient as string ?? 'linear-gradient(90deg, #D4550A, #3b82f6)') : 'linear-gradient(90deg, #D4550A, #3b82f6)'}
-            onChange={(gradient) => editor.chain().setGradientText(gradient).run()}
-            mode="gradient"
-          />
-          {editorState.isGradient && (
-            <button onClick={() => { editor.chain().unsetGradientText().run(); closeAll() }} style={{ marginTop: 12, width: '100%', padding: '10px 0', fontSize: 13, color: '#9b9b9b', background: 'var(--sidebar-bg)', border: '1px solid var(--border)', borderRadius: 8, cursor: 'pointer' }}>
-              Unset gradient
-            </button>
-          )}
         </MobileSheet>
       )}
 
