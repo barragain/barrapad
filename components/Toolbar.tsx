@@ -726,10 +726,17 @@ export default function Toolbar({ editor }: ToolbarProps) {
         {/* Separator before comment — visually separate collaboration from formatting */}
         <div style={{ width: 1, height: 18, background: 'var(--border)', margin: '0 4px', flexShrink: 0 }} />
 
-        {/* Comment */}
+        {/* Comment — if text is selected, create a new comment on the selection.
+            Otherwise, just toggle the comment sidebar open/closed. */}
         <button
           onClick={() => {
-            window.dispatchEvent(new Event('barrapad:toggle-comments'))
+            if (editor && !editor.state.selection.empty) {
+              const cid = `c-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+              editor.chain().focus().setCommentMark(cid).run()
+              window.dispatchEvent(new CustomEvent('barrapad:comment-new', { detail: { markCommentId: cid } }))
+            } else {
+              window.dispatchEvent(new Event('barrapad:toggle-comments'))
+            }
           }}
           className="flex items-center gap-1 rounded-lg"
           style={{
