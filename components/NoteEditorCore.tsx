@@ -346,6 +346,24 @@ export default function NoteEditorCore({
         }
         return true
       },
+      handleKeyDown(_, event) {
+        // Ctrl+Shift+V (or Cmd+Shift+V on Mac) → paste plain text, stripping all formatting.
+        // Browsers don't expose this natively to the page; we intercept the key combo
+        // and read the clipboard ourselves.
+        const isPasteNoFormat = event.key.toLowerCase() === 'v'
+          && event.shiftKey
+          && (event.ctrlKey || event.metaKey)
+        if (!isPasteNoFormat) return false
+        event.preventDefault()
+        const ed = editorRef.current
+        if (!ed) return true
+        navigator.clipboard.readText().then(text => {
+          if (!text) return
+          // insertContent with a string inserts plain text, dropping any HTML/marks
+          ed.chain().focus().insertContent(text).run()
+        }).catch(() => {})
+        return true
+      },
       handlePaste(_, event) {
         const ed = editorRef.current
         if (!ed) return false

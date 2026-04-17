@@ -15,6 +15,8 @@ interface EditorWrapperProps {
   onTagsChange: (tags: Tag[]) => void
   onNoteDeleted?: (noteId: string) => void
   onNoteMentionClick?: (noteId: string) => void
+  onRenameTag?: (oldLabel: string, newLabel: string, newColor: string) => void
+  onDeleteTag?: (label: string) => void
 }
 
 export default function EditorWrapper(props: EditorWrapperProps) {

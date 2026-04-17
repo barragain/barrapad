@@ -39,6 +39,10 @@ interface EditorProps {
   onNoteDeleted?: (noteId: string) => void
   /** Called when a #note mention is clicked */
   onNoteMentionClick?: (noteId: string) => void
+  /** Rename a tag globally (propagates through registry + every note using it) */
+  onRenameTag?: (oldLabel: string, newLabel: string, newColor: string) => void
+  /** Delete a tag globally (registry + every note using it) */
+  onDeleteTag?: (label: string) => void
 }
 
 export default function EditorComponent({
@@ -51,6 +55,8 @@ export default function EditorComponent({
   onTagsChange,
   onNoteDeleted,
   onNoteMentionClick,
+  onRenameTag,
+  onDeleteTag,
 }: EditorProps) {
   // ── Refs ──────────────────────────────────────────────────────────────────
   const editorRef = useRef<Editor | null>(null)
@@ -600,7 +606,13 @@ export default function EditorComponent({
         { label: 'Updated', value: formatDate(note.updatedAt) },
       ]}
       bottomSlot={
-        <TagInput tags={note.tags ?? []} allTags={allTags} onChange={handleTagsChangeWithSync} />
+        <TagInput
+          tags={note.tags ?? []}
+          allTags={allTags}
+          onChange={handleTagsChangeWithSync}
+          onRenameTag={onRenameTag}
+          onDeleteTag={onDeleteTag}
+        />
       }
     />
   )

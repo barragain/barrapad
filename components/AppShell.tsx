@@ -93,6 +93,23 @@ function saveCachedNotes(notes: Note[]) {
   } catch {}
 }
 
+// Persistent tag registry — tags survive even when no note uses them.
+// Union'd with note-derived tags to build the full suggestion list.
+function loadTagRegistry(): Tag[] {
+  if (typeof window === 'undefined') return []
+  try {
+    const raw = localStorage.getItem('barrapad_tag_registry')
+    if (raw) return JSON.parse(raw) as Tag[]
+  } catch {}
+  return []
+}
+
+function saveTagRegistry(tags: Tag[]) {
+  try {
+    localStorage.setItem('barrapad_tag_registry', JSON.stringify(tags))
+  } catch {}
+}
+
 export default function AppShell() {
   const { isLoaded, isSignedIn } = useAuth()
   const { user } = useUser()
@@ -100,6 +117,7 @@ export default function AppShell() {
   // Lazy init from cache — renders instantly, no loading state needed
   const [notes, setNotes] = useState<Note[]>(() => loadCachedNotes())
   const [activeNoteId, setActiveNoteId] = useState<string | null>(() => loadCachedNotes()[0]?.id ?? null)
+  const [tagRegistry, setTagRegistry] = useState<Tag[]>(() => loadTagRegistry())
   // Incremented every time fetchNotes applies newer server content — lets the
   // Editor know it should re-check its content against the latest note.content.
   const [serverFetchVersion, setServerFetchVersion] = useState(0)
@@ -580,22 +598,47 @@ export default function AppShell() {
     setAutoSaving(false)
   }, [])
 
-  /** Deduplicated list of all tags across all notes — passed to TagInput for suggestions */
+  /** Deduplicated list of all tags: union of registry + note-derived tags. Registry wins on label match. */
   const allTags = useMemo<Tag[]>(() => {
     const seen = new Map<string, Tag>()
+    for (const tag of tagRegistry) {
+      seen.set(tag.label.toLowerCase(), tag)
+    }
     for (const note of notes) {
       for (const tag of (note.tags ?? [])) {
         if (!seen.has(tag.label.toLowerCase())) seen.set(tag.label.toLowerCase(), tag)
       }
     }
     return [...seen.values()]
-  }, [notes])
+  }, [notes, tagRegistry])
+
+  /** Persist registry whenever it changes */
+  useEffect(() => { saveTagRegistry(tagRegistry) }, [tagRegistry])
+
+  /** Merge a batch of tags into the registry (idempotent). Used when tags are added to notes. */
+  const mergeIntoRegistry = useCallback((tags: Tag[]) => {
+    if (!tags.length) return
+    setTagRegistry(prev => {
+      const map = new Map(prev.map(t => [t.label.toLowerCase(), t]))
+      let changed = false
+      for (const t of tags) {
+        const key = t.label.toLowerCase()
+        const existing = map.get(key)
+        if (!existing || existing.color !== t.color || existing.label !== t.label) {
+          map.set(key, t)
+          changed = true
+        }
+      }
+      return changed ? [...map.values()] : prev
+    })
+  }, [])
 
   /** Save tags for the active note — fires immediately (no debounce, discrete operation) */
   const handleTagsChange = useCallback(async (tags: Tag[]) => {
     if (!activeNoteId || activeNoteId.startsWith('temp-')) return
     const activeNote = notes.find(n => n.id === activeNoteId)
     updateNotes(prev => prev.map(n => n.id === activeNoteId ? { ...n, tags } : n))
+    mergeIntoRegistry(tags)
     if (activeNote?.sharedToken) {
       if (activeNote.sharedPermission !== 'EDIT') return
       try {
@@ -616,7 +659,7 @@ export default function AppShell() {
     } catch {}
   }, [activeNoteId, notes, updateNotes])
 
-  /** Rename a tag across ALL notes that use it */
+  /** Rename a tag across ALL notes that use it, and update the registry */
   const handleRenameTag = useCallback(async (oldLabel: string, newLabel: string, newColor: string) => {
     const affectedNotes: { id: string; tags: Tag[] }[] = []
     updateNotes(prev => prev.map(n => {
@@ -636,9 +679,21 @@ export default function AppShell() {
         body: JSON.stringify({ tags }),
       }).catch(() => {})
     }
+    // Update registry: drop the old label, add the renamed one
+    setTagRegistry(prev => {
+      const map = new Map(prev.map(t => [t.label.toLowerCase(), t]))
+      const existing = map.get(oldLabel.toLowerCase())
+      map.delete(oldLabel.toLowerCase())
+      map.set(newLabel.toLowerCase(), {
+        id: existing?.id ?? crypto.randomUUID(),
+        label: newLabel,
+        color: newColor,
+      })
+      return [...map.values()]
+    })
   }, [updateNotes])
 
-  /** Delete a tag from ALL notes */
+  /** Delete a tag from ALL notes and from the registry (permanent) */
   const handleDeleteTag = useCallback(async (label: string) => {
     const affectedNotes: { id: string; tags: Tag[] }[] = []
     updateNotes(prev => prev.map(n => {
@@ -655,6 +710,8 @@ export default function AppShell() {
         body: JSON.stringify({ tags }),
       }).catch(() => {})
     }
+    // Remove from registry
+    setTagRegistry(prev => prev.filter(t => t.label.toLowerCase() !== label.toLowerCase()))
   }, [updateNotes])
 
   /** Manual save — triggered by the Save button. Same noteId discipline as autosave. */
@@ -1030,6 +1087,7 @@ export default function AppShell() {
           onDeleteSharedNote={handleDeleteSharedNote}
           onRenameTag={handleRenameTag}
           onDeleteTag={handleDeleteTag}
+          allTags={allTags}
         />
       </div>
 
@@ -1056,6 +1114,9 @@ export default function AppShell() {
               onRemoveSharedNote={handleRemoveSharedNote}
               onRenameSharedNote={handleRenameSharedNote}
               onDeleteSharedNote={handleDeleteSharedNote}
+              onRenameTag={handleRenameTag}
+              onDeleteTag={handleDeleteTag}
+              allTags={allTags}
             />
           </motion.div>
         )}
@@ -1235,6 +1296,8 @@ export default function AppShell() {
               onTagsChange={handleTagsChange}
               onNoteDeleted={handleNoteDeleted}
               onNoteMentionClick={handleNoteMentionClick}
+              onRenameTag={handleRenameTag}
+              onDeleteTag={handleDeleteTag}
             />
           ) : (
             <div className="flex h-full items-center justify-center">

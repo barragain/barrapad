@@ -37,6 +37,8 @@ interface SidebarProps {
   onRenameTag?: (oldLabel: string, newLabel: string, newColor: string) => void
   /** Delete a tag from all notes */
   onDeleteTag?: (label: string) => void
+  /** Full list of known tags (registry + note-derived). Falls back to note-derived if omitted. */
+  allTags?: Tag[]
 }
 
 export default function Sidebar({
@@ -54,6 +56,7 @@ export default function Sidebar({
   onDeleteSharedNote,
   onRenameTag,
   onDeleteTag,
+  allTags,
 }: SidebarProps) {
   const { user, isSignedIn } = useUser()
   const [search, setSearch] = useState('')
@@ -104,13 +107,17 @@ export default function Sidebar({
 
   const allSidebarTags = useMemo<Tag[]>(() => {
     const seen = new Map<string, Tag>()
+    // Prefer the union registry+notes list passed from the parent
+    for (const tag of (allTags ?? [])) {
+      seen.set(tag.label.toLowerCase(), tag)
+    }
     for (const note of notes) {
       for (const tag of (note.tags ?? [])) {
         if (!seen.has(tag.label.toLowerCase())) seen.set(tag.label.toLowerCase(), tag)
       }
     }
     return [...seen.values()]
-  }, [notes])
+  }, [notes, allTags])
 
   const toggleTagFilter = (label: string) => {
     setActiveTagLabels(prev =>

@@ -176,9 +176,106 @@ async function load(): Promise<Spell> {
     'skillset', 'mindset', 'toolset', 'dataset', 'datasets',
     'workflow', 'workflows', 'timeline', 'timelines',
     'nocode', 'lowcode', 'no code', 'low code',
-    'AI', 'ML', 'LLM', 'GPT', 'NLP', 'AGI', 'ASI',
+    'AI', 'ML', 'LLM', 'LLMs', 'GPT', 'NLP', 'AGI', 'ASI', 'RAG',
     'deepfake', 'deepfakes', 'deeplearning',
     'algorithm', 'algorithms', 'algorithmic',
+
+    // ── Newer internet slang & Gen Alpha terms ──
+    'rizz', 'rizzler', 'gyatt', 'sigma', 'skibidi', 'fanum', 'ohio', 'Ohio',
+    'goated', 'mewing', 'looksmaxxing', 'looksmaxing', 'mogging', 'mogged',
+    'bussin', 'bussing', 'slaps', 'lowkey', 'highkey', 'deadass',
+    'fr', 'frfr', 'ong', 'ngl', 'istg', 'imo', 'tbf', 'iykyk',
+    'tmi', 'afaik', 'imho', 'rofl', 'afk', 'ftw', 'icymi', 'lmk',
+    'jk', 'jkjk', 'fml', 'omfg', 'lmaooo', 'lmfao', 'bruhh',
+    'copium', 'hopium', 'cope', 'coping', 'cringe', 'cringing',
+    'cheugy', 'delulu', 'salty', 'sus', 'sussy', 'yeet', 'yeeted',
+    'mid', 'peak', 'based', 'ratio', 'ratioed', 'touchgrass', 'touch grass',
+    'chad', 'GigaChad', 'virgin', 'beta', 'alpha', 'sigma',
+    'npc', 'NPC', 'mainchar', 'maincharacter', 'mainprotag',
+    'bop', 'slay', 'slayed', 'ate', 'eating', 'understood',
+    'unserious', 'unhinged', 'feral', 'iconic', 'legend', 'legendary',
+    'vibing', 'vibes', 'vibey', 'moodboard', 'aesthetic',
+    'baddie', 'baddies', 'bestie', 'besties', 'bff', 'fam',
+    'glowup', 'glow up', 'glowed', 'glowing',
+    'flex', 'humblebrag', 'flexing', 'flexed',
+    'bet', 'nocap', 'cap', 'capping', 'facts',
+    'periodt', 'period', 'purr', 'purrr',
+    'sksksk', 'oop', 'oopsie', 'yikes',
+    'gotit', 'ight', 'aight', 'aiight', 'nah', 'nahh', 'nope', 'nvm',
+    'yup', 'yep', 'yepp', 'yup', 'yuh', 'ya', 'yea', 'yeah',
+    'vibe check', 'vibe', 'vibez', 'vibing', 'vibed',
+    'lore', 'lores', 'arc', 'era', 'eras', 'core',
+    'parasocial', 'stans', 'stanned',
+
+    // ── Tech / dev words (extended) ──
+    'Next.js', 'NextJS', 'nextjs', 'React', 'Vue', 'Vue.js', 'Svelte',
+    'SvelteKit', 'Solid', 'Astro', 'Remix', 'Nuxt', 'Gatsby', 'Expo',
+    'Prisma', 'Drizzle', 'Supabase', 'Firebase', 'Firestore',
+    'MongoDB', 'PostgreSQL', 'Postgres', 'MySQL', 'MariaDB', 'SQLite',
+    'Redis', 'Upstash', 'Elasticsearch', 'Kafka', 'RabbitMQ',
+    'Cloudflare', 'Wasm', 'WASM', 'gRPC', 'tRPC', 'GraphQL', 'REST',
+    'oauth', 'OAuth2', 'JWT', 'SAML',
+    'Clerk', 'Auth0', 'NextAuth', 'Lucia', 'Ory',
+    'Tailwind', 'shadcn', 'Radix', 'Headless', 'DaisyUI',
+    'TypeScript', 'Rustlang', 'Golang', 'Kotlin', 'Swift',
+    'monorepo', 'polyrepo', 'workspace', 'workspaces',
+    'devcontainer', 'codespace', 'codespaces',
+    'rollout', 'rollouts', 'canary', 'feature flag', 'featureflag',
+    'observability', 'telemetry', 'tracing',
+    'serverless', 'edge', 'CDN', 'CDNs', 'ISR', 'SSR', 'SSG', 'CSR', 'RSC',
+    'webhook', 'webhooks', 'websocket', 'websockets', 'SSE',
+    'prompt', 'prompts', 'prompting', 'tokenize', 'tokenizer',
+    'embedding', 'embeddings', 'vectorize', 'vectorization',
+    'fine-tune', 'finetuning', 'finetuned', 'pretrained',
+    'quantize', 'quantized', 'inference', 'hallucination', 'hallucinate',
+    'agentic', 'agent', 'agents', 'multi-agent', 'multiagent',
+    'reasoning', 'reasoner', 'CoT', 'ReAct',
+
+    // ── Extra brands & product names ──
+    'Cursor', 'Cody', 'Codeium', 'Windsurf', 'Replit', 'Perplexity',
+    'Mistral', 'Llama', 'Gemma', 'Qwen', 'Grok', 'DeepSeek',
+    'Midjourney', 'Runway', 'ElevenLabs', 'Suno', 'Udio',
+    'HeyGen', 'Synthesia', 'Pika', 'Sora',
+    'Notion', 'Linear', 'Height', 'Superhuman',
+    'Raycast', 'Arc', 'Brave', 'DuckDuckGo',
+    'Substack', 'Medium', 'Ghost',
+    'Threads', 'Bluesky', 'Mastodon', 'Lemmy',
+    'Patreon', 'Gumroad', 'Lemonsqueezy', 'Whop',
+    'OnlyFans', 'Kofi', 'Ko-fi', 'BuyMeACoffee',
+
+    // ── Contemporary nouns & verbs ──
+    'doomscroll', 'doomscrolling', 'doomscroller',
+    'hatewatch', 'hatewatched', 'hatewatching',
+    'livestream', 'livestreamer', 'livestreaming',
+    'cottagecore', 'darkacademia', 'y2k', 'Y2K',
+    'soft launch', 'hard launch', 'softlaunch', 'hardlaunch',
+    'red flag', 'redflag', 'green flag', 'greenflag',
+    'gaslight', 'gaslighting', 'gaslit',
+    'girlboss', 'boyfail', 'himbo',
+    'situationship', 'entanglement', 'breadcrumbing', 'benching',
+    'ghost', 'ghosting', 'ghosted', 'orbit', 'orbiting',
+    'love bomb', 'lovebombing', 'lovebomb',
+
+    // ── Food / drink / lifestyle ──
+    'mocktail', 'mocktails', 'kombucha', 'turmeric', 'adaptogen',
+    'dirty soda', 'dirtysoda', 'cloudbread', 'whippedcoffee',
+    'plantbased', 'plant-based', 'flexitarian', 'pescatarian',
+    'tempeh', 'seitan', 'jackfruit', 'halloumi',
+
+    // ── Money / work ──
+    'quiet quit', 'quietquit', 'quietquitting', 'bareminimum',
+    'sidehustle', 'sidehustles', 'passiveincome',
+    'layoff', 'layoffs', 'rif', 'RIFs', 'downsize', 'downsized',
+    'rto', 'RTO', 'wfh', 'WFH', 'hybrid', 'remotework',
+    'creator economy', 'creatoreconomy',
+
+    // ── Gen Z / internet texting shortcuts ──
+    'k', 'kk', 'kthx', 'kthxbye', 'thx', 'thnx', 'ty', 'tysm',
+    'np', 'nps', 'yw', 'ily', 'ilysm', 'ik', 'idc', 'ic',
+    'ofc', 'oml', 'omfg', 'omw', 'ppl', 'pls', 'plz', 'plzz',
+    'rly', 'rlly', 'tbd', 'tbc', 'tba', 'tho', 'thru', 'til',
+    'wyd', 'hbu', 'wbu', 'hru', 'idek', 'idky', 'idgi',
+    'hmu', 'imu', 'fml', 'gg', 'ggs', 'ez', 'gl', 'glhf',
   ]
   for (const w of modernWords) spell.add(w)
 
@@ -297,6 +394,10 @@ if (typeof window !== 'undefined') {
 /** Returns false if misspelled, true if correct, null if dict not loaded yet */
 export function isCorrectSync(word: string): boolean | null {
   if (!spell) return null
+  // Always flag known "missing apostrophe" contractions (dont, cant, wont, etc.)
+  // even if the base dictionary happens to accept them — the right form is the
+  // apostrophed one, and we want the suggestion to surface on right-click.
+  if (CONTRACTION_MAP[word.toLowerCase()]) return false
   return spell.correct(word) || spell.correct(word.toLowerCase())
 }
 
@@ -420,6 +521,104 @@ const CONTRACTION_MAP: Record<string, string> = {
   whilst: "while", amongst: "among", towards: "toward",
   learnt: "learned", spelt: "spelled", dreamt: "dreamed",
   burnt: "burned", leapt: "leaped", smelt: "smelled",
+
+  // ── Extra missing-apostrophe contractions (extended) ──
+  howve: "how've", howdve: "how'd've",
+  whatve: "what've", whodve: "who'd've",
+  itdve: "it'd've", thatdve: "that'd've", theredve: "there'd've",
+  yallre: "y'all're", yallve: "y'all've", yalld: "y'all'd",
+  yalldve: "y'all'd've",
+  mustntve: "mustn't've", mightntve: "mightn't've",
+
+  // ── Run-together compounds ──
+  alot: "a lot", aswell: "as well", atleast: "at least",
+  everytime: "every time", eachother: "each other",
+  infact: "in fact", inorder: "in order", inspite: "in spite",
+  ofcourse: "of course", ontop: "on top",
+  alltogether: "altogether", anyways: "anyway",
+  thankyou: "thank you", thanku: "thank you",
+  eventhough: "even though",
+
+  // ── Extended misspellings ──
+  mischevious: "mischievous", mischevous: "mischievous",
+  pronounciation: "pronunciation", prespective: "perspective",
+  rememeber: "remember", remmember: "remember",
+  thiers: "theirs", thiere: "there",
+  expresso: "espresso", sherbert: "sherbet",
+  heighth: "height",
+  irregardless: "regardless", supposably: "supposedly",
+
+  // ── Doubled-letter errors ──
+  begining: "beginning", commited: "committed", commiting: "committing",
+  occuring: "occurring",
+  preffer: "prefer", prefered: "preferred", prefering: "preferring",
+  refering: "referring",
+  stoped: "stopped", stoping: "stopping",
+  plannig: "planning", planed: "planned",
+  forgeting: "forgetting", runing: "running", swiming: "swimming",
+  geting: "getting", puting: "putting", seting: "setting",
+  biger: "bigger", hoter: "hotter", fater: "fatter",
+
+  // ── "ie/ei" errors ──
+  recieving: "receiving", recieved: "received", reciept: "receipt",
+  acheived: "achieved", acheiving: "achieving", acheivement: "achievement",
+  beleived: "believed", beleiving: "believing", beleiver: "believer",
+  freind: "friend", freinds: "friends", freindly: "friendly",
+  peice: "piece", peices: "pieces",
+  niether: "neither", wierder: "weirder",
+  cieling: "ceiling", peirce: "pierce",
+  decieve: "deceive", concieve: "conceive", percieve: "perceive",
+  releif: "relief", beleif: "belief",
+
+  // ── Tech / modern typos ──
+  jaascript: "javascript", javscript: "javascript",
+  tyepscript: "typescript", tyescript: "typescript",
+  postgressql: "PostgreSQL", postgress: "Postgres",
+  kubernets: "Kubernetes", kubenetes: "Kubernetes",
+  dokcer: "Docker", dcoker: "Docker",
+  vercell: "Vercel", verecel: "Vercel",
+
+  // ── Modern shorthand → full word ──
+  omw: "on my way", brb: "be right back",
+  ttyl: "talk to you later", gtg: "got to go",
+  tmrw: "tomorrow", tmrrw: "tomorrow", tmw: "tomorrow",
+  ystdy: "yesterday", yday: "yesterday",
+  msg: "message", msgs: "messages", convo: "conversation",
+  smtg: "something", smth: "something", smn: "someone",
+  probs: "probably", probly: "probably", probabaly: "probably",
+  defo: "definitely", deffo: "definitely",
+  actully: "actually", actaully: "actually",
+  nvr: "never",
+  becuz: "because", bcoz: "because", bcz: "because", bcuz: "because",
+  altho: "although", altough: "although",
+
+  // ── Hyphenated compounds commonly run-together ──
+  longterm: "long-term", shortterm: "short-term",
+  wellknown: "well-known", uptodate: "up-to-date",
+  followup: "follow-up", checkin: "check-in",
+  realtime: "real-time", fulltime: "full-time", parttime: "part-time",
+
+  // ── Number/letter confusions ──
+  fisrt: "first", frist: "first",
+  secondry: "secondary", thrid: "third", thrity: "thirty",
+  nineth: "ninth", twelth: "twelfth",
+  foward: "forward", towrds: "towards",
+  fourtteen: "fourteen",
+
+  // ── Dropped-g verbs (informal) ──
+  everythin: "everything", somethin: "something", nothin: "nothing",
+  anythin: "anything",
+  workin: "working", goin: "going", comin: "coming",
+  doin: "doing", sayin: "saying", lookin: "looking",
+  makin: "making", takin: "taking",
+  runnin: "running", sittin: "sitting", standin: "standing",
+  eatin: "eating", drinkin: "drinking", sleepin: "sleeping",
+  talkin: "talking", walkin: "walking", playin: "playing",
+  thinkin: "thinking",
+
+  // ── Extra informal forms ──
+  ure: "you're", youres: "yours",
+  itsself: "itself",
 }
 
 /** Returns up to 5 suggestions, or null if dict not loaded yet */

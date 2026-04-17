@@ -28,9 +28,13 @@ interface TagInputProps {
   allTags: Tag[]
   onChange: (tags: Tag[]) => void
   readOnly?: boolean
+  /** Rename tag globally (across all notes + registry). Enables edit icon on suggestions. */
+  onRenameTag?: (oldLabel: string, newLabel: string, newColor: string) => void
+  /** Delete tag globally (registry + all notes). Enables delete icon on suggestions. */
+  onDeleteTag?: (label: string) => void
 }
 
-export default function TagInput({ tags, allTags, onChange, readOnly = false }: TagInputProps) {
+export default function TagInput({ tags, allTags, onChange, readOnly = false, onRenameTag, onDeleteTag }: TagInputProps) {
   const [open, setOpen] = useState(false)
   const [input, setInput] = useState('')
   const [selectedColor, setSelectedColor] = useState(TAG_COLORS[0])
@@ -113,14 +117,32 @@ export default function TagInput({ tags, allTags, onChange, readOnly = false }: 
 
   const saveEditTag = () => {
     if (!editingTag || !editName.trim()) return
-    onChange(tags.map(t =>
-      t.id === editingTag.id
-        ? { ...t, label: editName.trim(), color: editColor }
-        : t
-    ))
+    const newLabel = editName.trim()
+    // If a global rename callback is provided, use it so the change propagates
+    // to every note and the tag registry — not just this note.
+    if (onRenameTag) {
+      onRenameTag(editingTag.label, newLabel, editColor)
+    } else {
+      // Fallback: only update tags on the current note
+      onChange(tags.map(t =>
+        t.id === editingTag.id
+          ? { ...t, label: newLabel, color: editColor }
+          : t
+      ))
+    }
     setEditingTag(null)
     setEditName('')
     setEditColor('')
+  }
+
+  /** Delete a tag globally (from registry + every note that uses it). */
+  const deleteTagGlobally = (tag: Tag) => {
+    if (onDeleteTag) {
+      onDeleteTag(tag.label)
+    } else {
+      onChange(tags.filter(t => t.id !== tag.id))
+    }
+    setTagContextMenu(null)
   }
 
   const handleTagContextMenu = (e: React.MouseEvent, tag: Tag) => {
@@ -187,13 +209,27 @@ export default function TagInput({ tags, allTags, onChange, readOnly = false }: 
             style={{
               display: 'flex', alignItems: 'center', gap: 8, width: '100%',
               padding: '7px 10px', borderRadius: 7, border: 'none', background: 'transparent',
-              fontSize: 12, color: '#DC2626', cursor: 'pointer', textAlign: 'left',
+              fontSize: 12, color: 'var(--ink)', cursor: 'pointer', textAlign: 'left',
             }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(220,38,38,0.08)')}
+            onMouseEnter={e => (e.currentTarget.style.background = 'var(--border)')}
             onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
           >
-            <Trash2 size={12} /> Delete tag
+            <X size={12} /> Remove from note
           </button>
+          {onDeleteTag && (
+            <button
+              onClick={() => deleteTagGlobally(tagContextMenu.tag)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+                padding: '7px 10px', borderRadius: 7, border: 'none', background: 'transparent',
+                fontSize: 12, color: '#DC2626', cursor: 'pointer', textAlign: 'left',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(220,38,38,0.08)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+            >
+              <Trash2 size={12} /> Delete tag everywhere
+            </button>
+          )}
         </div>
       )}
 
@@ -335,14 +371,34 @@ export default function TagInput({ tags, allTags, onChange, readOnly = false }: 
                   {suggestions.length > 0 && (
                     <div className="barrapad-tag-suggestions">
                       {suggestions.map(tag => (
-                        <button
-                          key={tag.label}
-                          className="barrapad-tag-suggestion"
-                          onPointerDown={e => { e.preventDefault(); addTag(tag.label, tag.color); setOpen(false) }}
-                        >
-                          <span style={{ width: 8, height: 8, borderRadius: '50%', background: tag.color, flexShrink: 0, display: 'inline-block' }} />
-                          {tag.label}
-                        </button>
+                        <div key={tag.label} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <button
+                            className="barrapad-tag-suggestion"
+                            style={{ flex: 1 }}
+                            onPointerDown={e => { e.preventDefault(); addTag(tag.label, tag.color); setOpen(false) }}
+                          >
+                            <span style={{ width: 8, height: 8, borderRadius: '50%', background: tag.color, flexShrink: 0, display: 'inline-block' }} />
+                            {tag.label}
+                          </button>
+                          {onRenameTag && (
+                            <button
+                              onPointerDown={e => { e.preventDefault(); startEditTag(tag) }}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', color: 'var(--muted)', display: 'flex' }}
+                              title="Edit tag globally"
+                            >
+                              <Pencil size={10} />
+                            </button>
+                          )}
+                          {onDeleteTag && (
+                            <button
+                              onPointerDown={e => { e.preventDefault(); deleteTagGlobally(tag) }}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', color: '#DC2626', display: 'flex' }}
+                              title="Delete tag everywhere"
+                            >
+                              <Trash2 size={10} />
+                            </button>
+                          )}
+                        </div>
                       ))}
                     </div>
                   )}
