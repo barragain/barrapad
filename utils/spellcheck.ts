@@ -632,8 +632,10 @@ export function suggestSync(word: string): string[] | null {
   const suggestions = spell.suggest(word)
   const base = suggestions.length ? suggestions : spell.suggest(lower)
 
-  // Prepend the contraction if it's not already in the list
-  if (contraction && !base.includes(contraction)) {
+  // Always promote the contraction to the front of the suggestion list —
+  // if nspell already includes it but ranks it beyond the top 5, slice(0,5)
+  // would drop it (the exact bug behind "dont" never showing "don't").
+  if (contraction) {
     return [contraction, ...base.filter(s => s !== contraction)].slice(0, 5)
   }
   return base.slice(0, 5)
