@@ -7,6 +7,11 @@ export async function GET() {
   const { userId } = await auth()
   if (!userId) return NextResponse.json([])
 
+  // The bell promises "Read notifications disappear after 14 days"; keep that promise.
+  await prisma.notification.deleteMany({
+    where: { userId, read: true, readAt: { lt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000) } },
+  }).catch(() => {})
+
   const notifications = await prisma.notification.findMany({
     where: { userId },
     orderBy: { createdAt: 'desc' },

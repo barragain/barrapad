@@ -9,7 +9,9 @@ interface EditorWrapperProps {
   note: Note
   allTags: Tag[]
   serverFetchVersion: number
+  serverReady: boolean
   onLocalChange: (noteId: string, title: string, content: string) => void
+  onRemoteContent: (noteId: string, title: string | undefined, content: string, updatedAt?: string) => void
   onAutoSave: (noteId: string, title: string, content: string) => void
   onManualSave: (noteId: string, title: string, content: string) => void
   onTagsChange: (tags: Tag[]) => void

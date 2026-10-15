@@ -1,0 +1,12 @@
+{
+  "$schema": "https://unpkg.com/wrangler/config-schema.json",
+  "name": "barrapad-realtime",
+  "main": "index.ts",
+  "compatibility_date": "2026-10-01",
+  "durable_objects": {
+    // Binding name "Main" keeps the PartyKit URL shape: /parties/main/<room>
+    "bindings": [{ "name": "Main", "class_name": "NoteParty" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["NoteParty"] }],
+  "observability": { "enabled": true }
+}

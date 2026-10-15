@@ -144,3 +144,8 @@ vite.config.ts.timestamp-*
 /generated/prisma
 _reference/
 .vercel
+.env*.local
+
+# Cloudflare Worker local state
+.wrangler/
+realtime/.wrangler/

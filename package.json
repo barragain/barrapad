@@ -1,10 +1,12 @@
 {
   "scripts": {
     "dev": "next dev",
-    "dev:party": "partykit dev",
     "build": "prisma generate && next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "dev:realtime": "wrangler dev -c realtime/wrangler.jsonc",
+    "deploy:realtime": "wrangler deploy -c realtime/wrangler.jsonc",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p realtime/tsconfig.json"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.0.8",
@@ -45,7 +47,7 @@
     "lucide-react": "^1.7.0",
     "next": "^14.2.35",
     "nspell": "^2.1.5",
-    "partykit": "^0.0.115",
+    "partyserver": "^0.5.10",
     "partysocket": "^1.1.16",
     "postcss": "^8.5.8",
     "prisma": "^5.22.0",
@@ -58,6 +60,8 @@
     "typescript": "^6.0.2"
   },
   "devDependencies": {
-    "@types/html-docx-js": "^0.3.4"
+    "@cloudflare/workers-types": "^5.20261015.1",
+    "@types/html-docx-js": "^0.3.4",
+    "wrangler": "^4.151.0"
   }
 }

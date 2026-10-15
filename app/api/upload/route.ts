@@ -9,6 +9,9 @@ export async function POST(request: NextRequest) {
   const form = await request.formData()
   const file = form.get('file') as File | null
   if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 })
+  // Server-side limits; the browser checks are advisory only.
+  if (!file.type.startsWith('image/')) return NextResponse.json({ error: 'Only images can be uploaded' }, { status: 415 })
+  if (file.size > 10 * 1024 * 1024) return NextResponse.json({ error: 'Image larger than 10 MB' }, { status: 413 })
 
   const blob = await put(`notes/${userId}/${Date.now()}-${file.name}`, file, {
     access: 'public',

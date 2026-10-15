@@ -13,7 +13,7 @@ import type { AppearanceSettings, Tag } from '@/types'
 import { CollabCursor, setCursors, pickColor } from '@/extensions/collab-cursor'
 import type { RemoteCursor } from '@/extensions/collab-cursor'
 
-const PARTYKIT_HOST = process.env.NEXT_PUBLIC_PARTYKIT_HOST ?? 'barrapad.barragain.partykit.dev'
+import { REALTIME_HOST as PARTYKIT_HOST } from '@/lib/realtime'
 
 const DEFAULT_APPEARANCE: AppearanceSettings = { mode: 'light', font: 'mono', zoom: 16, theme: 'barrapad' }
 
@@ -100,6 +100,10 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
   // ── UI state ──────────────────────────────────────────────────────────────
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
   const [lastUpdated, setLastUpdated] = useState(updatedAt)
+  // Mirror for the socket handler: the room's initial 'sync' is applied only
+  // when newer than the content this page was rendered with (database truth).
+  const lastUpdatedRef = useRef(updatedAt)
+  useEffect(() => { lastUpdatedRef.current = lastUpdated }, [lastUpdated])
   const [connections, setConnections] = useState(1)
   const [connected, setConnected] = useState(false)
   const [presenceList, setPresenceList] = useState<RemoteCursor[]>([])
@@ -201,6 +205,8 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
 
       if (msg.type === 'sync' || msg.type === 'update') {
         if (msg.connections !== undefined) setConnections(msg.connections)
+        const roomIsNewer = msg.type !== 'sync' || !msg.updatedAt || msg.updatedAt > lastUpdatedRef.current
+        if (!roomIsNewer) return
         if (msg.content && ed) {
           const safeToApply =
             !canEditRef.current ||

@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 840 440">
+<rect width="840" height="440" fill="#f3efe4"/>
+<rect width="80" height="440" fill="#c34e09"/>
+<line x1="0" y1="0" x2="0" y2="440" stroke="#6d3314" stroke-width="1.5"/>
+<line x1="40" y1="0" x2="40" y2="440" stroke="#6d3314" stroke-width="1.5"/>
+<line x1="80" y1="0" x2="80" y2="440" stroke="#6d3314" stroke-width="1.5"/>
+<line x1="120" y1="0" x2="120" y2="440" stroke="#b1ada3" stroke-width="1.5"/>
+<line x1="160" y1="0" x2="160" y2="440" stroke="#b1ada3" stroke-width="1.5"/>
+<line x1="200" y1="0" x2="200" y2="440" stroke="#b1ada3" stroke-width="1.5"/>
+<line x1="240" y1="0" x2="240" y2="440" stroke="#b1ada3" stroke-width="1.5"/>
+<line x1="280" y1="0" x2="280" y2="440" stroke="#b1ada3" stroke-width="1.5"/>
+<line x1="320" y1="0" x2="320" y2="440" stroke="#b1ada3" stroke-width="1.5"/>
+<line x1="360" y1="0" x2="360" y2="440" stroke="#b1ada3" stroke-width="1.5"/>
+<line x1="400" y1="0" x2="400" y2="440" stroke="#b1ada3" stroke-width="1.5"/>
+<line x1="440" y1="0" x2="440" y2="440" stroke="#b1ada3" stroke-width="1.5"/>
+<line x1="480" y1="0" x2="480" y2="440" stroke="#b1ada3" stroke-width="1.5"/>
+<line x1="520" y1="0" x2="520" y2="440" stroke="#b1ada3" stroke-width="1.5"/>
+<line x1="560" y1="0" x2="560" y2="440" stroke="#b1ada3" stroke-width="1.5"/>
+<line x1="600" y1="0" x2="600" y2="440" stroke="#b1ada3" stroke-width="1.5"/>
+<line x1="640" y1="0" x2="640" y2="440" stroke="#b1ada3" stroke-width="1.5"/>
+<line x1="680" y1="0" x2="680" y2="440" stroke="#b1ada3" stroke-width="1.5"/>
+<line x1="720" y1="0" x2="720" y2="440" stroke="#b1ada3" stroke-width="1.5"/>
+<line x1="760" y1="0" x2="760" y2="440" stroke="#b1ada3" stroke-width="1.5"/>
+<line x1="800" y1="0" x2="800" y2="440" stroke="#b1ada3" stroke-width="1.5"/>
+<line x1="840" y1="0" x2="840" y2="440" stroke="#b1ada3" stroke-width="1.5"/>
+<line x1="0" y1="0" x2="80" y2="0" stroke="#6d3314" stroke-width="1.5"/>
+<line x1="80" y1="0" x2="840" y2="0" stroke="#b1ada3" stroke-width="1.5"/>
+<line x1="0" y1="40" x2="80" y2="40" stroke="#6d3314" stroke-width="1.5"/>
+<line x1="80" y1="40" x2="840" y2="40" stroke="#b1ada3" stroke-width="1.5"/>
+<line x1="0" y1="80" x2="80" y2="80" stroke="#6d3314" stroke-width="1.5"/>
+<line x1="80" y1="80" x2="840" y2="80" stroke="#b1ada3" stroke-width="1.5"/>
+<line x1="0" y1="120" x2="80" y2="120" stroke="#6d3314" stroke-width="1.5"/>
+<line x1="80" y1="120" x2="840" y2="120" stroke="#b1ada3" stroke-width="1.5"/>
+<line x1="0" y1="160" x2="80" y2="160" stroke="#6d3314" stroke-width="1.5"/>
+<line x1="80" y1="160" x2="840" y2="160" stroke="#b1ada3" stroke-width="1.5"/>
+<line x1="0" y1="200" x2="80" y2="200" stroke="#6d3314" stroke-width="1.5"/>
+<line x1="80" y1="200" x2="840" y2="200" stroke="#b1ada3" stroke-width="1.5"/>
+<line x1="0" y1="240" x2="80" y2="240" stroke="#6d3314" stroke-width="1.5"/>
+<line x1="80" y1="240" x2="840" y2="240" stroke="#b1ada3" stroke-width="1.5"/>
+<line x1="0" y1="280" x2="80" y2="280" stroke="#6d3314" stroke-width="1.5"/>
+<line x1="80" y1="280" x2="840" y2="280" stroke="#b1ada3" stroke-width="1.5"/>
+<line x1="0" y1="320" x2="80" y2="320" stroke="#6d3314" stroke-width="1.5"/>
+<line x1="80" y1="320" x2="840" y2="320" stroke="#b1ada3" stroke-width="1.5"/>
+<line x1="0" y1="360" x2="80" y2="360" stroke="#6d3314" stroke-width="1.5"/>
+<line x1="80" y1="360" x2="840" y2="360" stroke="#b1ada3" stroke-width="1.5"/>
+<line x1="0" y1="400" x2="80" y2="400" stroke="#6d3314" stroke-width="1.5"/>
+<line x1="80" y1="400" x2="840" y2="400" stroke="#b1ada3" stroke-width="1.5"/>
+<line x1="0" y1="440" x2="80" y2="440" stroke="#6d3314" stroke-width="1.5"/>
+<line x1="80" y1="440" x2="840" y2="440" stroke="#b1ada3" stroke-width="1.5"/>
+<path d="M40 40h40v40h-40zM40 80h40v40h-40zM40 120h40v40h-40zM80 120h40v40h-40zM120 120h40v40h-40zM40 160h40v40h-40zM160 160h40v40h-40zM40 200h40v40h-40zM160 200h40v40h-40zM40 240h40v40h-40zM160 240h40v40h-40zM40 280h40v40h-40zM80 280h40v40h-40zM120 280h40v40h-40zM240 120h40v40h-40zM280 120h40v40h-40zM320 120h40v40h-40zM240 160h40v40h-40zM360 160h40v40h-40zM240 200h40v40h-40zM360 200h40v40h-40zM240 240h40v40h-40zM360 240h40v40h-40zM240 280h40v40h-40zM280 280h40v40h-40zM320 280h40v40h-40zM240 320h40v40h-40zM240 360h40v40h-40zM480 120h40v40h-40zM520 120h40v40h-40zM560 160h40v40h-40zM480 200h40v40h-40zM520 200h40v40h-40zM560 200h40v40h-40zM440 240h40v40h-40zM560 240h40v40h-40zM480 280h40v40h-40zM520 280h40v40h-40zM560 280h40v40h-40zM760 40h40v40h-40zM760 80h40v40h-40zM680 120h40v40h-40zM720 120h40v40h-40zM760 120h40v40h-40zM640 160h40v40h-40zM760 160h40v40h-40zM640 200h40v40h-40zM760 200h40v40h-40zM640 240h40v40h-40zM760 240h40v40h-40zM680 280h40v40h-40zM720 280h40v40h-40zM760 280h40v40h-40z" fill="#1a1a19"/>
+</svg>

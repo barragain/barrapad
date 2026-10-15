@@ -1,14 +1,12 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { roomUrl, roomPushHeaders } from '@/lib/realtime'
 
 async function broadcastDeleteToParty(noteId: string) {
-  const partyHost = process.env.NEXT_PUBLIC_PARTYKIT_HOST ?? 'barrapad.barragain.partykit.dev'
-  const isLocal = partyHost.startsWith('localhost') || partyHost.startsWith('127.0.0.1')
-  const protocol = isLocal ? 'http' : 'https'
-  await fetch(`${protocol}://${partyHost}/parties/main/${noteId}`, {
+  await fetch(roomUrl(noteId), {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: roomPushHeaders(),
     body: JSON.stringify({ type: 'delete' }),
   }).catch(() => {})
 }

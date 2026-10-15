@@ -1,12 +1,5 @@
 import { prisma } from '@/lib/prisma'
-
-const PARTYKIT_HOST = process.env.NEXT_PUBLIC_PARTYKIT_HOST ?? 'barrapad.barragain.partykit.dev'
-
-function partyUrl(room: string) {
-  const isLocal = PARTYKIT_HOST.startsWith('localhost') || PARTYKIT_HOST.startsWith('127.0.0.1')
-  const protocol = isLocal ? 'http' : 'https'
-  return `${protocol}://${PARTYKIT_HOST}/parties/main/${room}`
-}
+import { roomUrl as partyUrl, roomPushHeaders } from '@/lib/realtime'
 
 /** Create a notification in the DB and push it to the user via PartyKit */
 export async function pushNotification(params: {
@@ -54,7 +47,7 @@ export async function pushNotification(params: {
 
   await fetch(partyUrl(`notif-${params.userId}`), {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: roomPushHeaders(),
     body: JSON.stringify(payload),
   }).catch(() => {})
 
@@ -65,7 +58,7 @@ export async function pushNotification(params: {
 export async function pushNotificationUpdate(userId: string, update: Record<string, unknown>) {
   await fetch(partyUrl(`notif-${userId}`), {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: roomPushHeaders(),
     body: JSON.stringify(update),
   }).catch(() => {})
 }

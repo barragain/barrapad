@@ -10,7 +10,7 @@ import TagInput from './TagInput'
 import NoteEditorCore from './NoteEditorCore'
 import type { Note, Tag } from '@/types'
 
-const PARTYKIT_HOST = process.env.NEXT_PUBLIC_PARTYKIT_HOST ?? 'barrapad.barragain.partykit.dev'
+import { REALTIME_HOST as PARTYKIT_HOST } from '@/lib/realtime'
 
 function formatDate(dateStr: string) {
   const d = new Date(dateStr)
@@ -24,10 +24,17 @@ interface EditorProps {
   allTags: Tag[]
   /** Incremented when fetchNotes returns newer content from the server */
   serverFetchVersion: number
+  /** False until the first /api/notes fetch of the session lands. Editing is
+   *  blocked until then so a stale cached copy can never be saved over fresher
+   *  server content. */
+  serverReady: boolean
   /** Called immediately on every change — updates localStorage only, no API.
    *  noteId is captured at the moment the change happened so the parent never
    *  trusts a stale closure of `activeNoteId`. */
   onLocalChange: (noteId: string, title: string, content: string) => void
+  /** Content received from the realtime room. Carries the server timestamp and
+   *  does not mark the note dirty. */
+  onRemoteContent: (noteId: string, title: string | undefined, content: string, updatedAt?: string) => void
   /** Called after 1s idle, blur, or tab switch — syncs to API. noteId is the
    *  note this save was scheduled for; the parent must save to THIS id, not
    *  whatever its current activeNoteId happens to be. */
@@ -49,7 +56,9 @@ export default function EditorComponent({
   note,
   allTags,
   serverFetchVersion,
+  serverReady,
   onLocalChange,
+  onRemoteContent,
   onAutoSave,
   onManualSave,
   onTagsChange,
@@ -83,9 +92,11 @@ export default function EditorComponent({
   useEffect(() => { onNoteDeletedRef.current = onNoteDeleted }, [onNoteDeleted])
 
   const onLocalChangeRef = useRef(onLocalChange)
+  const onRemoteContentRef = useRef(onRemoteContent)
   const onTagsChangeRef = useRef(onTagsChange)
   const onAutoSaveRef = useRef(onAutoSave)
   useEffect(() => { onLocalChangeRef.current = onLocalChange }, [onLocalChange])
+  useEffect(() => { onRemoteContentRef.current = onRemoteContent }, [onRemoteContent])
   useEffect(() => { onTagsChangeRef.current = onTagsChange }, [onTagsChange])
   useEffect(() => { onAutoSaveRef.current = onAutoSave }, [onAutoSave])
 
@@ -93,6 +104,11 @@ export default function EditorComponent({
   // instead of the content-derived title (which ignores manual renames).
   const noteTitleRef = useRef(note.title)
   useEffect(() => { noteTitleRef.current = note.title }, [note.title])
+  // Server-issued timestamp of the content we hold. The room's initial 'sync'
+  // is only applied when it is newer than this: room storage persists forever
+  // and used to overwrite (and then re-save) fresher database content.
+  const noteUpdatedAtRef = useRef(note.updatedAt)
+  useEffect(() => { noteUpdatedAtRef.current = note.updatedAt }, [note.updatedAt])
 
   const lastLocalChangeTimeRef = useRef(0)
   const prevNoteIdRef = useRef<string>(note.id)
@@ -307,8 +323,10 @@ export default function EditorComponent({
     // If the user has been typing since the note was opened, their local
     // edits take priority — the auto-save will push them to the server.
     if (lastLocalChangeTimeRef.current > 0) return
-    // If we're waiting for the initial PartyKit sync, don't interfere
-    if (pendingSyncRef.current) return
+    // No pendingSync guard here: note.content is already the newer of DB and
+    // room (fetchNotes merges by server updatedAt), so applying it is safe in
+    // either arrival order. The old guard left stale cached content on screen
+    // whenever the room answered after the fetch.
     const currentHtml = ed.getHTML()
     if (note.content && currentHtml !== note.content) {
       const { from, to } = ed.state.selection
@@ -356,7 +374,12 @@ export default function EditorComponent({
           pendingSyncRef.current = false  // server state received — safe to broadcast again
           clearTimeout(syncSafetyTimeout)
         }
-        if (msg.content && msg.content !== '') {
+        // Initial sync: the room is a cache, the database is the truth. Only
+        // take room content that is newer than what we already hold. Live
+        // 'update' messages are not gated (they are by definition fresh, and
+        // clock skew between Cloudflare and Vercel must not drop them).
+        const roomIsNewer = msg.type !== 'sync' || !msg.updatedAt || msg.updatedAt > noteUpdatedAtRef.current
+        if (msg.content && msg.content !== '' && roomIsNewer) {
           const safeToApply = ed && (msg.type === 'sync' || !isLocallyEditingRef.current)
           if (safeToApply) {
             const { from, to } = ed!.state.selection
@@ -372,17 +395,17 @@ export default function EditorComponent({
             // owner's title. Title sync only happens via explicit 'title' messages
             // or the initial 'sync' (which is authoritative).
             if (msg.type === 'sync') {
+              onRemoteContentRef.current(liveNoteIdRef.current, msg.title || undefined, msg.content!, msg.updatedAt)
               if (msg.title) {
-                onLocalChangeRef.current(liveNoteIdRef.current, msg.title, msg.content!)
                 window.dispatchEvent(new CustomEvent('barrapad:remote-rename', {
                   detail: { id: note.id, title: msg.title },
                 }))
               }
-              // Persist PartyKit room content to the database — covers edge cases
-              // where the room has content that was never saved (e.g. failed
-              // beforeunload XHR, or content received from another client after
-              // the database was last saved). Uses onAutoSaveRef to avoid stale
-              // closures since this runs inside the long-lived PartyKit effect.
+              // The room is newer than the database here (see roomIsNewer), so
+              // this is content another client never managed to save (closed
+              // tab before autosave, failed beforeunload XHR). Persist it.
+              // Uses onAutoSaveRef to avoid stale closures since this runs
+              // inside the long-lived PartyKit effect.
               const syncTitle = msg.title || noteTitleRef.current || ''
               const syncNoteId = liveNoteIdRef.current
               pendingRef.current = { title: syncTitle, html: msg.content!, noteId: syncNoteId }
@@ -398,9 +421,8 @@ export default function EditorComponent({
                 onAutoSaveRef.current(nid, t, h)
               }, 2_000)
             } else {
-              // For regular updates: only sync the content, keep local title
-              const localTitle = noteTitleRef.current || ''
-              onLocalChangeRef.current(liveNoteIdRef.current, localTitle, msg.content!)
+              // Live update: content only, keep the local title.
+              onRemoteContentRef.current(liveNoteIdRef.current, undefined, msg.content!, msg.updatedAt)
             }
           }
         }
@@ -558,7 +580,7 @@ export default function EditorComponent({
   }, [onTagsChange])
 
   // ── Render ────────────────────────────────────────────────────────────────
-  const editable = !note.sharedToken || note.sharedPermission === 'EDIT'
+  const editable = (!note.sharedToken || note.sharedPermission === 'EDIT') && serverReady
 
   if (deleted) {
     return (

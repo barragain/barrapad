@@ -86,7 +86,9 @@ export default function ShareModal({ note, onClose, onIsSharedChange }: ShareMod
     try {
       const res = await fetch(`/api/notes/${note.id}/collaborators`)
       if (!res.ok) return
-      setCollaborators((await res.json()) as Collaborator[])
+      // The API appends the owner (id "owner-<userId>") so @mentions can find them;
+      // the owner is not a collaborator and must not get a Remove button here.
+      setCollaborators(((await res.json()) as Collaborator[]).filter((c) => !c.id.startsWith('owner-')))
     } catch {}
   }, [note.id, isSharedView])
 

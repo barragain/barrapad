@@ -15,7 +15,7 @@ import NotificationBell from './NotificationBell'
 import AccessDeniedView from './AccessDeniedView'
 import type { Note, Tag, AppearanceSettings, SharedAccessRecord, CollabNotification } from '@/types'
 
-const PARTYKIT_HOST = process.env.NEXT_PUBLIC_PARTYKIT_HOST ?? 'barrapad.barragain.partykit.dev'
+import { REALTIME_HOST as PARTYKIT_HOST } from '@/lib/realtime'
 
 // ── Notification helpers ──────────────────────────────────────────────────────
 
@@ -121,6 +121,10 @@ export default function AppShell() {
   // Incremented every time fetchNotes applies newer server content — lets the
   // Editor know it should re-check its content against the latest note.content.
   const [serverFetchVersion, setServerFetchVersion] = useState(0)
+  // False until the first /api/notes answer this session. While false the editor
+  // is read-only: typing on top of a stale localStorage copy and auto-saving it
+  // is how another device's edits got overwritten.
+  const [notesLoaded, setNotesLoaded] = useState(false)
   const [sharedNotes, setSharedNotes] = useState<SharedAccessRecord[]>([])
   const [showShare, setShowShare] = useState(false)
   const [showAppearance, setShowAppearance] = useState(false)
@@ -305,11 +309,27 @@ export default function AppShell() {
     if (isLoaded) fetchNotes()
   }, [isLoaded, isSignedIn])
 
-  // Re-validate shared notes whenever the tab regains focus.
+  // Re-fetch whenever the tab comes back: visibility (tab switch), window focus
+  // (switching between windows does NOT fire visibilitychange) and reconnect.
+  // After a long absence lock editing again until the fetch lands, so edits
+  // made on another computer in the meantime cannot be typed over.
   useEffect(() => {
-    const handleVisibility = () => { if (!document.hidden && isSignedIn) fetchNotes() }
-    document.addEventListener('visibilitychange', handleVisibility)
-    return () => document.removeEventListener('visibilitychange', handleVisibility)
+    if (!isSignedIn) return
+    let hiddenAt = 0
+    const refresh = () => {
+      if (document.hidden) { hiddenAt = Date.now(); return }
+      if (hiddenAt && Date.now() - hiddenAt > 60_000) setNotesLoaded(false)
+      hiddenAt = 0
+      fetchNotes()
+    }
+    document.addEventListener('visibilitychange', refresh)
+    window.addEventListener('focus', refresh)
+    window.addEventListener('online', refresh)
+    return () => {
+      document.removeEventListener('visibilitychange', refresh)
+      window.removeEventListener('focus', refresh)
+      window.removeEventListener('online', refresh)
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSignedIn])
 
@@ -407,9 +427,12 @@ export default function AppShell() {
           const dirty = dirtyVersionsRef.current
           const merged = ownedData.map(serverNote => {
             const localNote = prev.find(n => n.id === serverNote.id)
-            if (localNote && !localNote.sharedToken && dirty.has(serverNote.id)) {
-              return localNote
-            }
+            if (!localNote || localNote.sharedToken) return serverNote
+            if (dirty.has(serverNote.id)) return localNote
+            // Local updatedAt is always server-issued now (DB response or realtime
+            // room), so a plain ISO comparison picks the fresher copy: the room
+            // can be ahead of the DB by one autosave interval.
+            if (localNote.updatedAt > serverNote.updatedAt) return localNote
             return serverNote
           })
           const next = [...merged, ...virtual]
@@ -418,6 +441,7 @@ export default function AppShell() {
         })
         // Signal Editor to re-check its content against the latest server data
         setServerFetchVersion(v => v + 1)
+        setNotesLoaded(true)
         setActiveNoteId((prev) => {
           if (prev && (prev.startsWith('shared-') || ownedData.some((n) => n.id === prev))) return prev
           return ownedData[0]?.id ?? null
@@ -440,7 +464,11 @@ export default function AppShell() {
           return ownedData[0]?.id ?? null
         })
       }
-    } catch {}
+    } catch {
+      // Server unreachable: unlock so offline typing still works. Same risk as
+      // before this guard existed, but only while the network is down.
+      setNotesLoaded(true)
+    }
   }
 
   /** Open a shared note in the main editor by token */
@@ -538,14 +566,37 @@ export default function AppShell() {
     updateNotes((prev) =>
       prev.map((n) => {
         if (n.id !== noteId) return n
+        // updatedAt is deliberately left alone: it must stay server-issued so
+        // fetchNotes can compare it against the DB. The save response sets it.
         // Never auto-derive title for shared notes — only the owner's explicit
         // rename (via PartyKit 'title' message) should change it.
-        if (n.sharedToken) return { ...n, content, updatedAt: new Date().toISOString() }
+        if (n.sharedToken) return { ...n, content }
         // For owned notes, auto-update title from first line unless manually renamed
         const useTitle = manualTitlesRef.current.has(n.id) ? n.title : title
-        return { ...n, title: useTitle, content, updatedAt: new Date().toISOString() }
+        return { ...n, title: useTitle, content }
       })
     )
+  }, [updateNotes])
+
+  /** Content that arrived from the realtime room (initial sync or a live update).
+   *  Not a local edit: no dirty bump, and updatedAt comes from the server. */
+  const handleRemoteContent = useCallback((noteId: string, title: string | undefined, content: string, updatedAt?: string) => {
+    updateNotes((prev) =>
+      prev.map((n) => {
+        if (n.id !== noteId) return n
+        const next = { ...n, content }
+        if (title) next.title = title
+        if (updatedAt && updatedAt > n.updatedAt) next.updatedAt = updatedAt
+        return next
+      })
+    )
+  }, [updateNotes])
+
+  /** After a successful save, adopt the server's updatedAt without touching content
+   *  (the user may have typed more while the request was in flight). */
+  const applyServerUpdatedAt = useCallback((noteId: string, updatedAt?: string) => {
+    if (!updatedAt) return
+    updateNotes((prev) => prev.map((n) => n.id === noteId && updatedAt > n.updatedAt ? { ...n, updatedAt } : n))
   }, [updateNotes])
 
   /** Background sync to API. The noteId is supplied by the caller — do NOT
@@ -581,7 +632,10 @@ export default function AppShell() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ title, content }),
         })
-        if (res.ok) clearIfStillClean()
+        if (res.ok) {
+          clearIfStillClean()
+          applyServerUpdatedAt(noteId, ((await res.json()) as { updatedAt?: string }).updatedAt)
+        }
       } catch {}
       return
     }
@@ -593,10 +647,13 @@ export default function AppShell() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title, content }),
       })
-      if (res.ok) clearIfStillClean()
+      if (res.ok) {
+        clearIfStillClean()
+        applyServerUpdatedAt(noteId, ((await res.json()) as { updatedAt?: string }).updatedAt)
+      }
     } catch {}
     setAutoSaving(false)
-  }, [])
+  }, [applyServerUpdatedAt])
 
   /** Deduplicated list of all tags: union of registry + note-derived tags. Registry wins on label match. */
   const allTags = useMemo<Tag[]>(() => {
@@ -733,7 +790,10 @@ export default function AppShell() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ title, content }),
         })
-        if (res.ok) clearIfStillClean()
+        if (res.ok) {
+          clearIfStillClean()
+          applyServerUpdatedAt(noteId, ((await res.json()) as { updatedAt?: string }).updatedAt)
+        }
       } catch {}
       return
     }
@@ -744,10 +804,13 @@ export default function AppShell() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title, content }),
       })
-      if (res.ok) clearIfStillClean()
+      if (res.ok) {
+        clearIfStillClean()
+        applyServerUpdatedAt(noteId, ((await res.json()) as { updatedAt?: string }).updatedAt)
+      }
     } catch {}
     setManualSaving(false)
-  }, [])
+  }, [applyServerUpdatedAt])
 
   const handleNewNote = async () => {
     const tempId = `temp-${Date.now()}`
@@ -827,16 +890,17 @@ export default function AppShell() {
   const handleRenameNote = useCallback(async (id: string, newTitle: string) => {
     manualTitlesRef.current.add(id)
     try { localStorage.setItem('barrapad_manual_titles', JSON.stringify([...manualTitlesRef.current])) } catch {}
-    updateNotes((prev) => prev.map((n) => n.id === id ? { ...n, title: newTitle, updatedAt: new Date().toISOString() } : n))
+    updateNotes((prev) => prev.map((n) => n.id === id ? { ...n, title: newTitle } : n))
     window.dispatchEvent(new CustomEvent('barrapad:rename', { detail: { id, title: newTitle } }))
     try {
-      await fetch(`/api/notes/${id}`, {
+      const res = await fetch(`/api/notes/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: newTitle }),
       })
+      if (res.ok) applyServerUpdatedAt(id, ((await res.json()) as { updatedAt?: string }).updatedAt)
     } catch {}
-  }, [updateNotes])
+  }, [updateNotes, applyServerUpdatedAt])
 
   const handleDeleteNote = async (id: string) => {
     const prev = notes
@@ -1138,9 +1202,9 @@ export default function AppShell() {
           {/* Push everything else to the right */}
           <div className="flex-1" />
 
-          {/* Auto-save indicator — appears only during background sync */}
+          {/* Sync indicator: pulsing while the first server fetch is pending (editor read-only) or during background save */}
           <AnimatePresence>
-            {autoSaving && (
+            {(autoSaving || !notesLoaded) && (
               <motion.span
                 key="autosave-indicator"
                 initial={{ opacity: 0, x: 8 }}
@@ -1149,9 +1213,10 @@ export default function AppShell() {
                 transition={{ duration: 0.18 }}
                 className="flex items-center gap-1"
                 style={{ color: 'var(--muted)' }}
-                title="Syncing to server…"
+                title={notesLoaded ? 'Syncing to server…' : 'Loading latest from server… (read-only until done)'}
               >
                 <CloudUpload size={13} className="animate-pulse" />
+                {!notesLoaded && <span style={{ fontSize: 11 }}>Syncing…</span>}
               </motion.span>
             )}
           </AnimatePresence>
@@ -1290,7 +1355,9 @@ export default function AppShell() {
               note={activeNote}
               allTags={allTags}
               serverFetchVersion={serverFetchVersion}
+              serverReady={notesLoaded}
               onLocalChange={handleLocalChange}
+              onRemoteContent={handleRemoteContent}
               onAutoSave={handleAutoSave}
               onManualSave={handleManualSaveContent}
               onTagsChange={handleTagsChange}
@@ -1319,7 +1386,8 @@ export default function AppShell() {
           <button
             className="p-1.5 rounded hover:bg-black/5 transition-colors"
             style={{ color: 'var(--muted)' }}
-            title="Close"
+            title="Close note"
+            onClick={() => setActiveNoteId(null)}
           >
             <X size={15} />
           </button>
