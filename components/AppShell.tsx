@@ -415,8 +415,10 @@ export default function AppShell() {
         const raw = (await notesRes.json()) as Note[]
         ownedData = raw.map(n => ({ ...n, tags: Array.isArray(n.tags) ? n.tags : [] }))
         setNotes(prev => {
-          // Preserve open virtual shared-notes alongside the fresh owned notes
-          const virtual = prev.filter(n => n.sharedToken)
+          // Preserve open virtual shared-notes and notes still being created
+          // (temp- ids). Dropping a temp note here is what left "No note
+          // selected" when a refetch landed while POST /api/notes was in flight.
+          const virtual = prev.filter(n => n.sharedToken || n.id.startsWith('temp-'))
           // Smart merge: keep the local copy only when it has unsaved edits
           // (tracked in dirtyVersionsRef). This replaces the old updatedAt
           // comparison, which failed whenever a client's clock drifted ahead
@@ -443,7 +445,7 @@ export default function AppShell() {
         setServerFetchVersion(v => v + 1)
         setNotesLoaded(true)
         setActiveNoteId((prev) => {
-          if (prev && (prev.startsWith('shared-') || ownedData.some((n) => n.id === prev))) return prev
+          if (prev && (prev.startsWith('shared-') || prev.startsWith('temp-') || ownedData.some((n) => n.id === prev))) return prev
           return ownedData[0]?.id ?? null
         })
       }
