@@ -80,3 +80,11 @@ Do the hooks first; the rest can wait.
 Done: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 3 (all of it), 4.2. Also fixed outside this list: cross-device sync. The room's initial `sync` is applied only when newer than the database copy (it used to overwrite and re-save stale room content), `updatedAt` is server-issued everywhere so `fetchNotes` can merge by timestamp, the editor is read-only until the first `/api/notes` answer of the session, and the app re-fetches on window focus and reconnect, not only on tab visibility.
 
 Smoke tests for the sync fix live in `portfolio-handoff/capture/` (`sync-smoke.mjs`, `stale-cache-smoke.mjs`); run them with `node` from that folder after a deploy. 5.1 and 5.3 done (devDependencies moved); 5.4 was already lazy.
+
+## Speed (2026-10-15)
+
+Measured on production with `portfolio-handoff/capture/perf-probe.mjs`: the page was usable 2.3 to 2.8 s after navigation. The waterfall was document (0.6 s TTFB, Clerk handshake) then Clerk JS boot then `/api/notes` (0.8 to 1.0 s). Two causes for the API time: Vercel functions ran in `iad1` (US east) while the Neon database sits in `ap-southeast-1` and the user connects from Asia, so each call crossed the Pacific twice; and Neon's compute suspends when idle, so the first query after a pause takes an extra second or two.
+
+Done: `app/page.tsx` loads notes server-side and seeds `AppShell`, so the editor is usable at first paint; `vercel.json` pins functions to `sin1`. ilovenote.net, the reference for "fast", is a plain localStorage notepad with no account and no sync; its own TTFB is 1.1 s, it only feels instant because nothing is fetched after load.
+
+Done too: the Worker pings `/api/health` every 4 minutes (cron trigger) so Neon stays awake. After pinning: usable at about 1.2 s warm (was 2.3 s). Open: the 0.4 s Clerk handshake redirect on each cold document, and the 370 KB of script.

@@ -5,6 +5,7 @@ const isPublicRoute = createRouteMatcher([
   '/sign-up(.*)',
   '/s/(.*)',          // shared note pages — no account needed to view
   '/api/share/(.*)', // share API — auth enforced per-method inside the route
+  '/api/health',     // keep-alive ping from the realtime Worker; checks REALTIME_SECRET itself
 ])
 
 export default clerkMiddleware(async (auth, request) => {
