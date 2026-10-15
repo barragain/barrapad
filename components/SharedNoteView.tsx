@@ -238,7 +238,7 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
       }
 
       if (msg.type === 'title' && msg.title) {
-        document.title = `${msg.title} | barraPAD - A notepad for whatever`
+        document.title = `${msg.title} | bpad - A notepad for whatever`
         return
       }
 
@@ -282,7 +282,7 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--editor-bg, #F9F7F4)' }}>
         <div style={{ textAlign: 'center' }}>
           <p style={{ fontSize: 16, color: '#8A8178', marginBottom: 12 }}>This note has been deleted.</p>
-          <a href="/" style={{ fontSize: 14, color: '#D4550A', textDecoration: 'none', fontWeight: 600 }}>← Go to barraPAD</a>
+          <a href="/" style={{ fontSize: 14, color: '#D4550A', textDecoration: 'none', fontWeight: 600 }}>← Go to bpad</a>
         </div>
       </div>
     )
@@ -298,7 +298,7 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <a href="/" style={{ textDecoration: 'none' }}>
-            <img src="/logo.svg" alt="barraPAD" style={{ height: 28 }} />
+            <img src="/logo.svg" alt="bpad" style={{ height: 28 }} />
           </a>
           {isLoaded && isSignedIn && (
             <a href="/" style={{
@@ -387,7 +387,7 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
             style={{ color: '#8A8178', opacity: 0.8, cursor: 'pointer', background: 'none', border: 'none' }}
             onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.color = '#B8420A' }}
             onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.8'; e.currentTarget.style.color = '#8A8178' }}
-            title="About barraPAD"
+            title="About bpad"
           >
             <HelpCircle size={22} />
           </button>

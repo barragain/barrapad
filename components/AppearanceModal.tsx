@@ -22,7 +22,7 @@ const THEMES: Array<{
   { id: 'calm', label: 'Calm', sidebar: '#EDE8E0', editor: '#F5F0E8', accent: '#9B7D5E' },
   { id: 'synthwave', label: 'Synthwave', sidebar: '#12122a', editor: '#1a1a2e', accent: '#a855f7' },
   { id: 'earth', label: 'Earth', sidebar: '#8b9e7e', editor: '#c8d4c0', accent: '#7a6450' },
-  { id: 'barrapad', label: 'barraPAD', sidebar: '#F5F2ED', editor: '#ffffff', accent: '#D4550A' },
+  { id: 'barrapad', label: 'bpad', sidebar: '#F5F2ED', editor: '#ffffff', accent: '#D4550A' },
   { id: 'midnight', label: 'Midnight', sidebar: '#0d1b2e', editor: '#0a1628', accent: '#a0aec0' },
 ]
 

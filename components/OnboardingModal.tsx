@@ -30,7 +30,7 @@ export default function OnboardingModal() {
         style={{ background: 'var(--editor-bg, #fff)' }}
       >
         <div className="flex flex-col gap-1">
-          <img src="/logo.svg" alt="barraPAD" style={{ height: 28, width: 'auto', marginBottom: 8 }} />
+          <img src="/logo.svg" alt="bpad" style={{ height: 28, width: 'auto', marginBottom: 8 }} />
           <h2 className="text-lg font-semibold" style={{ color: 'var(--ink)' }}>Welcome! What's your name?</h2>
           <p className="text-sm" style={{ color: 'var(--muted)' }}>
             This is how you'll appear to collaborators in shared notes.

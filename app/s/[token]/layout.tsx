@@ -4,7 +4,7 @@ import '@/app/globals.css'
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL ?? 'https://www.bpad.cc'),
-  title: 'barraPAD',
+  title: 'bpad',
 }
 
 export default function SharedNoteLayout({ children }: { children: React.ReactNode }) {

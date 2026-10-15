@@ -25,12 +25,12 @@ function stripHtml(html: string) {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const link = await getShareData(params.token)
   if (!link) {
-    return { title: 'Note not found — barraPAD' }
+    return { title: 'Note not found — bpad' }
   }
 
   const title = link.note.title || 'Untitled'
-  const snippet = stripHtml(link.note.content).slice(0, 200) || 'A note shared from barraPAD.'
-  const fullTitle = `${title} — barraPAD`
+  const snippet = stripHtml(link.note.content).slice(0, 200) || 'A note shared from bpad.'
+  const fullTitle = `${title} — bpad`
 
   return {
     title: fullTitle,
@@ -39,7 +39,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title: fullTitle,
       description: snippet,
       type: 'article',
-      siteName: 'barraPAD',
+      siteName: 'bpad',
       images: [{ url: '/og-image.png', width: 1200, height: 630 }],
     },
     twitter: {

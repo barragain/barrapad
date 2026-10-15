@@ -359,7 +359,7 @@ export default function ShareModal({ note, onClose, onIsSharedChange }: ShareMod
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm font-medium text-[#1A1A1A]">Invite people</p>
-                        <p className="text-xs text-[#C4BFB6]">Share directly with barraPAD users</p>
+                        <p className="text-xs text-[#C4BFB6]">Share directly with bpad users</p>
                       </div>
                       {/* Permission toggle */}
                       <div className="flex items-center border border-[#E5E0D8] rounded-lg overflow-hidden text-xs font-medium">

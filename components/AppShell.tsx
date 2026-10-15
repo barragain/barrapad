@@ -110,13 +110,14 @@ function saveTagRegistry(tags: Tag[]) {
   } catch {}
 }
 
-export default function AppShell() {
+export default function AppShell({ initialNotes }: { initialNotes?: Note[] } = {}) {
   const { isLoaded, isSignedIn } = useAuth()
   const { user } = useUser()
   const needsOnboarding = isLoaded && isSignedIn && user && !user.firstName
-  // Lazy init from cache — renders instantly, no loading state needed
-  const [notes, setNotes] = useState<Note[]>(() => loadCachedNotes())
-  const [activeNoteId, setActiveNoteId] = useState<string | null>(() => loadCachedNotes()[0]?.id ?? null)
+  // Server-rendered notes win (fresh, no lock); otherwise the localStorage
+  // cache renders instantly and the editor waits for the first fetch.
+  const [notes, setNotes] = useState<Note[]>(() => initialNotes ?? loadCachedNotes())
+  const [activeNoteId, setActiveNoteId] = useState<string | null>(() => (initialNotes ?? loadCachedNotes())[0]?.id ?? null)
   const [tagRegistry, setTagRegistry] = useState<Tag[]>(() => loadTagRegistry())
   // Incremented every time fetchNotes applies newer server content — lets the
   // Editor know it should re-check its content against the latest note.content.
@@ -124,7 +125,7 @@ export default function AppShell() {
   // False until the first /api/notes answer this session. While false the editor
   // is read-only: typing on top of a stale localStorage copy and auto-saving it
   // is how another device's edits got overwritten.
-  const [notesLoaded, setNotesLoaded] = useState(false)
+  const [notesLoaded, setNotesLoaded] = useState(!!initialNotes)
   const [sharedNotes, setSharedNotes] = useState<SharedAccessRecord[]>([])
   const [showShare, setShowShare] = useState(false)
   const [showAppearance, setShowAppearance] = useState(false)
@@ -299,8 +300,8 @@ export default function AppShell() {
   useEffect(() => {
     const noteName = activeNote?.title
     document.title = noteName
-      ? `${noteName} | barraPAD - A notepad for whatever`
-      : 'barraPAD - A notepad for whatever'
+      ? `${noteName} | bpad - A notepad for whatever`
+      : 'bpad - A notepad for whatever'
   }, [activeNote?.title])
 
   // Background sync — re-runs when Clerk finishes loading or auth state changes

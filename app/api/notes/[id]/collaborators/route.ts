@@ -136,13 +136,13 @@ export async function POST(
   // Then send:
   //   if (inviteeEmail) {
   //     await resend.emails.send({
-  //       from: 'barraPAD <no-reply@bpad.cc>',
+  //       from: 'bpad <no-reply@bpad.cc>',
   //       to: inviteeEmail,
   //       subject: `${ownerName} shared "${owned.title || 'a note'}" with you`,
   //       html: `
   //         <p>Hi ${displayName || 'there'},</p>
-  //         <p><strong>${ownerName}</strong> invited you to ${permission === 'EDIT' ? 'collaborate on' : 'view'} a note in barraPAD.</p>
-  //         <p><a href="${process.env.NEXT_PUBLIC_BASE_URL ?? 'https://www.bpad.cc'}">Open barraPAD →</a></p>
+  //         <p><strong>${ownerName}</strong> invited you to ${permission === 'EDIT' ? 'collaborate on' : 'view'} a note in bpad.</p>
+  //         <p><a href="${process.env.NEXT_PUBLIC_BASE_URL ?? 'https://www.bpad.cc'}">Open bpad →</a></p>
   //       `,
   //     })
   //   }
