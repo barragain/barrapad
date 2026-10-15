@@ -78,3 +78,5 @@ Do the hooks first; the rest can wait.
 ## Progress (2026-10-15)
 
 Done: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 3 (all of it), 4.2. Also fixed outside this list: cross-device sync. The room's initial `sync` is applied only when newer than the database copy (it used to overwrite and re-save stale room content), `updatedAt` is server-issued everywhere so `fetchNotes` can merge by timestamp, the editor is read-only until the first `/api/notes` answer of the session, and the app re-fetches on window focus and reconnect, not only on tab visibility.
+
+Smoke tests for the sync fix live in `portfolio-handoff/capture/` (`sync-smoke.mjs`, `stale-cache-smoke.mjs`); run them with `node` from that folder after a deploy. 5.1 and 5.3 done (devDependencies moved); 5.4 was already lazy.
