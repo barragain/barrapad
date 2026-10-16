@@ -106,7 +106,17 @@ function loadGuestNotes(): Note[] {
 function saveCachedNotes(notes: Note[]) {
   try {
     if (guestMode) {
-      localStorage.setItem(GUEST_KEY, JSON.stringify(notes.filter((n) => isLocalId(n.id))))
+      // The browser is a guest's only copy, so a full localStorage (big images,
+      // ~5 MB) means lost edits. Tell AppShell so it can warn the user.
+      // Deferred: this runs inside setNotes updaters, where setState must not happen.
+      const report = (full: boolean) => queueMicrotask(() =>
+        window.dispatchEvent(new CustomEvent('bpad:guest-storage', { detail: { full } })))
+      try {
+        localStorage.setItem(GUEST_KEY, JSON.stringify(notes.filter((n) => isLocalId(n.id))))
+        report(false)
+      } catch {
+        report(true)
+      }
       return
     }
     // Don't cache temp notes or shared notes (they're not the user's own)
@@ -161,6 +171,21 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
   const [appearance, setAppearance] = useState<AppearanceSettings>(DEFAULT_APPEARANCE)
   const [manualSaving, setManualSaving] = useState(false)
   const [autoSaving, setAutoSaving] = useState(false)
+  const [guestStorageFull, setGuestStorageFull] = useState(false)
+  // Guest pill shows after a short beat (not on top of the first paint) and
+  // stays away once dismissed.
+  const [pillReady, setPillReady] = useState(false)
+  const [pillDismissed, setPillDismissed] = useState(false)
+  useEffect(() => {
+    try { setPillDismissed(localStorage.getItem('bpad_guest_pill_dismissed') === '1') } catch {}
+    const t = setTimeout(() => setPillReady(true), 900)
+    return () => clearTimeout(t)
+  }, [])
+  useEffect(() => {
+    const onStorage = (e: Event) => setGuestStorageFull((e as CustomEvent<{ full: boolean }>).detail.full)
+    window.addEventListener('bpad:guest-storage', onStorage)
+    return () => window.removeEventListener('bpad:guest-storage', onStorage)
+  }, [])
   // Brief "Saved" tick after a save finishes, so the sync indicator closes the loop.
   const [justSaved, setJustSaved] = useState(false)
   const wasSavingRef = useRef(false)
@@ -1279,7 +1304,7 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
       </AnimatePresence>
 
       {/* Main area */}
-      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+      <div className="relative flex flex-col flex-1 min-w-0 overflow-hidden">
         {/* Top action bar */}
         <div className="flex items-center gap-2 px-4 py-2 border-b" style={{ background: 'var(--editor-bg)', borderColor: 'var(--border)' }}>
           {/* Hamburger — mobile only */}
@@ -1293,23 +1318,6 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
 
           {/* Push everything else to the right */}
           <div className="flex-1" />
-
-          {/* Guests: notes live in this browser only. Say so, and offer the account. */}
-          {isGuest && (
-            <span className="hidden sm:flex items-center gap-1.5 text-xs" style={{ color: 'var(--muted)' }}>
-              <HardDrive size={12} />
-              Saved in this browser.
-              <Link href="/sign-up" className="font-medium hover:underline" style={{ color: '#D4550A' }}>
-                Sign up
-              </Link>
-              to keep notes in the cloud and share them.
-            </span>
-          )}
-          {isGuest && (
-            <Link href="/sign-up" className="sm:hidden text-xs font-medium" style={{ color: '#D4550A' }}>
-              Sign up to sync
-            </Link>
-          )}
 
           {/* Sync indicator: spinning cloud while loading or saving, then a short "Saved" tick */}
           <AnimatePresence mode="wait">
@@ -1529,6 +1537,58 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
             <X size={15} />
           </button>
         </div>
+
+      {/* Guest pill: same floating style as the shared-note CTA. Dismissible,
+          except when storage is full, because then edits are being lost. */}
+      <AnimatePresence>
+        {isGuest && pillReady && (guestStorageFull || !pillDismissed) && (
+          <motion.div
+            key={guestStorageFull ? 'guest-pill-full' : 'guest-pill'}
+            role={guestStorageFull ? 'alert' : 'status'}
+            initial={{ opacity: 0, y: 16, x: '-50%' }}
+            animate={{ opacity: 1, y: 0, x: '-50%' }}
+            exit={{ opacity: 0, y: 16, x: '-50%' }}
+            transition={{ type: 'spring', stiffness: 420, damping: 32 }}
+            className="absolute bottom-0.5 left-[calc(50%-16px)] sm:left-1/2 z-50 flex items-center gap-2.5 rounded-full py-1 pl-4 pr-1 whitespace-nowrap"
+            style={{ background: '#1A1A1A', color: '#fff', boxShadow: '0 4px 24px rgba(0,0,0,0.18)' }}
+          >
+            {guestStorageFull ? (
+              <span className="flex items-center gap-2 text-xs font-medium">
+                <span className="h-2 w-2 rounded-full" style={{ background: '#E5484D' }} />
+                <span className="hidden sm:inline">Browser storage full, changes not saved</span>
+                <span className="sm:hidden">Storage full</span>
+              </span>
+            ) : (
+              <span className="flex items-center gap-2 text-xs" style={{ color: '#D9D4CC' }}>
+                <HardDrive size={12} />
+                <span className="hidden sm:inline">Saved on this device only</span>
+                <span className="sm:hidden">Local only</span>
+              </span>
+            )}
+            <Link
+              href="/sign-up"
+              title="Sign up to keep your notes in the cloud and share them"
+              className="rounded-full px-3.5 py-1 text-xs font-bold text-white hover:opacity-90 transition-opacity"
+              style={{ background: '#D4550A' }}
+            >
+              Sign up to sync
+            </Link>
+            {!guestStorageFull && (
+              <button
+                onClick={() => {
+                  setPillDismissed(true)
+                  try { localStorage.setItem('bpad_guest_pill_dismissed', '1') } catch {}
+                }}
+                aria-label="Dismiss"
+                className="rounded-full p-1 transition-colors hover:bg-white/10"
+                style={{ color: '#8A8178' }}
+              >
+                <X size={13} />
+              </button>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
       </div>
 
       {/* Onboarding — collect name on first sign-up */}

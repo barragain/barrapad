@@ -69,6 +69,7 @@ function setNodeAlign(editor: Editor, align: 'left' | 'center' | 'right') {
 
 interface ToolbarProps {
   editor: Editor | null
+  commentsEnabled?: boolean
 }
 
 const TEXT_STYLES = [
@@ -259,7 +260,7 @@ function TBtn({
   )
 }
 
-export default function Toolbar({ editor }: ToolbarProps) {
+export default function Toolbar({ editor, commentsEnabled = true }: ToolbarProps) {
   const isMac = useIsMac()
   const isMobile = useIsMobile()
   const iconSize = isMobile ? 18 : 15
@@ -699,6 +700,7 @@ export default function Toolbar({ editor }: ToolbarProps) {
           <BarChart2 size={iconSize} />
         </TBtn>
 
+        {commentsEnabled && (<>
         {/* Separator before comment — visually separate collaboration from formatting */}
         <div style={{ width: 1, height: 18, background: 'var(--border)', margin: '0 4px', flexShrink: 0 }} />
 
@@ -734,6 +736,7 @@ export default function Toolbar({ editor }: ToolbarProps) {
           <MessageSquare size={isMobile ? 14 : 13} />
           {!isMobile && <span>Comments</span>}
         </button>
+        </>)}
       </div>
 
       {/* ── Mobile bottom sheets ── */}

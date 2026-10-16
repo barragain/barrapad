@@ -1,16 +1,15 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 
-const isPublicRoute = createRouteMatcher([
-  '/',                // guests can write without an account; notes stay in their browser
-  '/sign-in(.*)',
-  '/sign-up(.*)',
-  '/s/(.*)',          // shared note pages — no account needed to view
+// Only the API needs an account. Pages are open: `/` works for guests, `/s/*`
+// shows shared notes, and unknown paths reach the 404 page instead of sign-in.
+const isApiRoute = createRouteMatcher(['/api/(.*)'])
+const isPublicApi = createRouteMatcher([
   '/api/share/(.*)', // share API — auth enforced per-method inside the route
   '/api/health',     // keep-alive ping from the realtime Worker; checks REALTIME_SECRET itself
 ])
 
 export default clerkMiddleware(async (auth, request) => {
-  if (!isPublicRoute(request)) {
+  if (isApiRoute(request) && !isPublicApi(request)) {
     await auth.protect()
   }
 })

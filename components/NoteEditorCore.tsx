@@ -196,6 +196,8 @@ export default function NoteEditorCore({
   const contextClickRef = useRef<{ x: number; y: number; editorPos?: number }>({ x: 0, y: 0 })
   const ctxImageRef = useRef<HTMLInputElement>(null)
   const ctxFileRef = useRef<HTMLInputElement>(null)
+  // Comments live on the server; guest notes (local- ids) have nowhere to keep them.
+  const commentsEnabled = !noteId?.startsWith('local-')
   const [commentSidebarOpen, setCommentSidebarOpen] = useState(false)
   const [activeCommentThreadId, setActiveCommentThreadId] = useState<string | null>(null)
   const [pendingCommentMarkId, setPendingCommentMarkId] = useState<string | null>(null)
@@ -687,13 +689,15 @@ export default function NoteEditorCore({
         { type: 'separator' },
         { type: 'item', label: 'Copy', icon: <Copy size={13} />, onClick: () => { navigator.clipboard.writeText(selectedText); setContextMenu(null) }},
         { type: 'item', label: 'Cut', icon: <Scissors size={13} />, onClick: () => { navigator.clipboard.writeText(selectedText); ed.chain().focus().deleteSelection().run(); setContextMenu(null) }},
-        { type: 'separator' },
-        { type: 'item', label: 'Comment', icon: <MessageSquare size={13} />, onClick: () => {
-          setContextMenu(null)
-          const cid = `c-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
-          ed.chain().focus().setCommentMark(cid).run()
-          handleAddComment(cid)
-        }},
+        ...(commentsEnabled ? [
+          { type: 'separator' as const },
+          { type: 'item' as const, label: 'Comment', icon: <MessageSquare size={13} />, onClick: () => {
+            setContextMenu(null)
+            const cid = `c-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+            ed.chain().focus().setCommentMark(cid).run()
+            handleAddComment(cid)
+          }},
+        ] : []),
         { type: 'separator' },
         addTagItem,
       ]})
@@ -835,7 +839,7 @@ export default function NoteEditorCore({
                 }
           }
         >
-          <Toolbar editor={editor} />
+          <Toolbar editor={editor} commentsEnabled={commentsEnabled} />
         </div>
       )}
 
@@ -1007,7 +1011,7 @@ export default function NoteEditorCore({
 
           {/* Floating comment bubble on text selection */}
           <AnimatePresence>
-            {commentBubble && (
+            {commentBubble && commentsEnabled && (
               <motion.button
                 key="comment-bubble"
                 initial={{ opacity: 0, y: 6, scale: 0.9 }}
@@ -1074,7 +1078,7 @@ export default function NoteEditorCore({
     </div>
     {/* Comment sidebar */}
     <AnimatePresence>
-      {commentSidebarOpen && (
+      {commentSidebarOpen && commentsEnabled && (
         <CommentSidebar
           noteId={noteId ?? ''}
           editor={editor}
