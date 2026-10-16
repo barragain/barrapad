@@ -16,7 +16,7 @@ Polling covers what the rooms do not: the open note every 5 seconds (three 404s 
 
 Each note has a room named by its id, and each user has a notification room `notif-<userId>`. Rooms live at `/parties/main/<room>` on the Worker (`realtime/index.ts`, PartyServer on Durable Objects). The room stores content, title, `updatedAt` and a deleted flag. A client takes the room's initial `sync` only when its `updatedAt` is newer than the copy it already holds.
 
-Remote content is applied as one replace step over the range that changed (`applyRemoteContent` in `extensions/collab-cursor.ts`), so the local caret and the remote cursors move with their text when someone edits above them. Edits are last write wins; two people typing in the same paragraph at the same moment can overwrite each other.
+Remote content is applied as one replace step over the range that changed (`applyRemoteContent` in `extensions/collab-cursor.ts`), so the local caret and the remote cursors move with their text when someone edits above them. Edits are last write wins; two people typing in the same paragraph at the same moment can overwrite each other. The Yjs trial below removes that.
 
 | Direction | Message | Carries |
 |---|---|---|
@@ -28,6 +28,14 @@ Remote content is applied as one replace step over the range that changed (`appl
 | room to client | `update`, `tags`, `title`, `delete`, `cursor`, `cursor-leave`, `comment-update` | relayed from other clients |
 | room to client | `presence` | connection count |
 | API to room (HTTP POST) | `title`, `delete`, `notification`, `notification_update` | requires the `x-realtime-secret` header |
+
+## Live merging with Yjs (on trial)
+
+Opening bpad with `?crdt=1` turns on Yjs for that browser (stored in `localStorage.bpad_crdt`, `?crdt=0` turns it off). Note content then travels through a Y doc in a second room, `/parties/note-y/<note>` (`NoteYParty`, a `YServer`), and Tiptap's Collaboration and CollaborationCaret extensions bind the editor to it. Concurrent edits merge instead of overwriting each other. The JSON room stays open for tags, titles, deletes and comments, and its content and cursor messages are ignored.
+
+The room keeps the doc in its storage, but the database is still where the note lives. Each tab that edits a note saves its HTML with the usual PATCH and reports the new `updatedAt` to the room (`saved`), so the room knows which database version its doc matches. A tab that only watches never saves. A fresh room is filled once: a tab asks with `seed?`, and the room lets exactly one tab load the database HTML, when the doc is empty or the database is newer than the room's stamp (an edit made without the switch). The others wait for the merged doc. Until a note's doc arrives, the cached copy is shown read-only.
+
+The editor is mounted once per note in this mode, because Collaboration binds one doc per editor. A new note gets its doc at once and goes online on that same doc when its `temp-` id becomes the real one, so typing is never interrupted. Guest notes have no room and keep the plain path. Undo and redo come from Yjs, so they only undo your own edits.
 
 ## Who can join a room
 
