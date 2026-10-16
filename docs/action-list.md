@@ -88,3 +88,11 @@ Measured on production with `portfolio-handoff/capture/perf-probe.mjs`: the page
 Done: `app/page.tsx` loads notes server-side and seeds `AppShell`, so the editor is usable at first paint; `vercel.json` pins functions to `sin1`. ilovenote.net, the reference for "fast", is a plain localStorage notepad with no account and no sync; its own TTFB is 1.1 s, it only feels instant because nothing is fetched after load.
 
 Done too: the Worker pings `/api/health` every 4 minutes (cron trigger) so Neon stays awake. After pinning: usable at about 1.2 s warm (was 2.3 s). Open: the 0.4 s Clerk handshake redirect on each cold document, and the 370 KB of script.
+
+## Guest mode and sign-in (2026-10-16)
+
+Done: bpad works without an account. Guest notes stay in the browser (`bpad_guest_notes`, `local-` ids) with no API or realtime calls, and a small dismissible pill in the bottom strip offers sign-up. It turns red and stays up when browser storage is full. Comments are hidden for guests. On sign-in the guest notes are moved into the account. The top bar has a sync indicator (spinning cloud, then "Saved"). There is a 404 page, and the middleware now only protects `/api`, so unknown URLs reach it instead of sign-in.
+
+Clerk: sessions last 90 days, passkeys are on, and Google sign-in is disabled because it never had production OAuth credentials (the button failed with "Missing client_id"). To bring Google back, create a Google Cloud OAuth client with redirect URI `https://clerk.bpad.cc/v1/oauth_callback`, add the ID and secret in Clerk, and re-enable the connection.
+
+Open from this round: guest images are base64 inside the note, so a few big images fill localStorage (the pill warns, but nothing shrinks them). Local Windows builds lose the root CSS (see CLAUDE.md, Testing); worth a look if it ever affects Vercel.
