@@ -352,7 +352,10 @@ export default function EditorComponent({
     // so only the previous note's save is flushed here.
     const ed = editorRef.current
     if (!ed) return
-    const wasTemp = prevNoteIdRef.current.startsWith('temp-')
+    // Only a real promotion counts. Switching from an unsaved new note to
+    // another note used to queue that note's content under the fallback
+    // title, renaming it to Untitled.
+    const promoted = promotedFromRef.current !== null && promotedFromRef.current === prevNoteIdRef.current
 
     // ── Flush pending save for the PREVIOUS note before switching ──────────
     // Route through onAutoSave so AppShell's dirty-version tracking gets
@@ -379,7 +382,7 @@ export default function EditorComponent({
     // The doc already holds the content typed during the temp phase. Queue it
     // for the database under the new real id, otherwise it only exists in
     // localStorage and is wiped the next time fetchNotes runs.
-    if (wasTemp && !note.id.startsWith('temp-')) {
+    if (promoted) {
       const html = note.content
       if (html && html !== '<p></p>') {
         const title = noteTitleRef.current || 'Untitled'

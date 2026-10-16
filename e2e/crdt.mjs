@@ -64,8 +64,15 @@ check(B.sockets.some((u) => u.includes(`/parties/note-y/${created[0]}`) && /tick
 await editor(A.page).click(); await A.page.keyboard.press('Control+End')
 await editor(B.page).click(); await B.page.keyboard.press('Control+Home')
 await Promise.all([A.page.keyboard.type(' AAAA', { delay: 30 }), B.page.keyboard.type('BBBB ', { delay: 30 })])
-await sleep(2_000)
-const [ta, tb] = [await text(A.page), await text(B.page)]
+// Usually equal within a second; a lost update never converges.
+const t0 = Date.now()
+let ta, tb
+for (;;) {
+  [ta, tb] = [await text(A.page), await text(B.page)]
+  if (ta === tb || Date.now() - t0 > 10_000) break
+  await sleep(250)
+}
+console.log(`tabs converged ${Date.now() - t0} ms after typing`)
 check(ta === tb && ta.includes('AAAA') && ta.includes('BBBB') && ta.includes(m1), `concurrent edits in one paragraph merge (A: ${ta} | B: ${tb})`)
 const caretSeen = await A.page.locator('.ProseMirror .bpad-caret').count()
 check(caretSeen > 0, 'remote caret drawn through Yjs awareness')
@@ -86,6 +93,11 @@ await sleep(1_500)
 const count = (t) => t.split(m2).length - 1
 const [tp, tq] = [await text(P.page), await text(Q.page)]
 check(count(tp) === 1 && count(tq) === 1, `fresh room seeded exactly once (P: ${tp} | Q: ${tq})`)
+
+await sleep(2_000) // let any stray autosave land
+const listed = await api(P.page, '/api/notes')
+const seedNote = (Array.isArray(listed) ? listed : listed.notes ?? []).find((n) => n.id === created[1]) ?? {}
+check(seedNote.title === m2, `opening a note does not rename it (${seedNote.title})`)
 
 // 3. The database changes while no tab has the note open: the database wins.
 await P.page.evaluate((id) => fetch(`/api/notes/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: '<p>edited elsewhere</p>' }) }), created[1])
