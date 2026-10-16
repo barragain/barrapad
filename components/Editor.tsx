@@ -287,7 +287,6 @@ export default function EditorComponent({
   const handleUpdate = useCallback((html: string, _text: string, title: string, remote?: boolean) => {
     // Bind every save to the note id at the moment of the edit.
     const editNoteId = liveNoteIdRef.current
-    try { if (localStorage.getItem('bpad_debug')) console.log('BPADDBG', JSON.stringify({ editNoteId, remote, seed: seedDoneRef.current, html: html.slice(0, 60), text: _text.slice(0, 40), title, same: html === noteContentRef.current, ref: noteContentRef.current?.slice(0, 60), nt: noteTitleRef.current, last: lastLocalChangeTimeRef.current })) } catch {}
     // Yjs fires updates for its own first render and for remote edits; only a
     // real content change should mark the note dirty and save.
     // Before the seed claim resolves the doc may still be empty: saving that

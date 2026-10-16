@@ -559,10 +559,12 @@ export default function NoteEditorCore({
     }
   }, [editor])
 
-  // Respond to editable prop changes (e.g. SharedNoteView sign-in state resolves)
+  // Respond to editable prop changes (e.g. the seed claim resolves). No update
+  // event: Tiptap emits one by default, and the parent read it as a local edit
+  // of a still-empty Yjs doc, saving the note as blank or Untitled.
   useEffect(() => {
     if (!editor) return
-    editor.setEditable(editable)
+    editor.setEditable(editable, false)
   }, [editor, editable])
 
   // ── Context menu ─────────────────────────────────────────────────────────
