@@ -143,9 +143,13 @@ export default function EditorComponent({
   // Guest and temp- notes have no room and keep the plain path.
   const [crdt] = useState(crdtEnabled)
   // A note created in this tab keeps the plain editor when its temp- id turns
-  // into the real one: remounting mid-typing would drop keystrokes. It moves
-  // to Yjs after a 2 s pause in typing (effect below), keeping the selection.
+  // into the real one: remounting mid-typing would drop keystrokes, and an
+  // upload or voice memo still running would land in the old editor. It moves
+  // to Yjs once someone else opens it and typing pauses for 2 s (effect
+  // below), keeping the selection; otherwise the next time it is opened.
   const plainIdsRef = useRef(new Set<string>())
+  const othersPresentRef = useRef(false)
+  useEffect(() => { othersPresentRef.current = false }, [note.id])
   const [, setUpgradeTick] = useState(0)
   const lastRenderIdRef = useRef(note.id)
   if (lastRenderIdRef.current !== note.id) {
@@ -219,7 +223,7 @@ export default function EditorComponent({
   useEffect(() => {
     if (!crdt || !plainIdsRef.current.has(note.id)) return
     const t = setInterval(() => {
-      if (Date.now() - lastLocalChangeTimeRef.current < 2_000 || uploadsInFlight() > 0) return
+      if (!othersPresentRef.current || Date.now() - lastLocalChangeTimeRef.current < 2_000 || uploadsInFlight() > 0) return
       const ed = plainEditorRef.current
       if (ed && !ed.isDestroyed) {
         const { from, to } = ed.state.selection
@@ -307,6 +311,13 @@ export default function EditorComponent({
     // while a seed was still arriving).
     if (remote) {
       onRemoteContentRef.current(editNoteId, undefined, html)
+      // A tab that edited this note also saves the merge: two authors saving
+      // at the same moment can each miss the other's last keystrokes.
+      if (lastLocalChangeTimeRef.current > 0) {
+        pendingRef.current = { title: noteTitleRef.current || title, html, noteId: editNoteId }
+        if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
+        autoSaveTimerRef.current = setTimeout(() => { flushAutoSave() }, 1_000)
+      }
       return
     }
     onLocalChangeRef.current(editNoteId, title, html)
@@ -513,6 +524,8 @@ export default function EditorComponent({
       }
       const msg = JSON.parse(evt.data as string) as Msg
       const ed = editorRef.current
+      const conns = (msg as { connections?: number }).connections
+      if ((msg.type === 'presence' || msg.type === 'sync') && conns !== undefined) othersPresentRef.current = conns > 1
 
       // Yjs mode: content and carets come from the note-y room. Clients without
       // the switch still send JSON content here; it is ignored during the trial.
