@@ -1,7 +1,7 @@
 // Single place for the realtime (PartyServer on Cloudflare Workers) host.
 // Rooms live at /parties/main/<room>; clients use wss://, API routes use https://.
 export const REALTIME_HOST =
-  process.env.NEXT_PUBLIC_PARTYKIT_HOST ?? 'barrapad-realtime.barra-ggez.workers.dev'
+  process.env.NEXT_PUBLIC_REALTIME_HOST ?? 'barrapad-realtime.barra-ggez.workers.dev'
 
 const isLocal = REALTIME_HOST.startsWith('localhost') || REALTIME_HOST.startsWith('127.0.0.1')
 

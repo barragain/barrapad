@@ -10,7 +10,7 @@ import TagInput from './TagInput'
 import NoteEditorCore from './NoteEditorCore'
 import type { Note, Tag } from '@/types'
 
-import { REALTIME_HOST as PARTYKIT_HOST, roomQuery } from '@/lib/realtime'
+import { REALTIME_HOST, roomQuery } from '@/lib/realtime'
 
 function formatDate(dateStr: string) {
   const d = new Date(dateStr)
@@ -339,7 +339,7 @@ export default function EditorComponent({
     if (!editorReady || /^(temp|local)-/.test(note.id)) return
 
     const room = note.sharedNoteId ?? note.id
-    const socket = new PartySocket({ host: PARTYKIT_HOST, room, query: roomQuery(room) })
+    const socket = new PartySocket({ host: REALTIME_HOST, room, query: roomQuery(room) })
     socketRef.current = socket
 
     // Safety timeout: if PartyKit doesn't send a sync within 5 seconds,

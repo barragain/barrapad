@@ -1,19 +1,19 @@
 # barraPAD (bpad)
 
-Collaborative notepad. Next.js 14 app router on Vercel, Clerk auth, Postgres via Prisma, Tiptap editor, Vercel Blob for images. Realtime (live edits, cursors, presence, notifications) runs on a Cloudflare Worker with Durable Objects (PartyServer) in `realtime/`; the browser talks to it with `partysocket`.
+Collaborative notepad. Next.js 15 app router on Vercel, Clerk auth, Postgres via Prisma, Tiptap editor, Vercel Blob for images. Realtime (live edits, cursors, presence, notifications) runs on a Cloudflare Worker with Durable Objects (PartyServer) in `realtime/`; the browser talks to it with `partysocket`.
 
 ## Run
 
 ```bash
 npm install
 npm run dev            # Next.js on :3000
-npm run dev:realtime   # Worker on :8787 (set NEXT_PUBLIC_PARTYKIT_HOST=localhost:8787)
+npm run dev:realtime   # Worker on :8787 (set NEXT_PUBLIC_REALTIME_HOST=localhost:8787)
 npm run typecheck      # app + Worker
 npm run build
 npm run deploy:realtime
 ```
 
-Env (see `.env.local`, pulled with `vercel env pull`): `DATABASE_URL`, `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `BLOB_READ_WRITE_TOKEN`, `NEXT_PUBLIC_PARTYKIT_HOST` (realtime host, no protocol), `REALTIME_SECRET` (shared with the Worker, set there with `wrangler secret put REALTIME_SECRET`).
+Env (see `.env.local`, pulled with `vercel env pull`): `DATABASE_URL`, `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `BLOB_READ_WRITE_TOKEN`, `NEXT_PUBLIC_REALTIME_HOST` (realtime host, no protocol), `REALTIME_SECRET` (shared with the Worker, set there with `wrangler secret put REALTIME_SECRET`).
 
 Clerk is a production instance (`pk_live`), so sign-in only works on the deployed site. Test on production with the demo accounts, not on localhost.
 

@@ -13,7 +13,7 @@ import type { AppearanceSettings, Tag } from '@/types'
 import { CollabCursor, setCursors, pickColor, applyRemoteContent } from '@/extensions/collab-cursor'
 import type { RemoteCursor } from '@/extensions/collab-cursor'
 
-import { REALTIME_HOST as PARTYKIT_HOST, roomQuery } from '@/lib/realtime'
+import { REALTIME_HOST, roomQuery } from '@/lib/realtime'
 
 const DEFAULT_APPEARANCE: AppearanceSettings = { mode: 'light', font: 'mono', zoom: 16, theme: 'barrapad' }
 
@@ -179,7 +179,7 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
   useEffect(() => {
     if (!editorReady) return
 
-    const socket = new PartySocket({ host: PARTYKIT_HOST, room: noteId, query: roomQuery(noteId, token) })
+    const socket = new PartySocket({ host: REALTIME_HOST, room: noteId, query: roomQuery(noteId, token) })
     socketRef.current = socket
 
     socket.addEventListener('open', () => setConnected(true))

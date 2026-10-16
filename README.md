@@ -15,7 +15,7 @@ npm run dev                # http://localhost:3000
 npm run dev:realtime       # Worker on http://localhost:8787
 ```
 
-Set `NEXT_PUBLIC_PARTYKIT_HOST=localhost:8787` in `.env.local` to use the local Worker. Clerk runs a production instance, so sign-in needs the deployed site or a Clerk dev instance of your own.
+Set `NEXT_PUBLIC_REALTIME_HOST=localhost:8787` in `.env.local` to use the local Worker. Clerk runs a production instance, so sign-in needs the deployed site or a Clerk dev instance of your own.
 
 ## Deploy
 

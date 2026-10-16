@@ -68,4 +68,4 @@ Cost: Durable Objects are on the Workers free plan (SQLite backed classes). Curr
 
 ## Status (2026-10-15)
 
-Done. The Worker is deployed at `barrapad-realtime.barra-ggez.workers.dev`, `NEXT_PUBLIC_PARTYKIT_HOST` points to it on Vercel (production, preview, development) and in `.env.local`, the host and push headers live in `lib/realtime.ts`, and `party/`, `partykit.json`, `.partykit/` and the `partykit` package are gone. HTTP pushes into rooms now require the `x-realtime-secret` header (`REALTIME_SECRET` on both Vercel and the Worker). The env var keeps its old name for now (step 6 not done).
+Done. The Worker is deployed at `barrapad-realtime.barra-ggez.workers.dev`, `NEXT_PUBLIC_PARTYKIT_HOST` points to it on Vercel (production, preview, development) and in `.env.local`, the host and push headers live in `lib/realtime.ts`, and `party/`, `partykit.json`, `.partykit/` and the `partykit` package are gone. HTTP pushes into rooms now require the `x-realtime-secret` header (`REALTIME_SECRET` on both Vercel and the Worker). Step 6 is done too: the variable is now `NEXT_PUBLIC_REALTIME_HOST`.
