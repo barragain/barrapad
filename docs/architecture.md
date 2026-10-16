@@ -39,4 +39,4 @@ Without `REALTIME_SECRET` (local `wrangler dev`) neither side checks tickets.
 
 ## Files
 
-Images, attachments and voice memos are uploaded to Vercel Blob through `/api/upload` (10 MB, no HTML, SVG, XML or script types), and the note keeps only the URL. If the upload fails, for example for a guest without an account, the file falls back to a base64 data URL inside the note.
+Images, attachments and voice memos are uploaded to Vercel Blob through `/api/upload` (10 MB, no HTML, SVG, XML or script types), and the note keeps only the URL. If the upload fails, for example for a guest without an account, the file falls back to a base64 data URL inside the note. Images are re-encoded as WebP at most 1600 px on that path first, since for guests the data URL ends up in localStorage.

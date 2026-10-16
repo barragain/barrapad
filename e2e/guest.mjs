@@ -64,32 +64,6 @@ const marker = `guest-${Date.now().toString(36)}`
   check(errors.length === 0, `no page errors (${errors.join('; ') || 'none'})`)
   await page.screenshot({ path: path.join(HERE, 'out', 'guest-smoke.png') })
 
-  // A big photo-like PNG is shrunk before it lands in localStorage.
-  const pngSize = await page.evaluate(async () => {
-    const cv = Object.assign(document.createElement('canvas'), { width: 3000, height: 2000 })
-    const ctx = cv.getContext('2d')
-    const img = ctx.createImageData(3000, 2000)
-    for (let i = 0; i < img.data.length; i += 4) {
-      const x = (i / 4) % 3000
-      img.data[i] = x / 12; img.data[i + 1] = (i / 4 / 3000) / 8; img.data[i + 2] = Math.random() * 60; img.data[i + 3] = 255
-    }
-    ctx.putImageData(img, 0, 0)
-    const blob = await new Promise((r) => cv.toBlob(r, 'image/png'))
-    const dt = new DataTransfer()
-    dt.items.add(new File([blob], 'big.png', { type: 'image/png' }))
-    const input = document.querySelector('input[type="file"][accept="image/*"]')
-    input.files = dt.files
-    input.dispatchEvent(new Event('change', { bubbles: true }))
-    return blob.size
-  })
-  await page.waitForSelector('.ProseMirror img[src^="data:"]', { timeout: 15_000 }).catch(() => {})
-  await sleep(1500)
-  const stored = await page.evaluate(() => {
-    const m = (localStorage.getItem('bpad_guest_notes') ?? '').match(/data:image\/(\w+);base64,[A-Za-z0-9+/=]+/)
-    return m ? { type: m[1], len: m[0].length } : null
-  })
-  check(!!stored && stored.type === 'webp' && stored.len < pngSize / 2,
-    `guest image shrunk before storing (png ${Math.round(pngSize / 1024)} KB, stored ${stored ? stored.type + ' ' + Math.round(stored.len / 1024) + ' KB' : 'none'})`)
 
   // Comments need an account: no toolbar button, no context-menu item.
   check(await page.locator('button[title="Comments"]').count() === 0, 'no Comments button for guests')
@@ -116,6 +90,33 @@ const marker = `guest-${Date.now().toString(36)}`
   await page.keyboard.type(' ok')
   const cleared = await page.getByText('Browser storage full', { exact: false }).waitFor({ state: 'hidden', timeout: 5_000 }).then(() => true).catch(() => false)
   check(cleared, 'warning clears once space is free')
+
+  // A big photo-like PNG is shrunk before it lands in localStorage.
+  const pngSize = await page.evaluate(async () => {
+    const cv = Object.assign(document.createElement('canvas'), { width: 3000, height: 2000 })
+    const ctx = cv.getContext('2d')
+    const img = ctx.createImageData(3000, 2000)
+    for (let i = 0; i < img.data.length; i += 4) {
+      const x = (i / 4) % 3000
+      img.data[i] = x / 12; img.data[i + 1] = (i / 4 / 3000) / 8; img.data[i + 2] = Math.random() * 60; img.data[i + 3] = 255
+    }
+    ctx.putImageData(img, 0, 0)
+    const blob = await new Promise((r) => cv.toBlob(r, 'image/png'))
+    const dt = new DataTransfer()
+    dt.items.add(new File([blob], 'big.png', { type: 'image/png' }))
+    const input = document.querySelector('input[type="file"][accept="image/*"]')
+    input.files = dt.files
+    input.dispatchEvent(new Event('change', { bubbles: true }))
+    return blob.size
+  })
+  await page.waitForSelector('.ProseMirror img[src^="data:"]', { timeout: 15_000 }).catch(() => {})
+  await sleep(1500)
+  const stored = await page.evaluate(() => {
+    const m = (localStorage.getItem('bpad_guest_notes') ?? '').match(/data:image\/(\w+);base64,[A-Za-z0-9+/=]+/)
+    return m ? { type: m[1], len: m[0].length } : null
+  })
+  check(!!stored && stored.type === 'webp' && stored.len < pngSize / 2,
+    `guest image shrunk before storing (png ${Math.round(pngSize / 1024)} KB, stored ${stored ? stored.type + ' ' + Math.round(stored.len / 1024) + ' KB' : 'none'})`)
 
   // Pill: dismiss sticks across reloads; mobile layout fits the screen.
   await page.getByRole('button', { name: 'Dismiss' }).click()
