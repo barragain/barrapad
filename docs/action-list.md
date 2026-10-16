@@ -121,3 +121,11 @@ A flaky guest test turned out to be a real race. Two signed-in tabs that both sa
 Local dev now signs in: `npm run dev` uses the Clerk development instance and the Neon branch `dev` through `.env.development.local` (see CLAUDE.md). The comment bubble also follows a selected poll when it is aligned.
 
 Still open: `useNotes` / `useSharedNotes` (the save pipeline and shared-notes poll share refs with the editor callbacks) and CRDT sync.
+
+## Round 4 (2026-10-16, night)
+
+Guest images are re-encoded as WebP at most 1600 px before they are stored as data URLs (an 8 MB PNG becomes about 50 KB). Speed was measured again: signed in, the app is usable in 0.9 to 1.3 s. The Clerk handshake redirect stays because notes are rendered on the server, and Clerk's 230 KB of script loads after the page is usable, so neither was changed. AppShell went from 1,292 to 697 lines: `hooks/useNotes.ts` holds the notes list, cache, guest store and save pipeline, and `hooks/useSharedNotes.ts` holds the shared list and its poll. The Neon keep-warm cron is gone (it kept the compute billed around the clock).
+
+Next session: live merging (CRDT). The plan is Yjs for note content only, through `y-partyserver` (2.2, fits `partyserver` 0.5) as a second Durable Object class next to `NoteParty`, with `@tiptap/extension-collaboration` and `@tiptap/extension-collaboration-caret` (3.32; the other Tiptap packages are on 3.22, so bump them together). Titles, tags, deletes, comments and notifications stay on the current JSON room. Open questions to settle first: who seeds an empty Y doc from the database HTML (a client claim the server grants once, so two tabs cannot both seed), what to do when the database is newer than the room, how the single reused editor instance handles note switches (Collaboration binds one document per editor, so probably remount per note), and guest and `temp-` notes, which have no room. Build it behind a per-browser switch so it can be tried on bpad.cc before it replaces the current sync, and keep the old path until the e2e suite passes with the switch on.
+
+Also open: Google sign-in needs a Google Cloud OAuth client from you (see the guest mode section), and a reload in the middle of a guest import can still duplicate one note.
