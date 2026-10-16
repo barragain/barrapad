@@ -278,12 +278,14 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
 
   // Move notes written as a guest into the account, one at a time. Each note
   // leaves guest storage only after the server has it, so a failure retries
-  // on the next fetch instead of losing text.
+  // on the next fetch instead of losing text. The Web Lock keeps two tabs from
+  // importing the same notes; the second one finds the store already empty.
+  // ponytail: a reload mid-POST can still duplicate one note; needs a client id on POST to dedupe.
   const importingRef = useRef(false)
   const importGuestNotes = async () => {
     if (importingRef.current) return
     importingRef.current = true
-    try {
+    const run = async () => {
       for (const n of loadGuestNotes()) {
         const res = await fetch('/api/notes', {
           method: 'POST',
@@ -293,6 +295,9 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
         if (!res.ok) return
         try { localStorage.setItem(GUEST_KEY, JSON.stringify(loadGuestNotes().filter(g => g.id !== n.id))) } catch {}
       }
+    }
+    try {
+      await (navigator.locks ? navigator.locks.request('bpad-guest-import', run) : run())
     } catch {} finally {
       importingRef.current = false
     }

@@ -115,11 +115,15 @@ const marker = `guest-${Date.now().toString(36)}`
   // ── 2. Import on sign-in ──────────────────────────────────────────────────
   const s = await browser.newContext({ storageState: STATE, viewport: { width: 1400, height: 900 } })
   const sp = await s.newPage()
-  await sp.goto(BASE + '/', { waitUntil: 'domcontentloaded' })
+  // Seed guest storage from a page without the app, then open two tabs at once:
+  // both see the guest notes, the Web Lock lets only one import them.
+  await sp.goto(BASE + '/manifest.webmanifest', { waitUntil: 'domcontentloaded' })
   await sp.evaluate((notes) => localStorage.setItem('bpad_guest_notes', JSON.stringify(notes)), guestNotes)
-  await sp.reload({ waitUntil: 'domcontentloaded' })
+  const sp2 = await s.newPage()
+  await Promise.all([sp, sp2].map((p) => p.goto(BASE + '/', { waitUntil: 'domcontentloaded' })))
   await sp.waitForFunction(editableEditor, null, { timeout: 30_000 })
   await sleep(4_000)
+  await sp2.close()
   const left = await sp.evaluate(() => JSON.parse(localStorage.getItem('bpad_guest_notes') ?? '[]').length)
   check(left === 0, `guest store emptied after sign-in (left ${left})`)
   const owned = await sp.evaluate(() => fetch('/api/notes').then((r) => r.json()))
