@@ -5,7 +5,6 @@ import { Save, Share2, X, Cloud, CloudCheck, RefreshCw, HardDrive, Download, Che
 import Link from 'next/link'
 import { useAuth, useUser } from '@clerk/nextjs'
 import { AnimatePresence, motion } from 'framer-motion'
-import PartySocket from 'partysocket'
 import { downloadTxt, downloadMd, downloadPdf, downloadDocx } from '@/lib/export'
 import Sidebar from './Sidebar'
 import EditorWrapper from './EditorWrapper'
@@ -16,30 +15,8 @@ import NotificationBell from './NotificationBell'
 import AccessDeniedView from './AccessDeniedView'
 import type { Note, Tag, AppearanceSettings, SharedAccessRecord, CollabNotification } from '@/types'
 
-import { REALTIME_HOST as PARTYKIT_HOST, roomQuery } from '@/lib/realtime'
+import { useNotifications, loadKnownShared } from '@/hooks/useNotifications'
 
-// ── Notification helpers ──────────────────────────────────────────────────────
-
-type KnownSharedMap = Record<string, { title: string; permission: string; ownerName: string }>
-
-function loadKnownShared(): KnownSharedMap {
-  try {
-    const raw = localStorage.getItem('barrapad_known_shared')
-    return raw ? (JSON.parse(raw) as KnownSharedMap) : {}
-  } catch { return {} }
-}
-
-function saveKnownShared(records: SharedAccessRecord[]) {
-  const map: KnownSharedMap = {}
-  for (const r of records) {
-    map[r.token] = {
-      title: r.noteTitle,
-      permission: r.permission,
-      ownerName: r.ownerName ?? '',
-    }
-  }
-  try { localStorage.setItem('barrapad_known_shared', JSON.stringify(map)) } catch {}
-}
 
 const DEFAULT_APPEARANCE: AppearanceSettings = {
   mode: 'light',
@@ -199,12 +176,11 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
     }
     wasSavingRef.current = saving
   }, [autoSaving, manualSaving])
-  const [notifications, setNotifications] = useState<CollabNotification[]>([])
+  const { notifications, setNotifications, detectSharedNotesChanges } =
+    useNotifications(isLoaded && isSignedIn && user ? user.id : null)
   const [showNotifs, setShowNotifs] = useState(false)
   const [accessDeniedNoteId, setAccessDeniedNoteId] = useState<string | null>(null)
   const exportRef = useRef<HTMLDivElement>(null)
-  // true on first sharedNotes fetch — used to set baseline without firing notifications
-  const isFirstNotifFetch = useRef(true)
   // Set of "{noteId}:{accessorUserId}" pairs the owner has already been notified about
   const openedNotifiedRef = useRef<Set<string>>(new Set())
   // Tracks note IDs the current user is actively deleting themselves (to suppress self-delete notifications)
@@ -213,8 +189,6 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
   const manualTitlesRef = useRef<Set<string>>(new Set())
   // Mirror of sharedNotes in a ref so handleNoteDeleted can read it without stale closures
   const sharedNotesRef = useRef<SharedAccessRecord[]>([])
-  // PartyKit socket for real-time notifications
-  const notifSocketRef = useRef<PartySocket | null>(null)
 
   const activeNote = notes.find((n) => n.id === activeNoteId) ?? null
 
@@ -233,132 +207,6 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
       const raw = localStorage.getItem('barrapad_manual_titles')
       if (raw) manualTitlesRef.current = new Set(JSON.parse(raw) as string[])
     } catch {}
-  }, [])
-
-  // Fetch notifications from server on mount + connect to real-time notification room
-  useEffect(() => {
-    if (!isLoaded || !isSignedIn || !user) return
-
-    // Fetch existing notifications from DB
-    fetch('/api/notifications')
-      .then((r) => r.ok ? r.json() : [])
-      .then((data: CollabNotification[]) => setNotifications(data))
-      .catch(() => {})
-
-    // Connect to notification PartyKit room
-    const socket = new PartySocket({ host: PARTYKIT_HOST, room: `notif-${user.id}`, query: roomQuery(`notif-${user.id}`) })
-    notifSocketRef.current = socket
-
-    socket.addEventListener('message', (evt) => {
-      try {
-        const msg = JSON.parse(evt.data as string) as Record<string, unknown>
-
-        if (msg.type === 'notification') {
-          const notif = msg.notification as CollabNotification
-          setNotifications((prev) => {
-            if (prev.some((n) => n.id === notif.id)) return prev
-            return [notif, ...prev]
-          })
-
-          // If this is an access response, dispatch event for AccessDeniedView
-          if (notif.type === 'access_response' && notif.noteId) {
-            const meta = (notif.metadata ?? {}) as Record<string, unknown>
-            window.dispatchEvent(new CustomEvent('barrapad:access-response', {
-              detail: {
-                noteId: notif.noteId,
-                action: meta.action as string,
-                resolvedByName: notif.fromName ?? 'Someone',
-                permission: meta.permission as string | undefined,
-              },
-            }))
-          }
-        }
-
-        if (msg.type === 'notification_update') {
-          const id = msg.notificationId as string
-          const updates = msg.updates as Partial<CollabNotification>
-          setNotifications((prev) =>
-            prev.map((n) => n.id === id ? { ...n, ...updates } : n)
-          )
-        }
-      } catch {}
-    })
-
-    return () => {
-      socket.close()
-      notifSocketRef.current = null
-    }
-  }, [isLoaded, isSignedIn, user])
-
-  // Detect changes in sharedNotes compared to the last-known snapshot in localStorage.
-  // First call sets the baseline without firing notifications (avoids flooding on first load).
-  const detectSharedNotesChanges = useCallback((freshShared: SharedAccessRecord[]) => {
-    const known = loadKnownShared()
-    const freshMap = new Map(freshShared.map((r) => [r.token, r]))
-    const isFirst = isFirstNotifFetch.current
-    isFirstNotifFetch.current = false
-
-    // First run with empty known → silent initialization (existing user first time with feature)
-    if (isFirst && Object.keys(known).length === 0) {
-      saveKnownShared(freshShared)
-      return
-    }
-
-    const newNotifs: CollabNotification[] = []
-
-    // New shares
-    for (const [token, record] of freshMap) {
-      if (!known[token]) {
-        const who = record.ownerName || 'Someone'
-        newNotifs.push({
-          id: `shared-${token}`,
-          type: 'shared',
-          noteTitle: record.noteTitle,
-          message: `${who} shared "${record.noteTitle || 'a note'}" with you`,
-          timestamp: new Date().toISOString(),
-        })
-      }
-    }
-
-    // Deleted / access removed
-    for (const [token, info] of Object.entries(known)) {
-      if (!freshMap.has(token)) {
-        const who = info.ownerName || 'Someone'
-        newNotifs.push({
-          id: `deleted-${token}`,
-          type: 'deleted',
-          noteTitle: info.title,
-          message: `${who} removed access to "${info.title || 'a shared note'}"`,
-          timestamp: new Date().toISOString(),
-        })
-      }
-    }
-
-    // Permission changes
-    for (const [token, record] of freshMap) {
-      const prev = known[token]
-      if (prev && prev.permission !== record.permission) {
-        const who = record.ownerName || prev.ownerName || 'Someone'
-        newNotifs.push({
-          id: `perm-${token}-${record.permission}`,
-          type: 'permission_changed',
-          noteTitle: record.noteTitle,
-          message: `${who} changed your access to "${record.noteTitle || 'a note'}" to ${record.permission === 'EDIT' ? 'Can edit' : 'View only'}`,
-          timestamp: new Date().toISOString(),
-        })
-      }
-    }
-
-    saveKnownShared(freshShared)
-
-    if (newNotifs.length > 0) {
-      setNotifications((prev) => {
-        const existingIds = new Set(prev.map((n) => n.id))
-        const truly_new = newNotifs.filter((n) => !existingIds.has(n.id))
-        if (truly_new.length === 0) return prev
-        return [...truly_new, ...prev]
-      })
-    }
   }, [])
 
   // Update document title whenever the active note changes
