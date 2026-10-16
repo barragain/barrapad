@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@clerk/nextjs": "^7.0.8",
-    "@prisma/client": "^5.22.0",
+    "@prisma/client": "^6.19.3",
     "@tailwindcss/postcss": "^4.2.2",
     "@tiptap/extension-code-block-lowlight": "^3.22.1",
     "@tiptap/extension-color": "^3.22.1",
@@ -60,7 +60,7 @@
     "@types/turndown": "^5.0.6",
     "autoprefixer": "^10.4.27",
     "postcss": "^8.5.8",
-    "prisma": "^5.22.0",
+    "prisma": "^6.19.3",
     "typescript": "~5.9.3",
     "wrangler": "^4.151.0"
   }
