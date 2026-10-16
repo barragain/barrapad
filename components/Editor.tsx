@@ -142,9 +142,10 @@ export default function EditorComponent({
   // Guest and temp- notes have no room and keep the plain path.
   const [crdt] = useState(crdtEnabled)
   // A note created in this tab keeps the plain editor when its temp- id turns
-  // into the real one: remounting mid-typing would drop focus and keystrokes.
-  // It joins Yjs the next time it is opened.
+  // into the real one: remounting mid-typing would drop keystrokes. It moves
+  // to Yjs after a 2 s pause in typing (effect below), keeping the selection.
   const plainIdsRef = useRef(new Set<string>())
+  const [, setUpgradeTick] = useState(0)
   const lastRenderIdRef = useRef(note.id)
   if (lastRenderIdRef.current !== note.id) {
     if (lastRenderIdRef.current.startsWith('temp-')) plainIdsRef.current.add(note.id)
@@ -212,6 +213,31 @@ export default function EditorComponent({
     window.addEventListener('barrapad:saved', handler)
     return () => window.removeEventListener('barrapad:saved', handler)
   }, [collab])
+
+  const handoverRef = useRef<{ from: number; to: number; focus: boolean } | null>(null)
+  useEffect(() => {
+    if (!crdt || !plainIdsRef.current.has(note.id)) return
+    const t = setInterval(() => {
+      if (Date.now() - lastLocalChangeTimeRef.current < 2_000) return
+      const ed = plainEditorRef.current
+      if (ed && !ed.isDestroyed) {
+        const { from, to } = ed.state.selection
+        handoverRef.current = { from, to, focus: ed.isFocused }
+      }
+      plainIdsRef.current.delete(note.id)
+      setUpgradeTick((n) => n + 1)
+      clearInterval(t)
+    }, 500)
+    return () => clearInterval(t)
+  }, [crdt, note.id])
+  useEffect(() => {
+    const h = handoverRef.current
+    if (!seedDone || !yEditor || !h) return
+    handoverRef.current = null
+    const max = yEditor.state.doc.content.size
+    yEditor.chain().setTextSelection({ from: Math.min(h.from, max), to: Math.min(h.to, max) }).run()
+    if (h.focus) yEditor.commands.focus()
+  }, [seedDone, yEditor])
 
   // Someone who clicked into the read-only preview expects to keep typing once
   // the live editor replaces it, so hand the focus over.
