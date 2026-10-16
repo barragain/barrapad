@@ -21,4 +21,4 @@ Set `NEXT_PUBLIC_PARTYKIT_HOST=localhost:8787` in `.env.local` to use the local 
 
 Vercel builds from `main`. The Worker deploys with `npm run deploy:realtime`. `REALTIME_SECRET` must match between Vercel and the Worker (`wrangler secret put REALTIME_SECRET`).
 
-Plans and the cleanup list live in `docs/`.
+`docs/architecture.md` explains saving, sync and who can join a realtime room. `docs/known-gaps.md` lists what is still missing, and `docs/action-list.md` is the cleanup plan with its progress notes.

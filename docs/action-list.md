@@ -96,3 +96,13 @@ Done: bpad works without an account. Guest notes stay in the browser (`bpad_gues
 Clerk: sessions last 90 days, passkeys are on, and Google sign-in is disabled because it never had production OAuth credentials (the button failed with "Missing client_id"). To bring Google back, create a Google Cloud OAuth client with redirect URI `https://clerk.bpad.cc/v1/oauth_callback`, add the ID and secret in Clerk, and re-enable the connection.
 
 Open from this round: guest images are base64 inside the note, so a few big images fill localStorage (the pill warns, but nothing shrinks them). Local Windows builds lose the root CSS (see CLAUDE.md, Testing); worth a look if it ever affects Vercel.
+
+## Security, bugs and docs (2026-10-16)
+
+Room auth (4.1) is done with signed tickets in place of Clerk tokens in the Worker. `/api/realtime/ticket` checks access and signs `<READ|WRITE>.<expiresMs>.<hmac>` with `REALTIME_SECRET`, the Worker verifies it in `onBeforeConnect`, and view-only connections can no longer push content. Upload checks (4.3) were already server side; the route now takes attachments and voice memos too and refuses HTML, SVG, XML and script types.
+
+From section 7, attachments and voice memos go to Blob (7.6), poll votes are remembered per browser (7.4), and remote content is applied as a minimal diff so carets and remote cursors no longer drift when someone edits above them (7.7). Items 7.1, 7.2, 7.3, 7.5 and 7.8 were already fixed in earlier rounds, and 7.9 tested fine on the Worker (an access request reaches the owner's open tab live). TypeScript is pinned to 5.9 (5.2). Section 2 is done: `docs/architecture.md` and `docs/known-gaps.md` exist and the long comment blocks were already gone.
+
+New smoke tests in `portfolio-handoff/capture/`: `realtime-smoke.mjs` (live edits, caret stability, tickets, view-only writes dropped, access-request push) and `attach-smoke.mjs` (Blob uploads, download link, HTML refused).
+
+Still open: 5.5 (Next 15, React 19, Prisma 6 upgrades), section 6 (splitting AppShell into hooks) and section 8.
