@@ -9,7 +9,7 @@
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["NoteParty"] }],
   "observability": { "enabled": true },
-  // Keep the Neon database awake: ping the app's health route every 4 minutes.
-  "triggers": { "crons": ["*/4 * * * *"] },
-  "vars": { "APP_URL": "https://www.bpad.cc" }
+  // No cron: a keep-warm ping kept the Neon compute running (and billed) around the clock.
+  // An empty list removes the schedule from Cloudflare; omitting the key would leave it.
+  "triggers": { "crons": [] }
 }

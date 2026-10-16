@@ -87,7 +87,7 @@ Measured on production with `portfolio-handoff/capture/perf-probe.mjs`: the page
 
 Done: `app/page.tsx` loads notes server-side and seeds `AppShell`, so the editor is usable at first paint; `vercel.json` pins functions to `sin1`. ilovenote.net, the reference for "fast", is a plain localStorage notepad with no account and no sync; its own TTFB is 1.1 s, it only feels instant because nothing is fetched after load.
 
-Done too: the Worker pings `/api/health` every 4 minutes (cron trigger) so Neon stays awake. After pinning: usable at about 1.2 s warm (was 2.3 s). Open: the 0.4 s Clerk handshake redirect on each cold document, and the 370 KB of script.
+The Worker used to ping `/api/health` every 4 minutes so Neon stayed awake. That kept the compute running and billed around the clock, so it was removed on 2026-10-16; the first request after five idle minutes pays the 1 to 2 s wake-up again. After pinning: usable at about 1.2 s warm (was 2.3 s). Open: the 0.4 s Clerk handshake redirect on each cold document, and the 370 KB of script.
 
 ## Guest mode and sign-in (2026-10-16)
 

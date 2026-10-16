@@ -6,7 +6,7 @@ import { Server, routePartykitRequest, type Connection, type ConnectionContext }
 // REALTIME_SECRET: `wrangler secret put REALTIME_SECRET`; the same value is set on
 // Vercel so API routes can push into rooms. When set, HTTP pushes without it are
 // rejected (anyone could otherwise fake notifications or delete-room signals).
-type Env = { Main: DurableObjectNamespace<NoteParty>; REALTIME_SECRET?: string; APP_URL?: string }
+type Env = { Main: DurableObjectNamespace<NoteParty>; REALTIME_SECRET?: string }
 
 type ClientMessage =
   | { type: 'update'; content: string; contentJson?: object; title: string; ts?: number }
@@ -160,13 +160,5 @@ export default {
       },
     })
     return res ?? new Response('Not found', { status: 404 })
-  },
-  // Cron (see wrangler.jsonc): keeps the Neon compute warm by hitting the
-  // app's health route, which runs a single SELECT 1.
-  async scheduled(_controller: ScheduledController, env: Env) {
-    if (!env.APP_URL) return
-    await fetch(`${env.APP_URL}/api/health`, {
-      headers: env.REALTIME_SECRET ? { 'x-realtime-secret': env.REALTIME_SECRET } : {},
-    }).catch(() => {})
   },
 } satisfies ExportedHandler<Env>
