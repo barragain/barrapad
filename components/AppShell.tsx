@@ -181,8 +181,6 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
   const [showNotifs, setShowNotifs] = useState(false)
   const [accessDeniedNoteId, setAccessDeniedNoteId] = useState<string | null>(null)
   const exportRef = useRef<HTMLDivElement>(null)
-  // Set of "{noteId}:{accessorUserId}" pairs the owner has already been notified about
-  const openedNotifiedRef = useRef<Set<string>>(new Set())
   // Tracks note IDs the current user is actively deleting themselves (to suppress self-delete notifications)
   const selfDeleteRef = useRef<Set<string>>(new Set())
   // Tracks note IDs where the user has explicitly set a title — auto-title updates are suppressed for these
@@ -199,10 +197,6 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
     const settings = loadAppearance()
     setAppearance(settings)
     applyAppearance(settings)
-    try {
-      const raw = localStorage.getItem('barrapad_opened_notified')
-      if (raw) openedNotifiedRef.current = new Set(JSON.parse(raw) as string[])
-    } catch {}
     try {
       const raw = localStorage.getItem('barrapad_manual_titles')
       if (raw) manualTitlesRef.current = new Set(JSON.parse(raw) as string[])
@@ -278,45 +272,6 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
         })
       } catch {}
     }, 10000)
-    return () => clearInterval(interval)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSignedIn])
-
-  // Poll for "opened" events — owner gets notified the first time a collaborator opens their note
-  useEffect(() => {
-    if (!isSignedIn) return
-    const checkOpenedEvents = async () => {
-      try {
-        const res = await fetch('/api/share/access-events')
-        if (!res.ok) return
-        const events = (await res.json()) as { id: string; noteTitle: string; accessorName: string; accessedAt: string }[]
-        const seen = openedNotifiedRef.current
-        const newNotifs: CollabNotification[] = []
-        for (const ev of events) {
-          if (!seen.has(ev.id)) {
-            newNotifs.push({
-              id: `opened-${ev.id}`,
-              type: 'opened',
-              noteTitle: ev.noteTitle,
-              message: `${ev.accessorName} opened "${ev.noteTitle || 'your note'}"`,
-              timestamp: ev.accessedAt,
-            })
-            seen.add(ev.id)
-          }
-        }
-        if (newNotifs.length > 0) {
-          try { localStorage.setItem('barrapad_opened_notified', JSON.stringify([...seen])) } catch {}
-          setNotifications((prev) => {
-            const existingIds = new Set(prev.map((n) => n.id))
-            const truly_new = newNotifs.filter((n) => !existingIds.has(n.id))
-            if (truly_new.length === 0) return prev
-            return [...truly_new, ...prev]
-          })
-        }
-      } catch {}
-    }
-    checkOpenedEvents()
-    const interval = setInterval(checkOpenedEvents, 10000)
     return () => clearInterval(interval)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSignedIn])

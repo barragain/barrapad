@@ -35,6 +35,8 @@ export function useNotifications(userId: string | null) {
   const [notifications, setNotifications] = useState<CollabNotification[]>([])
   // true on first sharedNotes fetch — used to set baseline without firing notifications
   const isFirstNotifFetch = useRef(true)
+  // Set of "{noteId}:{accessorUserId}" pairs the owner has already been notified about
+  const openedNotifiedRef = useRef<Set<string>>(new Set())
 
   // Fetch notifications from server on mount + connect to real-time notification room
   useEffect(() => {
@@ -159,6 +161,49 @@ export function useNotifications(userId: string | null) {
       })
     }
   }, [])
+
+  // Poll for "opened" events — owner gets notified the first time a collaborator opens their note
+  useEffect(() => {
+    if (!userId) return
+    // Ids already shown, kept across reloads so each open is announced once.
+    try {
+      const raw = localStorage.getItem('barrapad_opened_notified')
+      if (raw) openedNotifiedRef.current = new Set(JSON.parse(raw) as string[])
+    } catch {}
+    const checkOpenedEvents = async () => {
+      try {
+        const res = await fetch('/api/share/access-events')
+        if (!res.ok) return
+        const events = (await res.json()) as { id: string; noteTitle: string; accessorName: string; accessedAt: string }[]
+        const seen = openedNotifiedRef.current
+        const newNotifs: CollabNotification[] = []
+        for (const ev of events) {
+          if (!seen.has(ev.id)) {
+            newNotifs.push({
+              id: `opened-${ev.id}`,
+              type: 'opened',
+              noteTitle: ev.noteTitle,
+              message: `${ev.accessorName} opened "${ev.noteTitle || 'your note'}"`,
+              timestamp: ev.accessedAt,
+            })
+            seen.add(ev.id)
+          }
+        }
+        if (newNotifs.length > 0) {
+          try { localStorage.setItem('barrapad_opened_notified', JSON.stringify([...seen])) } catch {}
+          setNotifications((prev) => {
+            const existingIds = new Set(prev.map((n) => n.id))
+            const truly_new = newNotifs.filter((n) => !existingIds.has(n.id))
+            if (truly_new.length === 0) return prev
+            return [...truly_new, ...prev]
+          })
+        }
+      } catch {}
+    }
+    checkOpenedEvents()
+    const interval = setInterval(checkOpenedEvents, 10000)
+    return () => clearInterval(interval)
+  }, [userId])
 
   return { notifications, setNotifications, detectSharedNotesChanges }
 }
