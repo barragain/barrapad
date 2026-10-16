@@ -16,7 +16,7 @@ import NotificationBell from './NotificationBell'
 import AccessDeniedView from './AccessDeniedView'
 import type { Note, Tag, AppearanceSettings, SharedAccessRecord, CollabNotification } from '@/types'
 
-import { REALTIME_HOST as PARTYKIT_HOST } from '@/lib/realtime'
+import { REALTIME_HOST as PARTYKIT_HOST, roomQuery } from '@/lib/realtime'
 
 // ── Notification helpers ──────────────────────────────────────────────────────
 
@@ -246,7 +246,7 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
       .catch(() => {})
 
     // Connect to notification PartyKit room
-    const socket = new PartySocket({ host: PARTYKIT_HOST, room: `notif-${user.id}` })
+    const socket = new PartySocket({ host: PARTYKIT_HOST, room: `notif-${user.id}`, query: roomQuery(`notif-${user.id}`) })
     notifSocketRef.current = socket
 
     socket.addEventListener('message', (evt) => {

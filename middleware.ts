@@ -5,6 +5,7 @@ import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 const isApiRoute = createRouteMatcher(['/api/(.*)'])
 const isPublicApi = createRouteMatcher([
   '/api/share/(.*)', // share API — auth enforced per-method inside the route
+  '/api/realtime/ticket', // share-link viewers need room tickets; access checked inside
   '/api/health',     // keep-alive ping from the realtime Worker; checks REALTIME_SECRET itself
 ])
 

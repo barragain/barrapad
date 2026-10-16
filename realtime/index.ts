@@ -1,7 +1,7 @@
 // barraPAD realtime server on Cloudflare Workers + Durable Objects (PartyServer).
 // Port of party/index.ts. Same rooms, same messages, same URL shape
 // (/parties/main/<room>), so the clients only need a new host.
-import { Server, routePartykitRequest, type Connection } from 'partyserver'
+import { Server, routePartykitRequest, type Connection, type ConnectionContext } from 'partyserver'
 
 // REALTIME_SECRET: `wrangler secret put REALTIME_SECRET`; the same value is set on
 // Vercel so API routes can push into rooms. When set, HTTP pushes without it are
@@ -37,7 +37,10 @@ export class NoteParty extends Server<Env> {
     this.broadcast(JSON.stringify(msg), exclude)
   }
 
-  async onConnect(conn: Connection) {
+  async onConnect(conn: Connection<{ readOnly: boolean }>, ctx: ConnectionContext) {
+    // Ticket was verified in onBeforeConnect; only its permission is read here.
+    const ticket = new URL(ctx.request.url).searchParams.get('ticket') ?? ''
+    conn.setState({ readOnly: ticket.startsWith('READ.') })
     if (this.isNotifRoom) return
 
     const deleted = await this.ctx.storage.get<boolean>('deleted')
@@ -71,6 +74,10 @@ export class NoteParty extends Server<Env> {
     } catch {
       return
     }
+
+    // View-only connections may move their cursor and signal comments (viewers can comment).
+    const readOnly = (sender.state as { readOnly?: boolean } | null)?.readOnly
+    if (readOnly && data.type !== 'cursor' && data.type !== 'comment-update') return
 
     if (data.type === 'update') {
       const updatedAt = new Date().toISOString()
@@ -130,10 +137,29 @@ export class NoteParty extends Server<Env> {
   }
 }
 
+// Ticket from the app's /api/realtime/ticket (lib/roomTicket.ts):
+// "<READ|WRITE>.<expiresMs>.<hex hmac-sha256 of room.perm.exp>".
+async function verifyTicket(secret: string, room: string, ticket: string) {
+  const [perm, exp, sig] = ticket.split('.')
+  if ((perm !== 'READ' && perm !== 'WRITE') || !sig || !(Number(exp) > Date.now())) return false
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['verify'])
+  const bytes = new Uint8Array(sig.match(/../g)?.map((h) => parseInt(h, 16)) ?? [])
+  return crypto.subtle.verify('HMAC', key, bytes, new TextEncoder().encode(`${room}.${perm}.${exp}`))
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     // Binding "Main" => routes /parties/main/<room>, identical to the PartyKit URLs.
-    return (await routePartykitRequest(request, env)) ?? new Response('Not found', { status: 404 })
+    const res = await routePartykitRequest(request, env, {
+      onBeforeConnect: async (req, lobby) => {
+        if (!env.REALTIME_SECRET) return // local dev without a secret
+        const ticket = new URL(req.url).searchParams.get('ticket') ?? ''
+        if (!(await verifyTicket(env.REALTIME_SECRET, lobby.name, ticket))) {
+          return new Response('Forbidden', { status: 403 })
+        }
+      },
+    })
+    return res ?? new Response('Not found', { status: 404 })
   },
   // Cron (see wrangler.jsonc): keeps the Neon compute warm by hitting the
   // app's health route, which runs a single SELECT 1.
