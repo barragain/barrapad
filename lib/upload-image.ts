@@ -3,7 +3,22 @@
  * public URL. Falls back to a base64 data URL if the upload fails (offline,
  * guest without an account, etc.).
  */
+let inFlight = 0
+/** Uploads still running. The editor must not be remounted meanwhile: the
+ *  finished upload is inserted into the editor instance that started it. */
+export const uploadsInFlight = () => inFlight
+
 export async function uploadFile(file: Blob, name = (file as File).name ?? 'file'): Promise<string> {
+  inFlight++
+  try {
+    return await uploadOrInline(file, name)
+  } finally {
+    // Released after the caller's .then() has inserted the node.
+    setTimeout(() => { inFlight-- }, 0)
+  }
+}
+
+async function uploadOrInline(file: Blob, name: string): Promise<string> {
   try {
     const form = new FormData()
     form.append('file', file, name)

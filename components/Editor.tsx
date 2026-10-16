@@ -12,6 +12,7 @@ import type { Note, Tag } from '@/types'
 
 import { REALTIME_HOST, roomQuery } from '@/lib/realtime'
 import { crdtEnabled } from '@/lib/crdt'
+import { uploadsInFlight } from '@/lib/upload-image'
 import * as Y from 'yjs'
 import YProvider from 'y-partyserver/provider'
 
@@ -218,7 +219,7 @@ export default function EditorComponent({
   useEffect(() => {
     if (!crdt || !plainIdsRef.current.has(note.id)) return
     const t = setInterval(() => {
-      if (Date.now() - lastLocalChangeTimeRef.current < 2_000) return
+      if (Date.now() - lastLocalChangeTimeRef.current < 2_000 || uploadsInFlight() > 0) return
       const ed = plainEditorRef.current
       if (ed && !ed.isDestroyed) {
         const { from, to } = ed.state.selection
@@ -291,7 +292,7 @@ export default function EditorComponent({
     setEditorReady(true)
   }, [])
 
-  const handleUpdate = useCallback((html: string, _text: string, title: string) => {
+  const handleUpdate = useCallback((html: string, _text: string, title: string, remote?: boolean) => {
     // Capture the live note id at the moment of the edit. NoteEditorCore now
     // routes onUpdate through a ref so we always see the LATEST handleUpdate,
     // but we still bind every save to a specific noteId for defense in depth.
@@ -300,8 +301,14 @@ export default function EditorComponent({
     // real content change should mark the note dirty and save.
     // Before the seed claim resolves the doc may still be empty: saving that
     // would wipe the note.
-    try { if (localStorage.getItem('bpad_debug')) console.log('[bpad save] update', JSON.stringify({ html: html.slice(0, 60), _text: _text.slice(0, 40), title, ntr: noteTitleRef.current, ncr: noteContentRef.current?.slice(0, 60), y: yModeRef.current, seed: seedDoneRef.current, id: liveNoteIdRef.current })) } catch {}
     if (yModeRef.current && (!seedDoneRef.current || html === noteContentRef.current)) return
+    // Another tab's edit, merged through Yjs: show it in the list, but that tab
+    // saves it. Saving here too also saved half-merged states (an empty doc
+    // while a seed was still arriving).
+    if (remote) {
+      onRemoteContentRef.current(editNoteId, undefined, html)
+      return
+    }
     onLocalChangeRef.current(editNoteId, title, html)
 
     lastLocalChangeTimeRef.current = Date.now()

@@ -264,7 +264,6 @@ export function useNotes({ initialNotes, guest, isGuest, isSignedIn }: {
       ? targetNote.title
       : (manualTitlesRef.current.has(noteId) ? targetNote.title : contentTitle)
 
-    try { if (localStorage.getItem('bpad_debug')) console.log('[bpad save]', title, content.slice(0, 60), new Error().stack) } catch {}
     const versionAtSaveStart = dirtyVersionsRef.current.get(noteId) ?? 0
     const patch = async (url: string) => {
       const res = await fetch(url, {

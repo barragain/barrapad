@@ -26,6 +26,7 @@ import { Footnote } from '@/extensions/footnote'
 import { Poll } from '@/extensions/poll'
 import { CollabCursor, buildWidget } from '@/extensions/collab-cursor'
 import Collaboration from '@tiptap/extension-collaboration'
+import { ySyncPluginKey } from '@tiptap/y-tiptap'
 import CollaborationCaret from '@tiptap/extension-collaboration-caret'
 import type * as Y from 'yjs'
 import type YProvider from 'y-partyserver/provider'
@@ -102,8 +103,9 @@ export interface NoteEditorCoreProps {
 
   /** Called once when the Tiptap editor is ready. Parent stores it for imperative ops. */
   onEditorReady?: (editor: Editor) => void
-  /** Called on every content change. */
-  onUpdate?: (html: string, text: string, title: string) => void
+  /** Called on every content change. `remote` is true for changes applied
+   *  from the Yjs doc (another tab's edit), which that tab saves itself. */
+  onUpdate?: (html: string, text: string, title: string, remote?: boolean) => void
   /** Called when the editor loses focus. */
   onBlur?: () => void
   /** Called on every selection change (for cursor broadcasting). */
@@ -469,7 +471,7 @@ export default function NoteEditorCore({
         return false
       },
     },
-    onUpdate: ({ editor: ed }) => {
+    onUpdate: ({ editor: ed, transaction }) => {
       const html = ed.getHTML()
       const text = ed.getText()
       const words = text.trim() ? text.trim().split(/\s+/).length : 0
@@ -482,7 +484,7 @@ export default function NoteEditorCore({
       if (activeLocalEditTimeoutRef.current) clearTimeout(activeLocalEditTimeoutRef.current)
       activeLocalEditTimeoutRef.current = setTimeout(() => { activeIsLocallyEditingRef.current = false }, 1500)
 
-      onUpdateRef.current?.(html, text, title)
+      onUpdateRef.current?.(html, text, title, !!transaction.getMeta(ySyncPluginKey)?.isChangeOrigin)
     },
     onBlur: () => { onBlurRef.current?.(); setCommentBubble(null) },
     onSelectionUpdate: ({ editor: ed }) => {
