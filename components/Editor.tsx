@@ -149,6 +149,8 @@ export default function EditorComponent({
   const [ySynced, setYSynced] = useState(false)
   const [yEditor, setYEditor] = useState<Editor | null>(null)
   const [seedDone, setSeedDone] = useState(false)
+  const seedDoneRef = useRef(false)
+  seedDoneRef.current = seedDone
   const noteContentRef = useRef(note.content)
   useEffect(() => { noteContentRef.current = note.content }, [note.content])
 
@@ -181,10 +183,12 @@ export default function EditorComponent({
       setSeedDone(true)
     }
     provider.on('custom-message', onMsg)
-    provider.sendMessage(JSON.stringify({ type: 'seed?', dbUpdatedAt: noteUpdatedAtRef.current }))
-    // No answer (socket dropped mid-claim): unlock editing, Yjs merges later.
-    const t = setTimeout(() => setSeedDone(true), 5_000)
-    return () => { clearTimeout(t); provider.off('custom-message', onMsg) }
+    const ask = () => provider.sendMessage(JSON.stringify({ type: 'seed?', dbUpdatedAt: noteUpdatedAtRef.current }))
+    ask()
+    // The ask is dropped while the socket is down; repeat until answered. The
+    // editor stays read-only meanwhile, since the doc may still be empty.
+    const t = setInterval(() => { if (!answered) ask() }, 3_000)
+    return () => { clearInterval(t); provider.off('custom-message', onMsg) }
   }, [collab, yEditor, serverReady])
 
   // Tell the room which database version the doc now matches.
@@ -241,7 +245,9 @@ export default function EditorComponent({
     const editNoteId = liveNoteIdRef.current
     // Yjs fires updates for its own first render and for remote edits; only a
     // real content change should mark the note dirty and save.
-    if (yModeRef.current && html === noteContentRef.current) return
+    // Before the seed claim resolves the doc may still be empty: saving that
+    // would wipe the note.
+    if (yModeRef.current && (!seedDoneRef.current || html === noteContentRef.current)) return
     onLocalChangeRef.current(editNoteId, title, html)
 
     lastLocalChangeTimeRef.current = Date.now()
