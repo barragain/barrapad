@@ -10,10 +10,8 @@ async function verifyOwnership(noteId: string, userId: string) {
 }
 
 // GET /api/notes/:id/collaborators — list collaborators (owner or any collaborator can see)
-export async function GET(
-  _request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(_request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -65,10 +63,8 @@ export async function GET(
 }
 
 // POST /api/notes/:id/collaborators — invite a user by their Clerk userId
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function POST(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 

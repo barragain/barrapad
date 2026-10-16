@@ -20,10 +20,8 @@ async function deleteNote(noteId: string) {
 
 // DELETE /api/share/:token/delete-note — delete the underlying note via share link
 // Requires auth + EDIT permission
-export async function DELETE(
-  _request: NextRequest,
-  { params }: { params: { token: string } }
-) {
+export async function DELETE(_request: NextRequest, props: { params: Promise<{ token: string }> }) {
+  const params = await props.params;
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 

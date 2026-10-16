@@ -4,10 +4,8 @@ import { prisma } from '@/lib/prisma'
 import { pushNotification, pushNotificationUpdate } from '@/lib/notifications'
 
 // PATCH /api/access-requests/:id — accept or deny
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PATCH(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -143,10 +141,8 @@ export async function PATCH(
 }
 
 // DELETE /api/access-requests/:id — cancel request (by requester)
-export async function DELETE(
-  _request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(_request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 

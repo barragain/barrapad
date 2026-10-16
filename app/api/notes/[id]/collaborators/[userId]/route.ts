@@ -12,8 +12,9 @@ async function verifyOwner(noteId: string, ownerId: string) {
 // PATCH /api/notes/:id/collaborators/:userId — change a collaborator's permission (owner only)
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string; userId: string } }
+  props: { params: Promise<{ id: string; userId: string }> }
 ) {
+  const params = await props.params;
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -36,8 +37,9 @@ export async function PATCH(
 // DELETE /api/notes/:id/collaborators/:userId — remove a collaborator (owner only)
 export async function DELETE(
   _request: NextRequest,
-  { params }: { params: { id: string; userId: string } }
+  props: { params: Promise<{ id: string; userId: string }> }
 ) {
+  const params = await props.params;
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 

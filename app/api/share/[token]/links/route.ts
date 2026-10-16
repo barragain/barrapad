@@ -5,10 +5,8 @@ import { prisma } from '@/lib/prisma'
 // GET /api/share/:token/links
 // Returns active share links for the note referenced by :token.
 // Requires the caller to be authenticated and the token to have EDIT permission.
-export async function GET(
-  _request: NextRequest,
-  { params }: { params: { token: string } }
-) {
+export async function GET(_request: NextRequest, props: { params: Promise<{ token: string }> }) {
+  const params = await props.params;
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 

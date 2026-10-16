@@ -6,7 +6,7 @@ import type { Tag } from '@/types'
 import SharedNoteView from '@/components/SharedNoteView'
 
 interface Props {
-  params: { token: string }
+  params: Promise<{ token: string }>
 }
 
 async function getShareData(token: string) {
@@ -19,10 +19,11 @@ async function getShareData(token: string) {
 }
 
 function stripHtml(html: string) {
-  return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+  return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata(props: Props): Promise<Metadata> {
+  const params = await props.params;
   const link = await getShareData(params.token)
   if (!link) {
     return { title: 'Note not found — bpad' }
@@ -51,7 +52,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-export default async function SharedNotePage({ params }: Props) {
+export default async function SharedNotePage(props: Props) {
+  const params = await props.params;
   const link = await getShareData(params.token)
   if (!link) notFound()
 
