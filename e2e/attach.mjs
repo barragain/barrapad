@@ -54,11 +54,20 @@ check((note2?.content.match(/blob.vercel-storage.com/g) ?? []).length >= 2 && /V
 const m = await browser.newContext({ storageState: path.join(AUTH, 'state-demo1.json'), viewport: { width: 390, height: 844 }, hasTouch: true })
 const mp = await m.newPage()
 await mp.goto(BASE + '/', { waitUntil: 'domcontentloaded' })
-await mp.waitForSelector('.toolbar', { timeout: 30_000 }).catch(() => {})
-await sleep(3_000)
+await sleep(5_000)
+const create = mp.locator('button:has-text("Create a note")')
+if (await create.count()) await create.first().click()
+await mp.waitForFunction(() => document.querySelector('.ProseMirror')?.getAttribute('contenteditable') === 'true', null, { timeout: 15_000 })
+const mMarker = marker + '-m'
+await mp.locator('.ProseMirror').first().click()
+await mp.keyboard.type(mMarker)
 await mp.locator('.toolbar button:has-text("Normal Text"), .toolbar button:has-text("Heading")').first().click().catch(() => {})
 await sleep(500)
 check(await mp.locator('p:text-is("Text style")').count() > 0, 'mobile text style sheet opens')
+await sleep(2_000)
+const mNotes = await mp.evaluate(() => fetch('/api/notes').then((r) => r.json()))
+const mNote = (Array.isArray(mNotes) ? mNotes : mNotes.notes ?? []).find((n) => n.content?.includes(mMarker))
+if (mNote) await mp.evaluate((id) => fetch(`/api/notes/${id}`, { method: 'DELETE' }), mNote.id)
 await m.close()
 
 const htmlStatus = await page.evaluate(async () => {
