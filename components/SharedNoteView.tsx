@@ -10,7 +10,7 @@ import AppearanceModal from './AppearanceModal'
 import AboutModal from './AboutModal'
 import NoteEditorCore from './NoteEditorCore'
 import type { AppearanceSettings, Tag } from '@/types'
-import { CollabCursor, setCursors, pickColor } from '@/extensions/collab-cursor'
+import { CollabCursor, setCursors, pickColor, applyRemoteContent } from '@/extensions/collab-cursor'
 import type { RemoteCursor } from '@/extensions/collab-cursor'
 
 import { REALTIME_HOST as PARTYKIT_HOST, roomQuery } from '@/lib/realtime'
@@ -213,13 +213,8 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
             msg.type === 'sync' ||
             !isLocallyEditingRef.current
           if (safeToApply) {
-            const { from, to } = ed.state.selection
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            ed.commands.setContent((msg.contentJson ?? msg.content) as any, { emitUpdate: false })
-            const maxPos = ed.state.doc.content.size
-            try {
-              ed.commands.setTextSelection({ from: Math.min(from, maxPos), to: Math.min(to, maxPos) })
-            } catch { /* position no longer valid */ }
+            applyRemoteContent(ed, (msg.contentJson ?? msg.content) as any)
           }
         }
         if (msg.content !== '') setLastUpdated(msg.updatedAt ?? lastUpdated)

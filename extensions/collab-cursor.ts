@@ -1,4 +1,4 @@
-import { Extension } from '@tiptap/core'
+import { Extension, createDocument, type Content, type Editor } from '@tiptap/core'
 import { Plugin, PluginKey } from '@tiptap/pm/state'
 import { DecorationSet, Decoration } from '@tiptap/pm/view'
 
@@ -12,6 +12,8 @@ export interface RemoteCursor {
   mx?: number  // mouse x as 0-1 ratio of editor container width
   my?: number  // mouse y as 0-1 ratio of editor container height
 }
+
+const REMOTE_CONTENT = 'bpadRemoteContent'
 
 export const collabCursorKey = new PluginKey<{ cursors: RemoteCursor[] }>('collabCursor')
 
@@ -59,7 +61,11 @@ export const CollabCursor = Extension.create({
           init: () => ({ cursors: [] as RemoteCursor[] }),
           apply(tr, prev) {
             const meta = tr.getMeta(collabCursorKey)
-            return meta ?? prev
+            if (meta) return meta
+            // Local edits shift remote cursors along with their text. Remote content
+            // is not mapped: the sender's cursor messages already use its coordinates.
+            if (!tr.docChanged || tr.getMeta(REMOTE_CONTENT)) return prev
+            return { cursors: prev.cursors.map((c) => ({ ...c, from: tr.mapping.map(c.from), to: tr.mapping.map(c.to) })) }
           },
         },
         props: {
@@ -105,6 +111,28 @@ export function setCursors(
   cursors: RemoteCursor[]
 ) {
   const tr = editor.view.state.tr.setMeta(collabCursorKey, { cursors })
+  editor.view.dispatch(tr)
+}
+
+/**
+ * Apply a remote copy of the document as one replace step over the range that
+ * differs, instead of setContent. ProseMirror can then map the local selection
+ * and the remote cursors through the change; with setContent they kept their
+ * absolute positions and drifted a paragraph when text was added above them.
+ * Does not fire onUpdate (no echo back to the room) and stays out of undo.
+ */
+export function applyRemoteContent(editor: Editor, content: Content) {
+  const { state } = editor
+  const next = createDocument(content, state.schema)
+  const start = state.doc.content.findDiffStart(next.content)
+  if (start == null) return
+  const end = state.doc.content.findDiffEnd(next.content)
+  let endA = end?.a ?? state.doc.content.size
+  let endB = end?.b ?? next.content.size
+  const overlap = start - Math.min(endA, endB)
+  if (overlap > 0) { endA += overlap; endB += overlap }
+  const tr = state.tr.replace(start, endA, next.slice(start, endB))
+  tr.setMeta('preventUpdate', true).setMeta('addToHistory', false).setMeta(REMOTE_CONTENT, true)
   editor.view.dispatch(tr)
 }
 

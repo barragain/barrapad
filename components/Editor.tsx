@@ -4,7 +4,7 @@ import { useEffect, useCallback, useRef, useState } from 'react'
 import type { Editor } from '@tiptap/react'
 import { useUser } from '@clerk/nextjs'
 import PartySocket from 'partysocket'
-import { setCursors, pickColor } from '@/extensions/collab-cursor'
+import { setCursors, pickColor, applyRemoteContent } from '@/extensions/collab-cursor'
 import type { RemoteCursor } from '@/extensions/collab-cursor'
 import TagInput from './TagInput'
 import NoteEditorCore from './NoteEditorCore'
@@ -329,12 +329,7 @@ export default function EditorComponent({
     // whenever the room answered after the fetch.
     const currentHtml = ed.getHTML()
     if (note.content && currentHtml !== note.content) {
-      const { from, to } = ed.state.selection
-      ed.commands.setContent(note.content, { emitUpdate: false })
-      const maxPos = ed.state.doc.content.size
-      try {
-        ed.commands.setTextSelection({ from: Math.min(from, maxPos), to: Math.min(to, maxPos) })
-      } catch { /* position no longer valid */ }
+      applyRemoteContent(ed, note.content)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [serverFetchVersion, editorReady])
@@ -382,14 +377,9 @@ export default function EditorComponent({
         if (msg.content && msg.content !== '' && roomIsNewer) {
           const safeToApply = ed && (msg.type === 'sync' || !isLocallyEditingRef.current)
           if (safeToApply) {
-            const { from, to } = ed!.state.selection
             // Prefer JSON over HTML — JSON preserves trailing spaces that HTML parsing strips
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            ed!.commands.setContent((msg.contentJson ?? msg.content) as any, { emitUpdate: false })
-            const maxPos = ed!.state.doc.content.size
-            try {
-              ed!.commands.setTextSelection({ from: Math.min(from, maxPos), to: Math.min(to, maxPos) })
-            } catch { /* position no longer valid */ }
+            applyRemoteContent(ed!, (msg.contentJson ?? msg.content) as any)
             // Update local state with remote content, but preserve the local title
             // to prevent the remote user's auto-derived title from overwriting the
             // owner's title. Title sync only happens via explicit 'title' messages
