@@ -15,7 +15,7 @@ npm run deploy:realtime
 
 Env (see `.env.local`, pulled with `vercel env pull`): `DATABASE_URL`, `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `BLOB_READ_WRITE_TOKEN`, `NEXT_PUBLIC_REALTIME_HOST` (realtime host, no protocol), `REALTIME_SECRET` (shared with the Worker, set there with `wrangler secret put REALTIME_SECRET`).
 
-Clerk is a production instance (`pk_live`), so sign-in only works on the deployed site. Test on production with the demo accounts, not on localhost.
+Production uses the Clerk production instance (`pk_live`), which only works on bpad.cc. `npm run dev` reads `.env.development.local` (gitignored, not in Vercel), which swaps in the Clerk development instance (`ins_3BqDL15FTxQpMl1hsWCpbg6bByf`, `pk_test`/`sk_test`) and the Neon branch `dev` (project `broad-cherry-69412900`, a copy of `production`), so local dev signs in and never writes to the production database. Dev test user: `dev+clerk_test@bpad.cc` / `bpad-local-dev-2026`; the new-device email code is always `424242`. To run an e2e test locally, sign in once and save a storage state as `state-demo1.json`, then `BASE=http://localhost:3000 E2E_AUTH=<dir> node e2e/<name>.mjs`.
 
 ## Rules
 
