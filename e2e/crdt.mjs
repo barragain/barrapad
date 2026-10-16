@@ -21,7 +21,13 @@ let failed = false
 const check = (ok, msg) => { console.log(`${ok ? 'PASS' : 'FAIL'} ${msg}`); if (!ok) failed = true }
 const editableEditor = () => document.querySelector('.ProseMirror')?.getAttribute('contenteditable') === 'true'
 const editor = (page) => page.locator('.ProseMirror').first()
-const text = async (page) => (await editor(page).innerText()).replace(/\n/g, ' / ')
+// Block texts without the remote caret labels.
+const text = (page) => page.evaluate(() => {
+  const root = document.querySelector('.ProseMirror')?.cloneNode(true)
+  if (!root) return ''
+  root.querySelectorAll('.bpad-caret').forEach((el) => el.remove())
+  return [...root.children].map((el) => el.textContent.trim()).filter(Boolean).join(' / ')
+})
 
 async function open() {
   const c = await browser.newContext({ storageState: STATE, viewport: { width: 1400, height: 900 } })
@@ -60,7 +66,7 @@ await Promise.all([A.page.keyboard.type(' AAAA', { delay: 30 }), B.page.keyboard
 await sleep(2_000)
 const [ta, tb] = [await text(A.page), await text(B.page)]
 check(ta === tb && ta.includes('AAAA') && ta.includes('BBBB') && ta.includes(m1), `concurrent edits in one paragraph merge (A: ${ta} | B: ${tb})`)
-const caretSeen = await A.page.locator('.ProseMirror span[style*="border-left:2px solid"]').count()
+const caretSeen = await A.page.locator('.ProseMirror .bpad-caret').count()
 check(caretSeen > 0, 'remote caret drawn through Yjs awareness')
 await sleep(2_500) // autosave
 const list = await api(A.page, '/api/notes')

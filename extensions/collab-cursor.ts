@@ -20,6 +20,7 @@ export const collabCursorKey = new PluginKey<{ cursors: RemoteCursor[] }>('colla
 /** Caret plus name label. Also used for Yjs carets (CollaborationCaret render). */
 export function buildWidget(name: string, color: string): HTMLElement {
   const wrap = document.createElement('span')
+  wrap.className = 'bpad-caret'
   wrap.style.cssText =
     'display:inline-block;position:relative;width:0;overflow:visible;pointer-events:none;vertical-align:text-bottom;'
 
