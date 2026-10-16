@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react'
+import { useState, useRef } from 'react'
 import { useEditorState } from '@tiptap/react'
 import type { Editor } from '@tiptap/react'
 import {
@@ -23,9 +23,6 @@ import {
   AlignCenter,
   AlignRight,
   Paperclip,
-  Mic,
-  Square,
-  Quote,
   SeparatorHorizontal,
   Superscript,
   BarChart2,
@@ -37,227 +34,13 @@ import LinkPopover from './LinkPopover'
 import '@/extensions/resizable-image'
 import { uploadImage, uploadFile } from '@/lib/upload-image'
 
-/** Find any image or fileAttachment overlapping the current selection and set its align.
- *  Does not rely on instanceof — scans the doc for the active node. */
-function setNodeAlign(editor: Editor, align: 'left' | 'center' | 'right') {
-  const TYPES = ['image', 'fileAttachment', 'poll']
-  const { from, to } = editor.state.selection
-  let done = false
-
-  editor.state.doc.nodesBetween(from, to, (node, pos) => {
-    if (done) return false
-    if (TYPES.includes(node.type.name)) {
-      const tr = editor.state.tr.setNodeMarkup(pos, undefined, { ...node.attrs, align })
-      editor.view.dispatch(tr)
-      done = true
-      return false
-    }
-  })
-
-  // Also check the node AT the from position (for NodeSelection where from === to)
-  if (!done) {
-    const node = editor.state.doc.nodeAt(from)
-    if (node && TYPES.includes(node.type.name)) {
-      const tr = editor.state.tr.setNodeMarkup(from, undefined, { ...node.attrs, align })
-      editor.view.dispatch(tr)
-      done = true
-    }
-  }
-
-  return done
-}
+import { setNodeAlign, TEXT_STYLES, useIsMac, useIsMobile, key } from './toolbar/helpers'
+import { MobileSheet, TBtn } from './toolbar/parts'
+import { VoiceMemoButton } from './toolbar/VoiceMemoButton'
 
 interface ToolbarProps {
   editor: Editor | null
   commentsEnabled?: boolean
-}
-
-const TEXT_STYLES = [
-  { label: 'Normal Text', action: (e: Editor) => e.chain().focus().setParagraph().run() },
-  { label: 'Heading 1', action: (e: Editor) => e.chain().focus().toggleHeading({ level: 1 }).run() },
-  { label: 'Heading 2', action: (e: Editor) => e.chain().focus().toggleHeading({ level: 2 }).run() },
-  { label: 'Heading 3', action: (e: Editor) => e.chain().focus().toggleHeading({ level: 3 }).run() },
-  { label: 'Quote', action: (e: Editor) => e.chain().focus().toggleBlockquote().run() },
-]
-
-function useIsMac() {
-  const [isMac, setIsMac] = useState(false)
-  useEffect(() => {
-    setIsMac(
-      /Mac|iPod|iPhone|iPad/.test(navigator.platform) ||
-      navigator.userAgent.includes('Mac')
-    )
-  }, [])
-  return isMac
-}
-
-function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(false)
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 768)
-    check()
-    window.addEventListener('resize', check)
-    return () => window.removeEventListener('resize', check)
-  }, [])
-  return isMobile
-}
-
-function key(isMac: boolean, mac: string, win: string) {
-  return isMac ? mac : win
-}
-
-function MobileSheet({
-  onClose,
-  title,
-  children,
-}: {
-  onClose: () => void
-  title?: string
-  children: React.ReactNode
-}) {
-  const sheetRef = useRef<HTMLDivElement>(null)
-  const startYRef = useRef(0)
-  const dragYRef = useRef(0)
-  const draggingRef = useRef(false)
-
-  const onPillTouchStart = useCallback((e: React.TouchEvent) => {
-    e.stopPropagation()
-    startYRef.current = e.touches[0].clientY
-    dragYRef.current = 0
-    draggingRef.current = true
-    if (sheetRef.current) sheetRef.current.style.transition = 'none'
-  }, [])
-
-  const onPillTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!draggingRef.current) return
-    e.stopPropagation()
-    const dy = Math.max(0, e.touches[0].clientY - startYRef.current)
-    dragYRef.current = dy
-    if (sheetRef.current) sheetRef.current.style.transform = `translateY(${dy}px)`
-  }, [])
-
-  const onPillTouchEnd = useCallback(() => {
-    draggingRef.current = false
-    if (dragYRef.current > 80) {
-      if (sheetRef.current) {
-        sheetRef.current.style.transition = 'transform 0.22s ease'
-        sheetRef.current.style.transform = 'translateY(100%)'
-      }
-      setTimeout(onClose, 220)
-    } else {
-      if (sheetRef.current) {
-        sheetRef.current.style.transition = 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)'
-        sheetRef.current.style.transform = 'translateY(0)'
-      }
-      dragYRef.current = 0
-    }
-  }, [onClose])
-
-  return (
-    <div className="fixed inset-0 z-50 flex flex-col justify-end" onClick={onClose}>
-      <div
-        ref={sheetRef}
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: 'var(--editor-bg)',
-          borderTop: '1px solid var(--border)',
-          borderLeft: '1px solid var(--border)',
-          borderRight: '1px solid var(--border)',
-          borderTopLeftRadius: 20,
-          borderTopRightRadius: 20,
-          boxShadow: '0 -8px 32px rgba(0,0,0,0.14)',
-          maxHeight: '82vh',
-          overflowY: 'auto',
-          animation: 'slideUp 0.22s cubic-bezier(0.34, 1.56, 0.64, 1)',
-        }}
-      >
-        {/* Pill handle — drag down to dismiss */}
-        <div
-          onTouchStart={onPillTouchStart}
-          onTouchMove={onPillTouchMove}
-          onTouchEnd={onPillTouchEnd}
-          onClick={onClose}
-          aria-label="Close"
-          style={{
-            display: 'flex',
-            justifyContent: 'center',
-            width: '100%',
-            padding: '12px 0 4px',
-            cursor: 'grab',
-            touchAction: 'none',
-          }}
-        >
-          <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--muted)' }} />
-        </div>
-        {title && (
-          <p style={{ textAlign: 'center', fontSize: 13, fontWeight: 600, color: 'var(--ink)', padding: '4px 0 4px' }}>
-            {title}
-          </p>
-        )}
-        <div style={{ padding: '8px 16px 32px' }}>
-          {children}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function TBtn({
-  onClick,
-  active,
-  disabled,
-  label,
-  shortcut,
-  children,
-  className = '',
-}: {
-  onClick: () => void
-  active?: boolean
-  disabled?: boolean
-  label?: string
-  shortcut?: string
-  children: React.ReactNode
-  className?: string
-}) {
-  return (
-    <div className="tbtn-wrapper" style={{ position: 'relative', display: 'inline-flex' }}>
-      <button
-        onClick={onClick}
-        disabled={disabled}
-        className={`
-          relative flex items-center justify-center p-2 md:p-1.5 rounded-lg
-          disabled:opacity-25 disabled:cursor-not-allowed
-          ${active
-            ? 'bg-[#D4550A]/10 text-[#D4550A] shadow-inner'
-            : 'text-[#6b6b6b] hover:bg-[#F5F2ED] hover:text-[#1A1A1A]'
-          }
-          ${className}
-        `}
-        style={{ transition: 'background 120ms ease, color 120ms ease, transform 130ms cubic-bezier(0.34,1.56,0.64,1), box-shadow 120ms ease' }}
-        onMouseEnter={(e) => { if (!disabled) (e.currentTarget as HTMLElement).style.transform = 'scale(1.12)' }}
-        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.transform = 'scale(1)' }}
-        onMouseDown={(e) => { (e.currentTarget as HTMLElement).style.transform = 'scale(0.92)' }}
-        onMouseUp={(e) => { (e.currentTarget as HTMLElement).style.transform = 'scale(1.12)' }}
-      >
-        {children}
-        {active && (
-          <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-[#D4550A]" />
-        )}
-      </button>
-
-      {label && (
-        <div className="tbtn-tooltip">
-          {label}
-          {shortcut && (
-            <>
-              <span style={{ opacity: 0.45, margin: '0 4px' }}>·</span>
-              <span className="tbtn-tooltip-key">{shortcut}</span>
-            </>
-          )}
-        </div>
-      )}
-    </div>
-  )
 }
 
 export default function Toolbar({ editor, commentsEnabled = true }: ToolbarProps) {
@@ -267,11 +50,6 @@ export default function Toolbar({ editor, commentsEnabled = true }: ToolbarProps
   const mod = isMac ? '⌘' : 'CTRL'
   const imageRef = useRef<HTMLInputElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
-  const [isRecording, setIsRecording] = useState(false)
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
-  const chunksRef = useRef<BlobPart[]>([])
-  const micBtnRef = useRef<HTMLDivElement>(null)
-  const [pillPos, setPillPos] = useState<{ x: number; top: number } | null>(null)
   const [showTextStyle, setShowTextStyle] = useState(false)
   const [showColor, setShowColor] = useState(false)
   const [showHighlight, setShowHighlight] = useState(false)
@@ -279,17 +57,6 @@ export default function Toolbar({ editor, commentsEnabled = true }: ToolbarProps
   const [showLink, setShowLink] = useState(false)
   const [linkPos, setLinkPos] = useState<{ left: number; top: number } | null>(null)
 
-  useLayoutEffect(() => {
-    if (isRecording && micBtnRef.current) {
-      const rect = micBtnRef.current.getBoundingClientRect()
-      // Desktop: toolbar is at top → pill goes below the button
-      // Mobile: toolbar is at bottom → pill goes above the button
-      const top = isMobile ? rect.top - 32 : rect.bottom + 6
-      setPillPos({ x: rect.left + rect.width / 2, top })
-    } else {
-      setPillPos(null)
-    }
-  }, [isRecording, isMobile])
 
   const editorState = useEditorState({
     editor,
@@ -367,37 +134,6 @@ export default function Toolbar({ editor, commentsEnabled = true }: ToolbarProps
     e.target.value = ''
   }
 
-  const toggleRecording = async () => {
-    if (isRecording) {
-      mediaRecorderRef.current?.stop()
-      setIsRecording(false)
-      return
-    }
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      const recorder = new MediaRecorder(stream)
-      chunksRef.current = []
-      recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data) }
-      recorder.onstop = () => {
-        stream.getTracks().forEach(t => t.stop())
-        const blob = new Blob(chunksRef.current, { type: recorder.mimeType })
-        const ext = recorder.mimeType.split('/')[1]?.split(';')[0] || 'webm'
-        const name = `Voice memo ${new Date().toLocaleString()}.${ext}`
-        uploadFile(blob, name).then((dataUrl) => {
-          const sel = editor.state.selection
-          if ('node' in sel && sel.node) editor.commands.setTextSelection(sel.to)
-          editor.chain().focus().insertFileAttachment({
-            name, size: blob.size, mimeType: recorder.mimeType, dataUrl,
-          }).run()
-        })
-      }
-      mediaRecorderRef.current = recorder
-      recorder.start()
-      setIsRecording(true)
-    } catch {
-      // microphone permission denied or not available
-    }
-  }
 
   const openLink = () => {
     try {
@@ -620,48 +356,7 @@ export default function Toolbar({ editor, commentsEnabled = true }: ToolbarProps
         </TBtn>
         <input ref={fileRef} type="file" className="hidden" onChange={handleFile} />
 
-        {/* Voice memo */}
-        <div ref={micBtnRef}>
-          <TBtn
-            onClick={toggleRecording}
-            active={isRecording}
-            label={isRecording ? 'Stop recording' : 'Voice memo'}
-          >
-            {isRecording ? <Square size={iconSize} fill="currentColor" /> : <Mic size={iconSize} />}
-          </TBtn>
-          {isRecording && pillPos && (
-            <span
-              style={{
-                position: 'fixed',
-                top: pillPos.top,
-                left: pillPos.x,
-                transform: 'translateX(-50%)',
-                background: '#D4550A',
-                color: 'white',
-                fontSize: 11,
-                fontWeight: 600,
-                padding: '3px 8px',
-                borderRadius: 99,
-                whiteSpace: 'nowrap',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 5,
-                pointerEvents: 'none',
-                boxShadow: '0 2px 8px rgba(212,85,10,0.35)',
-                zIndex: 9999,
-              }}
-            >
-              <span
-                style={{
-                  width: 6, height: 6, borderRadius: '50%',
-                  background: 'white',
-                  animation: 'pulse 1.2s ease-in-out infinite',
-                }}
-              />
-              Recording
-            </span>
-          )}
-        </div>
+        <VoiceMemoButton editor={editor} iconSize={iconSize} isMobile={isMobile} />
 
         {/* Code block */}
         <TBtn onClick={() => editor.chain().focus().toggleCodeBlock().run()} active={editorState.isCodeBlock} label="Code block">

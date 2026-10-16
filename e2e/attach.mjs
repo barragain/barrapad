@@ -11,8 +11,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 let failed = false
 const check = (ok, msg) => { console.log(`${ok ? 'PASS' : 'FAIL'} ${msg}`); if (!ok) failed = true }
 
-const browser = await chromium.launch({ headless: true })
-const c = await browser.newContext({ storageState: path.join(AUTH, 'state-demo1.json'), viewport: { width: 1400, height: 900 } })
+const browser = await chromium.launch({ headless: true, args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] })
+const c = await browser.newContext({ permissions: ['microphone'], storageState: path.join(AUTH, 'state-demo1.json'), viewport: { width: 1400, height: 900 } })
 const page = await c.newPage()
 await page.goto(BASE + '/', { waitUntil: 'domcontentloaded' })
 await page.waitForFunction(() => document.querySelector('button[title="New note"]') && !document.body.innerText.includes('Syncing'), null, { timeout: 30_000 })
@@ -37,6 +37,29 @@ check((note?.content.length ?? 1e9) < 5_000, `note stays small (${note?.content.
 
 const head = await fetch(`${url}?download=1`, { method: 'HEAD' })
 check(/attachment/i.test(head.headers.get('content-disposition') ?? ''), `download link forces a download (${head.headers.get('content-disposition')})`)
+
+// Voice memo: record two seconds from the fake mic, it lands as a Blob attachment.
+await page.locator('.ProseMirror').first().press('End')
+await page.locator('button:has(svg.lucide-mic)').first().click()
+await page.waitForSelector('text=Recording', { timeout: 5_000 }).catch(() => {})
+check(await page.locator('text=Recording').count() > 0, 'voice memo shows the recording pill')
+await sleep(2_000)
+await page.locator('button:has(svg.lucide-square)').first().click()
+await sleep(6_000)
+const notes2 = await page.evaluate(() => fetch('/api/notes').then((r) => r.json()))
+const note2 = (Array.isArray(notes2) ? notes2 : notes2.notes ?? []).find((n) => n.content?.includes(marker))
+check((note2?.content.match(/blob.vercel-storage.com/g) ?? []).length >= 2 && /Voice memo/.test(note2?.content ?? ''), 'voice memo saved as a Blob attachment')
+
+// Mobile: the text style button opens a bottom sheet.
+const m = await browser.newContext({ storageState: path.join(AUTH, 'state-demo1.json'), viewport: { width: 390, height: 844 }, hasTouch: true })
+const mp = await m.newPage()
+await mp.goto(BASE + '/', { waitUntil: 'domcontentloaded' })
+await mp.waitForSelector('.toolbar', { timeout: 30_000 }).catch(() => {})
+await sleep(3_000)
+await mp.locator('.toolbar button:has-text("Normal Text"), .toolbar button:has-text("Heading")').first().click().catch(() => {})
+await sleep(500)
+check(await mp.locator('p:text-is("Text style")').count() > 0, 'mobile text style sheet opens')
+await m.close()
 
 const htmlStatus = await page.evaluate(async () => {
   const f = new FormData(); f.append('file', new Blob(['<script>alert(1)</script>'], { type: 'text/html' }), 'x.html')
