@@ -1,6 +1,6 @@
 # Known gaps
 
-Live editing is last write wins by default. Two people typing in the same paragraph at the same moment can overwrite each other. Yjs merging fixes this and is on trial behind a per-browser switch (`?crdt=1`, see architecture.md). While it is on trial, a browser with the switch and one without do not see each other's edits live; they meet again through the database when a note is reopened or refetched. Public share pages (`/s/<token>`) still use the old path even with the switch on.
+A view-only share page opened on a note nobody has edited since the move to Yjs shows the copy the server rendered, without live updates, until someone with edit access opens the note and fills its room.
 
 Guest notes keep images and files as base64 inside localStorage. Images are shrunk to WebP at most 1600 px first (an 8 MB PNG becomes about 50 KB), but attachments and voice memos are stored as they are, so a few of those still fill the quota. The guest pill turns red when that happens.
 

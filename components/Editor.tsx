@@ -125,6 +125,10 @@ export default function EditorComponent({
   const yModeRef = useRef(yMode)
   yModeRef.current = yMode
   const room = note.sharedNoteId ?? note.id
+  // A note opened through a share link is reached with its token: the user
+  // may be neither owner nor collaborator.
+  const shareTokenRef = useRef(note.sharedToken)
+  shareTokenRef.current = note.sharedToken
   type Collab = { key: string; room: string; doc: Y.Doc; awareness: Awareness; provider: YProvider | null; local: boolean }
   const [collab, setCollab] = useState<Collab | null>(null)
   const collabRef = useRef<Collab | null>(null)
@@ -157,7 +161,7 @@ export default function EditorComponent({
 
   useEffect(() => {
     const connect = (c: Collab, r: string) => {
-      const p = new YProvider(REALTIME_HOST, r, c.doc, { party: 'note-y', params: roomQuery(r), awareness: c.awareness })
+      const p = new YProvider(REALTIME_HOST, r, c.doc, { party: 'note-y', params: roomQuery(r, shareTokenRef.current), awareness: c.awareness })
       p.on('synced', (s: boolean) => { if (s && collabRef.current?.provider === p) setYSynced(true) })
       return p
     }

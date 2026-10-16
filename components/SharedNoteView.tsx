@@ -1,7 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, useCallback } from 'react'
-import type { Editor } from '@tiptap/react'
+import { useEffect, useRef, useState } from 'react'
 import { useUser } from '@clerk/nextjs'
 import { HelpCircle, Settings } from 'lucide-react'
 import TagInput from './TagInput'
@@ -12,7 +11,7 @@ import type { AppearanceSettings, Tag } from '@/types'
 import { pickColor } from '@/extensions/collab-cursor'
 
 import { REALTIME_HOST, roomQuery } from '@/lib/realtime'
-import { claimSeed, onRoomMessage, sendRoomMessage } from '@/lib/noteRoom'
+import { onRoomMessage } from '@/lib/noteRoom'
 import * as Y from 'yjs'
 import { Awareness } from 'y-protocols/awareness'
 import YProvider from 'y-partyserver/provider'
@@ -51,31 +50,15 @@ interface Props {
 type Presence = { id: number; name: string; color: string; imageUrl?: string }
 
 export default function SharedNoteView({ token, noteId, initialContent, initialTags, permission, updatedAt }: Props) {
-  const { isSignedIn, isLoaded, user } = useUser()
-  const canEdit = permission === 'EDIT' && !!isSignedIn
+  // Signed-in visitors and every edit link are redirected into the app
+  // (app/s/[token]/page.tsx), so this page is always view-only.
+  const { isSignedIn, isLoaded } = useUser()
 
   // ── Tags ──────────────────────────────────────────────────────────────────
   const [tags, setTags] = useState<Tag[]>(initialTags)
-
   const myColorRef = useRef(pickColor(Math.random().toString()))
-  const userNameRef = useRef('Guest')
-  const userImageRef = useRef<string | undefined>(undefined)
-  useEffect(() => {
-    if (user) {
-      userNameRef.current =
-        user.firstName ||
-        user.username ||
-        user.primaryEmailAddress?.emailAddress?.split('@')[0] ||
-        'Guest'
-      userImageRef.current = user.imageUrl || undefined
-    }
-  }, [user])
 
   // ── UI state ──────────────────────────────────────────────────────────────
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
-  const [lastUpdated, setLastUpdated] = useState(updatedAt)
-  const lastUpdatedRef = useRef(updatedAt)
-  useEffect(() => { lastUpdatedRef.current = lastUpdated }, [lastUpdated])
   const [connected, setConnected] = useState(false)
   const [presenceList, setPresenceList] = useState<Presence[]>([])
   const [connections, setConnections] = useState(1)
@@ -92,14 +75,14 @@ export default function SharedNoteView({ token, noteId, initialContent, initialT
     applyAppearance(s)
   }, [])
 
-  const formattedDate = new Date(lastUpdated).toLocaleString(undefined, {
+  const formattedDate = new Date(updatedAt).toLocaleString(undefined, {
     dateStyle: 'medium', timeStyle: 'short',
   })
 
   // ── Yjs room ──────────────────────────────────────────────────────────────
   // Same room as the app's editor. Until the doc arrives the page shows the
-  // server-rendered copy read-only. A viewer cannot fill an empty room, so it
-  // keeps that copy until an editor has opened the note.
+  // server-rendered copy. A viewer cannot fill an empty room, so it keeps
+  // that copy until someone with edit access has opened the note.
   type Collab = { doc: Y.Doc; awareness: Awareness; provider: YProvider }
   const [collab, setCollab] = useState<Collab | null>(null)
   const [synced, setSynced] = useState(false)
@@ -132,63 +115,6 @@ export default function SharedNoteView({ token, noteId, initialContent, initialT
     return () => { offRoom(); provider.destroy(); awareness.destroy(); doc.destroy() }
   }, [noteId, token])
 
-  // ── Editing ───────────────────────────────────────────────────────────────
-  const [yEditor, setYEditor] = useState<Editor | null>(null)
-  const [seedDone, setSeedDone] = useState(false)
-  const seedDoneRef = useRef(false)
-  seedDoneRef.current = seedDone
-  const lastSavedHtmlRef = useRef(initialContent)
-  const editedRef = useRef(false)
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  useEffect(() => {
-    if (!collab || !yEditor || !canEdit) return
-    return claimSeed(collab.provider, yEditor,
-      () => ({ html: initialContent, updatedAt: lastUpdatedRef.current }),
-      () => setSeedDone(true))
-  }, [collab, yEditor, canEdit, initialContent])
-
-  const handleUpdate = useCallback((html: string, text: string, _title: string, remote?: boolean) => {
-    // Skip Yjs's first render, unseeded docs, and merges this tab did not
-    // take part in (the editing tab saves those).
-    if (!seedDoneRef.current || html === lastSavedHtmlRef.current) return
-    if (remote && !editedRef.current) return
-    if (!remote) editedRef.current = true
-    const title = text.split('\n')[0]?.trim().slice(0, 100) || 'Untitled'
-
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
-    setSaveStatus('saving')
-    saveTimerRef.current = setTimeout(async () => {
-      try {
-        const res = await fetch(`/api/share/${token}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title, content: html }),
-        })
-        if (res.ok) {
-          const data = await res.json() as { updatedAt: string }
-          lastSavedHtmlRef.current = html
-          setLastUpdated(data.updatedAt)
-          sendRoomMessage(collab?.provider, { type: 'saved', dbUpdatedAt: data.updatedAt })
-          setSaveStatus('saved')
-          setTimeout(() => setSaveStatus('idle'), 2000)
-        }
-      } catch {}
-    }, 1000)
-  }, [token, collab])
-
-  const handleTagsChange = useCallback(async (newTags: Tag[]) => {
-    setTags(newTags)
-    sendRoomMessage(collab?.provider, { type: 'tags', tags: newTags })
-    try {
-      await fetch(`/api/share/${token}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tags: newTags }),
-      })
-    } catch {}
-  }, [token, collab])
-
   // ── Render ────────────────────────────────────────────────────────────────
   if (deleted) {
     return (
@@ -201,7 +127,7 @@ export default function SharedNoteView({ token, noteId, initialContent, initialT
     )
   }
 
-  const live = !!collab && synced && (canEdit || hasContent)
+  const live = !!collab && synced && hasContent
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--editor-bg, #F9F7F4)', display: 'flex', flexDirection: 'column' }}>
@@ -261,12 +187,6 @@ export default function SharedNoteView({ token, noteId, initialContent, initialT
             </div>
           </div>
 
-          {canEdit && saveStatus !== 'idle' && (
-            <span style={{ fontSize: 12, color: '#8A8178' }}>
-              {saveStatus === 'saving' ? 'Saving…' : 'Saved'}
-            </span>
-          )}
-
           <span style={{ fontSize: 12, color: '#C4BFB6' }}>Updated {formattedDate}</span>
 
           <span style={{
@@ -277,18 +197,6 @@ export default function SharedNoteView({ token, noteId, initialContent, initialT
           }}>
             {permission === 'EDIT' ? 'Can edit' : 'View only'}
           </span>
-
-          {permission === 'EDIT' && isLoaded && !isSignedIn && (
-            <a href={`/sign-in?redirect_url=${encodeURIComponent(`/s/${token}`)}`} style={{ textDecoration: 'none' }}>
-              <button style={{
-                fontSize: 13, fontWeight: 600, padding: '6px 14px',
-                borderRadius: 8, background: '#D4550A', color: '#fff',
-                border: 'none', cursor: 'pointer',
-              }}>
-                Sign in to edit
-              </button>
-            </a>
-          )}
 
           <button
             onClick={() => {
@@ -345,11 +253,9 @@ export default function SharedNoteView({ token, noteId, initialContent, initialT
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         <NoteEditorCore
           key={live ? 'live' : 'preview'}
-          collab={live ? { doc: collab!.doc, awareness: collab!.awareness, user: { name: userNameRef.current, color: myColorRef.current, imageUrl: userImageRef.current } } : undefined}
+          collab={live ? { doc: collab!.doc, awareness: collab!.awareness, user: { name: 'Guest', color: myColorRef.current } } : undefined}
           initialContent={initialContent}
-          editable={live && canEdit && seedDone}
-          onEditorReady={live ? setYEditor : undefined}
-          onUpdate={live && canEdit ? handleUpdate : undefined}
+          editable={false}
           infoRows={[
             { label: 'Permission', value: permission === 'EDIT' ? 'Can edit' : 'View only' },
             { label: 'Updated', value: formattedDate },
@@ -358,8 +264,8 @@ export default function SharedNoteView({ token, noteId, initialContent, initialT
             <TagInput
               tags={tags}
               allTags={tags}
-              onChange={canEdit ? handleTagsChange : () => {}}
-              readOnly={!canEdit}
+              onChange={() => {}}
+              readOnly
             />
           }
           rootStyle={{ flex: 1 }}

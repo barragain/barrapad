@@ -121,7 +121,7 @@ await E.keyboard.type(' from-share')
 const ownerSaw = await A.page.waitForFunction(() => document.querySelector('.ProseMirror')?.textContent?.includes('from-share'), null, { timeout: 8_000 }).then(() => true).catch(() => false)
 check(ownerSaw, 'owner sees the share editor typing live')
 await sleep(3_000)
-const afterShare = await A.page.evaluate((id) => fetch(`/api/notes/${id}`).then((r) => r.json()), noteId)
+const afterShare = await A.page.evaluate((id) => fetch('/api/notes').then((r) => r.json()).then((l) => (Array.isArray(l) ? l : l.notes ?? []).find((n) => n.id === id)), noteId)
 check(JSON.stringify(afterShare).includes('from-share'), 'share editor edit reaches the database')
 
 // Cleanup: delete the test note (cascades the share link).
