@@ -47,7 +47,7 @@ export default function MentionProfilePopover() {
     if (isTouchDevice) {
       // Touch: tap to show, tap elsewhere to dismiss
       const handleTap = (e: TouchEvent) => {
-        const target = (e.target as HTMLElement).closest('.user-mention') as HTMLElement | null
+        const target = (e.target as HTMLElement).closest?.('.user-mention') as HTMLElement | null
         if (target) {
           e.preventDefault()
           if (activeElRef.current === target && visible) {
@@ -70,14 +70,14 @@ export default function MentionProfilePopover() {
     } else {
       // Desktop: hover to show
       const handleMouseEnter = (e: MouseEvent) => {
-        const target = (e.target as HTMLElement).closest('.user-mention') as HTMLElement | null
+        const target = (e.target as HTMLElement).closest?.('.user-mention') as HTMLElement | null
         if (!target) return
         activeElRef.current = target
         timeoutRef.current = setTimeout(() => showPopover(target), 300)
       }
 
       const handleMouseLeave = (e: MouseEvent) => {
-        const target = (e.target as HTMLElement).closest('.user-mention')
+        const target = (e.target as HTMLElement).closest?.('.user-mention')
         if (!target) return
         if (timeoutRef.current) clearTimeout(timeoutRef.current)
         setTimeout(() => {

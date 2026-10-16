@@ -516,7 +516,7 @@ export default function NoteEditorCore({
   useEffect(() => {
     if (!onNoteMentionClick) return
     const handler = (e: MouseEvent) => {
-      const target = (e.target as HTMLElement).closest('.note-mention') as HTMLElement | null
+      const target = (e.target as HTMLElement).closest?.('.note-mention') as HTMLElement | null
       if (target) {
         e.preventDefault()
         const noteRefId = target.getAttribute('data-id')

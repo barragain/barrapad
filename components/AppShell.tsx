@@ -141,8 +141,10 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
   guestMode = isGuest
   // Server-rendered notes win (fresh, no lock); otherwise the localStorage
   // cache renders instantly and the editor waits for the first fetch.
-  const [notes, setNotes] = useState<Note[]>(() => guest ? loadGuestNotes() : initialNotes ?? loadCachedNotes())
-  const [activeNoteId, setActiveNoteId] = useState<string | null>(() => (guest ? loadGuestNotes() : initialNotes ?? loadCachedNotes())[0]?.id ?? null)
+  // Guests start empty on server and client alike (localStorage on the first
+  // render breaks hydration) and load their notes right after mount.
+  const [notes, setNotes] = useState<Note[]>(() => guest ? [] : initialNotes ?? loadCachedNotes())
+  const [activeNoteId, setActiveNoteId] = useState<string | null>(() => (guest ? [] : initialNotes ?? loadCachedNotes())[0]?.id ?? null)
   const [tagRegistry, setTagRegistry] = useState<Tag[]>(() => loadTagRegistry())
   // Incremented every time fetchNotes applies newer server content — lets the
   // Editor know it should re-check its content against the latest note.content.
@@ -150,7 +152,7 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
   // False until the first /api/notes answer this session. While false the editor
   // is read-only: typing on top of a stale localStorage copy and auto-saving it
   // is how another device's edits got overwritten.
-  const [notesLoaded, setNotesLoaded] = useState(!!initialNotes || guest)
+  const [notesLoaded, setNotesLoaded] = useState(!!initialNotes)
   const [sharedNotes, setSharedNotes] = useState<SharedAccessRecord[]>([])
   const [showShare, setShowShare] = useState(false)
   const [showAppearance, setShowAppearance] = useState(false)
@@ -347,6 +349,9 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
   useEffect(() => {
     if (isLoaded) fetchNotes()
   }, [isLoaded, isSignedIn])
+  // Guests don't need to wait for Clerk: their notes are already in this browser.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (guest) fetchNotes() }, [])
 
   // Re-fetch whenever the tab comes back: visibility (tab switch), window focus
   // (switching between windows does NOT fire visibilitychange) and reconnect.
@@ -1498,7 +1503,7 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
               onRenameTag={handleRenameTag}
               onDeleteTag={handleDeleteTag}
             />
-          ) : (
+          ) : !notesLoaded ? null : (
             <div className="flex h-full items-center justify-center">
               <div className="text-center">
                 <p className="text-sm mb-3" style={{ color: 'var(--muted)' }}>No note selected</p>
