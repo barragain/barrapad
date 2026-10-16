@@ -125,7 +125,8 @@ function AudioPlayer({ name, size, dataUrl, onRename, selected }: { name: string
 
   const handleDownload = () => {
     const a = document.createElement('a')
-    a.href = dataUrl
+    // Blob URLs are cross-origin, so `download` is ignored; ?download=1 makes Blob send it as an attachment.
+    a.href = dataUrl.startsWith('data:') ? dataUrl : `${dataUrl}?download=1`
     a.download = name
     document.body.appendChild(a)
     a.click()
@@ -283,7 +284,8 @@ export default function FileAttachmentView({ node, updateAttributes, selected }:
 
   const handleDownload = () => {
     const a = document.createElement('a')
-    a.href = dataUrl
+    // Blob URLs are cross-origin, so `download` is ignored; ?download=1 makes Blob send it as an attachment.
+    a.href = dataUrl.startsWith('data:') ? dataUrl : `${dataUrl}?download=1`
     a.download = name
     document.body.appendChild(a)
     a.click()

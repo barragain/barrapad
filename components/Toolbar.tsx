@@ -35,7 +35,7 @@ import TablePicker from './TablePicker'
 import ColorPicker from './ColorPicker'
 import LinkPopover from './LinkPopover'
 import '@/extensions/resizable-image'
-import { uploadImage } from '@/lib/upload-image'
+import { uploadImage, uploadFile } from '@/lib/upload-image'
 
 /** Find any image or fileAttachment overlapping the current selection and set its align.
  *  Does not rely on instanceof — scans the doc for the active node. */
@@ -354,10 +354,7 @@ export default function Toolbar({ editor, commentsEnabled = true }: ToolbarProps
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    const reader = new FileReader()
-    reader.onload = (ev) => {
-      const result = ev.target?.result as string
-      if (!result) return
+    uploadFile(file).then((result) => {
       const sel = editor.state.selection
       if ('node' in sel && sel.node) editor.commands.setTextSelection(sel.to)
       editor.chain().focus().insertFileAttachment({
@@ -366,8 +363,7 @@ export default function Toolbar({ editor, commentsEnabled = true }: ToolbarProps
         mimeType: file.type || 'application/octet-stream',
         dataUrl: result,
       }).run()
-    }
-    reader.readAsDataURL(file)
+    })
     e.target.value = ''
   }
 
@@ -387,17 +383,13 @@ export default function Toolbar({ editor, commentsEnabled = true }: ToolbarProps
         const blob = new Blob(chunksRef.current, { type: recorder.mimeType })
         const ext = recorder.mimeType.split('/')[1]?.split(';')[0] || 'webm'
         const name = `Voice memo ${new Date().toLocaleString()}.${ext}`
-        const fr = new FileReader()
-        fr.onload = (ev) => {
-          const dataUrl = ev.target?.result as string
-          if (!dataUrl) return
+        uploadFile(blob, name).then((dataUrl) => {
           const sel = editor.state.selection
           if ('node' in sel && sel.node) editor.commands.setTextSelection(sel.to)
           editor.chain().focus().insertFileAttachment({
             name, size: blob.size, mimeType: recorder.mimeType, dataUrl,
           }).run()
-        }
-        fr.readAsDataURL(blob)
+        })
       }
       mediaRecorderRef.current = recorder
       recorder.start()

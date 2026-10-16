@@ -19,7 +19,11 @@ function PollView({ node, updateAttributes, selected }: NodeViewProps) {
   const opts: PollOption[] = JSON.parse((node.attrs.options as string) || '[]')
   const size = (node.attrs.size as PollSize) || 'medium'
 
-  const [voted, setVoted] = useState<string | null>(null)
+  // ponytail: one vote per browser (localStorage), a voter list in the attrs if it ever matters.
+  const voteKey = `bpad_poll_vote_${opts[0]?.id ?? ''}`
+  const [voted, setVoted] = useState<string | null>(() => {
+    try { return localStorage.getItem(voteKey) } catch { return null }
+  })
   const [editing, setEditing] = useState(!q)
   const [dq, setDq] = useState(q || '')
   const [dopts, setDopts] = useState<PollOption[]>(() =>
@@ -76,11 +80,12 @@ function PollView({ node, updateAttributes, selected }: NodeViewProps) {
     (id: string) => {
       if (voted) return
       setVoted(id)
+      try { localStorage.setItem(voteKey, id) } catch {}
       updateAttributes({
         options: JSON.stringify(opts.map(o => (o.id === id ? { ...o, votes: o.votes + 1 } : o))),
       })
     },
-    [voted, opts, updateAttributes]
+    [voted, opts, updateAttributes, voteKey]
   )
 
   const pollWidth = POLL_SIZES[size]
