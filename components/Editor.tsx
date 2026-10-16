@@ -300,6 +300,7 @@ export default function EditorComponent({
     // real content change should mark the note dirty and save.
     // Before the seed claim resolves the doc may still be empty: saving that
     // would wipe the note.
+    try { if (localStorage.getItem('bpad_debug')) console.log('[bpad save] update', JSON.stringify({ html: html.slice(0, 60), _text: _text.slice(0, 40), title, ntr: noteTitleRef.current, ncr: noteContentRef.current?.slice(0, 60), y: yModeRef.current, seed: seedDoneRef.current, id: liveNoteIdRef.current })) } catch {}
     if (yModeRef.current && (!seedDoneRef.current || html === noteContentRef.current)) return
     onLocalChangeRef.current(editNoteId, title, html)
 
