@@ -1,23 +1,4 @@
-import { Extension, createDocument, type Content, type Editor } from '@tiptap/core'
-import { Plugin, PluginKey } from '@tiptap/pm/state'
-import { DecorationSet, Decoration } from '@tiptap/pm/view'
-
-export interface RemoteCursor {
-  id: string
-  from: number
-  to: number
-  name: string
-  color: string
-  imageUrl?: string
-  mx?: number  // mouse x as 0-1 ratio of editor container width
-  my?: number  // mouse y as 0-1 ratio of editor container height
-}
-
-const REMOTE_CONTENT = 'bpadRemoteContent'
-
-export const collabCursorKey = new PluginKey<{ cursors: RemoteCursor[] }>('collabCursor')
-
-/** Caret plus name label. Also used for Yjs carets (CollaborationCaret render). */
+/** Caret plus name label for remote carets (CollaborationCaret render). */
 export function buildWidget(name: string, color: string): HTMLElement {
   const wrap = document.createElement('span')
   wrap.className = 'bpad-caret'
@@ -50,92 +31,6 @@ export function buildWidget(name: string, color: string): HTMLElement {
   wrap.appendChild(label)
 
   return wrap
-}
-
-export const CollabCursor = Extension.create({
-  name: 'collabCursor',
-
-  addProseMirrorPlugins() {
-    return [
-      new Plugin({
-        key: collabCursorKey,
-        state: {
-          init: () => ({ cursors: [] as RemoteCursor[] }),
-          apply(tr, prev) {
-            const meta = tr.getMeta(collabCursorKey)
-            if (meta) return meta
-            // Local edits shift remote cursors along with their text. Remote content
-            // is not mapped: the sender's cursor messages already use its coordinates.
-            if (!tr.docChanged || tr.getMeta(REMOTE_CONTENT)) return prev
-            return { cursors: prev.cursors.map((c) => ({ ...c, from: tr.mapping.map(c.from), to: tr.mapping.map(c.to) })) }
-          },
-        },
-        props: {
-          decorations(state) {
-            const pluginState = collabCursorKey.getState(state)
-            if (!pluginState?.cursors.length) return DecorationSet.empty
-
-            const decos: Decoration[] = []
-            const docSize = state.doc.content.size
-
-            for (const cursor of pluginState.cursors) {
-              const from = Math.max(0, Math.min(cursor.from, docSize))
-              const to = Math.max(0, Math.min(cursor.to, docSize))
-
-              if (from !== to) {
-                decos.push(
-                  Decoration.inline(Math.min(from, to), Math.max(from, to), {
-                    style: `background:${cursor.color}33;`,
-                  })
-                )
-              }
-
-              const color = cursor.color
-              const name = cursor.name
-              decos.push(
-                Decoration.widget(from, () => buildWidget(name, color), {
-                  key: `collab-cursor-${cursor.id}`,
-                  side: 1,
-                })
-              )
-            }
-
-            return DecorationSet.create(state.doc, decos)
-          },
-        },
-      }),
-    ]
-  },
-})
-
-export function setCursors(
-  editor: { view: { state: { tr: any }; dispatch: (tr: any) => void } },
-  cursors: RemoteCursor[]
-) {
-  const tr = editor.view.state.tr.setMeta(collabCursorKey, { cursors })
-  editor.view.dispatch(tr)
-}
-
-/**
- * Apply a remote copy of the document as one replace step over the range that
- * differs, instead of setContent. ProseMirror can then map the local selection
- * and the remote cursors through the change; with setContent they kept their
- * absolute positions and drifted a paragraph when text was added above them.
- * Does not fire onUpdate (no echo back to the room) and stays out of undo.
- */
-export function applyRemoteContent(editor: Editor, content: Content) {
-  const { state } = editor
-  const next = createDocument(content, state.schema)
-  const start = state.doc.content.findDiffStart(next.content)
-  if (start == null) return
-  const end = state.doc.content.findDiffEnd(next.content)
-  let endA = end?.a ?? state.doc.content.size
-  let endB = end?.b ?? next.content.size
-  const overlap = start - Math.min(endA, endB)
-  if (overlap > 0) { endA += overlap; endB += overlap }
-  const tr = state.tr.replace(start, endA, next.slice(start, endB))
-  tr.setMeta('preventUpdate', true).setMeta('addToHistory', false).setMeta(REMOTE_CONTENT, true)
-  editor.view.dispatch(tr)
 }
 
 export const CURSOR_COLORS = [

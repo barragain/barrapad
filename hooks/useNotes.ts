@@ -75,7 +75,6 @@ export function useNotes({ initialNotes, guest, isGuest, isSignedIn }: {
   const [activeNoteId, setActiveNoteId] = useState<string | null>(() => (guest ? [] : initialNotes ?? loadCachedNotes())[0]?.id ?? null)
   // Incremented every time fetchNotes applies newer server content — lets the
   // Editor know it should re-check its content against the latest note.content.
-  const [serverFetchVersion, setServerFetchVersion] = useState(0)
   // False until the first /api/notes answer this session. While false the editor
   // is read-only: typing on top of a stale localStorage copy and auto-saving it
   // is how another device's edits got overwritten.
@@ -189,8 +188,6 @@ export function useNotes({ initialNotes, guest, isGuest, isSignedIn }: {
         saveCachedNotes(next)
         return next
       })
-      // Signal Editor to re-check its content against the latest server data
-      setServerFetchVersion(v => v + 1)
       setNotesLoaded(true)
       setActiveNoteId((prev) => {
         if (prev && (prev.startsWith('shared-') || prev.startsWith('temp-') || ownedData.some((n) => n.id === prev))) return prev
@@ -412,7 +409,7 @@ export function useNotes({ initialNotes, guest, isGuest, isSignedIn }: {
 
   return {
     notes, setNotes, notesRef, updateNotes, activeNoteId, setActiveNoteId,
-    serverFetchVersion, notesLoaded, setNotesLoaded, manualSaving, autoSaving, selfDeleteRef,
+    notesLoaded, setNotesLoaded, manualSaving, autoSaving, selfDeleteRef,
     fetchNotes, handleLocalChange, handleRemoteContent, handleAutoSave, handleManualSaveContent,
     handleNewNote, handleRenameNote, handleDeleteNote,
   }

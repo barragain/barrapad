@@ -66,7 +66,7 @@ await sleep(500)
 await B.page.keyboard.type('Z')
 check((await editor(B.page).innerText()).trim().endsWith('live-AZ'), `B's caret stays put when A edits above (${(await editor(B.page).innerText()).replace(/\n/g, ' / ')})`)
 
-check(B.sockets.some((u) => u.includes(`/parties/main/${noteId}`) && /ticket=(READ|WRITE)\./.test(u)), 'note socket carries a signed ticket')
+check(B.sockets.some((u) => u.includes(`/parties/note-y/${noteId}`) && /ticket=(READ|WRITE)\./.test(u)), 'note socket carries a signed ticket')
 check(A.sockets.some((u) => u.includes('/parties/main/notif-') && /ticket=WRITE\./.test(u)), 'notification socket carries a signed ticket')
 
 // View-only share link: gets a READ ticket; its update is dropped by the Worker.
@@ -77,18 +77,27 @@ await V.goto(`${BASE}/s/${link.token}`, { waitUntil: 'domcontentloaded' })
 const rtHost = A.sockets.find((u) => u.includes('/parties/'))?.split('/parties/')[0]
 const forged = await V.evaluate(async ({ noteId, token, rtHost }) => {
   const { ticket } = await fetch(`/api/realtime/ticket?room=${noteId}&share=${token}`).then((r) => r.json())
-  const ws = new WebSocket(`${rtHost}/parties/main/${noteId}?ticket=${ticket}`)
+  const ws = new WebSocket(`${rtHost}/parties/note-y/${noteId}?ticket=${ticket}`)
   const opened = await new Promise((r) => { ws.onopen = () => r(true); ws.onerror = () => r(false) })
-  if (opened) ws.send(JSON.stringify({ type: 'update', content: '<p>HACKED by viewer</p>', title: 'x' }))
+  if (opened) ws.send('__YPS:' + JSON.stringify({ type: 'title', title: 'HACKED by viewer' }))
   await new Promise((r) => setTimeout(r, 1500))
   ws.close()
-  const noTicket = await new Promise((r) => { const w = new WebSocket(`${rtHost}/parties/main/${noteId}`); w.onopen = () => { w.close(); r(true) }; w.onerror = () => r(false) })
+  const noTicket = await new Promise((r) => { const w = new WebSocket(`${rtHost}/parties/note-y/${noteId}`); w.onopen = () => { w.close(); r(true) }; w.onerror = () => r(false) })
   return { ticketPerm: ticket.split('.')[0], opened, noTicket }
 }, { noteId, token: link.token, rtHost })
 check(forged.ticketPerm === 'READ' && forged.opened, `view-only link joins with a READ ticket (${forged.ticketPerm})`)
 await sleep(1_500)
-check(!(await editor(A.page).innerText()).includes('HACKED'), "viewer's update is dropped, owner's note unchanged")
+check(!(await A.page.evaluate(() => document.body.innerText)).includes('HACKED'), "viewer's rename is dropped, owner's note unchanged")
 check(forged.noTicket === false, 'socket without a ticket is refused')
+
+// The view-only share page follows the owner's typing live and stays read-only.
+await V.waitForFunction(() => document.querySelector('.ProseMirror')?.textContent?.includes('live-A'), null, { timeout: 15_000 }).catch(() => {})
+await editor(A.page).click()
+await A.page.keyboard.press('Control+End')
+await A.page.keyboard.type(' seen-by-viewer')
+const viewerLive = await V.waitForFunction(() => document.querySelector('.ProseMirror')?.textContent?.includes('seen-by-viewer'), null, { timeout: 8_000 }).then(() => true).catch(() => false)
+check(viewerLive, 'view-only share page shows the owner typing live')
+check(await V.evaluate(() => document.querySelector('.ProseMirror')?.getAttribute('contenteditable') !== 'true'), 'view-only share page stays read-only')
 
 const denied = await V.evaluate((id) => fetch(`/api/realtime/ticket?room=${id}`).then((r) => r.status), noteId)
 check(denied === 401, `anonymous ticket without share token refused (${denied})`)
@@ -98,6 +107,22 @@ const G = await open(path.join(AUTH, 'state-demo2.json'))
 const reqStatus = await G.page.evaluate((id) => fetch('/api/access-requests', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ noteId: id }) }).then((r) => r.status), noteId)
 await sleep(4_000)
 check(A.frames.some((f) => f.includes('"notification"') && f.includes(noteId)), `access request pushed live to the owner's tab (POST ${reqStatus})`)
+
+// Edit link opened by the second account: its typing reaches the owner live and
+// the database.
+const editLink = await A.page.evaluate((id) => fetch(`/api/notes/${id}/share`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ permission: 'EDIT' }) }).then((r) => r.json()), noteId)
+const E = await G.c.newPage()
+await E.goto(`${BASE}/s/${editLink.token}`, { waitUntil: 'domcontentloaded' })
+const shareEditable = await E.waitForFunction(editableEditor, null, { timeout: 20_000 }).then(() => true).catch(() => false)
+check(shareEditable, 'edit share page becomes editable for a signed-in user')
+await editor(E).click()
+await E.keyboard.press('Control+End')
+await E.keyboard.type(' from-share')
+const ownerSaw = await A.page.waitForFunction(() => document.querySelector('.ProseMirror')?.textContent?.includes('from-share'), null, { timeout: 8_000 }).then(() => true).catch(() => false)
+check(ownerSaw, 'owner sees the share editor typing live')
+await sleep(3_000)
+const afterShare = await A.page.evaluate((id) => fetch(`/api/notes/${id}`).then((r) => r.json()), noteId)
+check(JSON.stringify(afterShare).includes('from-share'), 'share editor edit reaches the database')
 
 // Cleanup: delete the test note (cascades the share link).
 await A.page.evaluate((id) => fetch(`/api/notes/${id}`, { method: 'DELETE' }), noteId)

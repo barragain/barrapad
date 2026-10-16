@@ -8,7 +8,6 @@ const Editor = dynamic(() => import('./Editor'), { ssr: false })
 interface EditorWrapperProps {
   note: Note
   allTags: Tag[]
-  serverFetchVersion: number
   serverReady: boolean
   onLocalChange: (noteId: string, title: string, content: string) => void
   onRemoteContent: (noteId: string, title: string | undefined, content: string, updatedAt?: string) => void

@@ -1,5 +1,5 @@
-// Production smoke test for Yjs live merging (the per-browser CRDT switch).
-// Two signed-in tabs with the switch on type into the same paragraph at the
+// Production smoke test for Yjs live merging.
+// Two signed-in tabs type into the same paragraph at the
 // same moment and both edits survive; two tabs opening a fresh note at once do
 // not double its content; a database edit made while no tab was open wins; a
 // view-only ticket cannot write to the Y doc.
@@ -31,7 +31,6 @@ const text = (page) => page.evaluate(() => {
 
 async function open() {
   const c = await browser.newContext({ storageState: STATE, viewport: { width: 1400, height: 900 } })
-  await c.addInitScript(() => { try { localStorage.setItem('bpad_crdt', '1') } catch {} })
   const page = await c.newPage()
   const sockets = []
   page.on('websocket', (ws) => sockets.push(ws.url()))
@@ -61,7 +60,7 @@ await A.page.reload({ waitUntil: 'domcontentloaded' }); await sleep(4_000)
 const B = await open()
 await openNote(A, m1)
 await openNote(B, m1)
-check(B.sockets.some((u) => u.includes(`/parties/note-y/${created[0]}`) && /ticket=WRITE\./.test(u)), 'switch on: note joins the note-y room with a ticket')
+check(B.sockets.some((u) => u.includes(`/parties/note-y/${created[0]}`) && /ticket=WRITE\./.test(u)), 'note joins the note-y room with a ticket')
 await editor(A.page).click(); await A.page.keyboard.press('Control+End')
 await editor(B.page).click(); await B.page.keyboard.press('Control+Home')
 await Promise.all([A.page.keyboard.type(' AAAA', { delay: 30 }), B.page.keyboard.type('BBBB ', { delay: 30 })])

@@ -3,17 +3,19 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import type { Editor } from '@tiptap/react'
 import { useUser } from '@clerk/nextjs'
-import PartySocket from 'partysocket'
 import { HelpCircle, Settings } from 'lucide-react'
 import TagInput from './TagInput'
 import AppearanceModal from './AppearanceModal'
 import AboutModal from './AboutModal'
 import NoteEditorCore from './NoteEditorCore'
 import type { AppearanceSettings, Tag } from '@/types'
-import { CollabCursor, setCursors, pickColor, applyRemoteContent } from '@/extensions/collab-cursor'
-import type { RemoteCursor } from '@/extensions/collab-cursor'
+import { pickColor } from '@/extensions/collab-cursor'
 
 import { REALTIME_HOST, roomQuery } from '@/lib/realtime'
+import { claimSeed, onRoomMessage, sendRoomMessage } from '@/lib/noteRoom'
+import * as Y from 'yjs'
+import { Awareness } from 'y-protocols/awareness'
+import YProvider from 'y-partyserver/provider'
 
 const DEFAULT_APPEARANCE: AppearanceSettings = { mode: 'light', font: 'mono', zoom: 16, theme: 'barrapad' }
 
@@ -46,46 +48,18 @@ interface Props {
   updatedAt: string
 }
 
-export default function SharedNoteView({ token, noteId, initialTitle, initialContent, initialTags, permission, updatedAt }: Props) {
+type Presence = { id: number; name: string; color: string; imageUrl?: string }
+
+export default function SharedNoteView({ token, noteId, initialContent, initialTags, permission, updatedAt }: Props) {
   const { isSignedIn, isLoaded, user } = useUser()
   const canEdit = permission === 'EDIT' && !!isSignedIn
 
-  // ── Editor ref (populated by NoteEditorCore) ──────────────────────────────
-  const editorRef = useRef<Editor | null>(null)
-  const [editorReady, setEditorReady] = useState(false)
-
   // ── Tags ──────────────────────────────────────────────────────────────────
   const [tags, setTags] = useState<Tag[]>(initialTags)
-  const handleTagsChange = useCallback(async (newTags: Tag[]) => {
-    setTags(newTags)
-    try {
-      await fetch(`/api/share/${token}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tags: newTags }),
-      })
-    } catch {}
-  }, [token])
 
-  // ── PartyKit refs ─────────────────────────────────────────────────────────
-  const socketRef = useRef<PartySocket | null>(null)
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const sendTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const sendCursorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const pendingRef = useRef(false)
-  const lastLocalChangeTimeRef = useRef(0)
-
-  // Passed to NoteEditorCore so the sync guard can be read here in the PartyKit handler
-  const isLocallyEditingRef = useRef(false)
-  const localEditTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  const remoteCursorsRef = useRef<Map<string, RemoteCursor>>(new Map())
   const myColorRef = useRef(pickColor(Math.random().toString()))
-  const canEditRef = useRef(canEdit)
   const userNameRef = useRef('Guest')
   const userImageRef = useRef<string | undefined>(undefined)
-
-  useEffect(() => { canEditRef.current = canEdit }, [canEdit])
   useEffect(() => {
     if (user) {
       userNameRef.current =
@@ -100,13 +74,11 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
   // ── UI state ──────────────────────────────────────────────────────────────
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
   const [lastUpdated, setLastUpdated] = useState(updatedAt)
-  // Mirror for the socket handler: the room's initial 'sync' is applied only
-  // when newer than the content this page was rendered with (database truth).
   const lastUpdatedRef = useRef(updatedAt)
   useEffect(() => { lastUpdatedRef.current = lastUpdated }, [lastUpdated])
-  const [connections, setConnections] = useState(1)
   const [connected, setConnected] = useState(false)
-  const [presenceList, setPresenceList] = useState<RemoteCursor[]>([])
+  const [presenceList, setPresenceList] = useState<Presence[]>([])
+  const [connections, setConnections] = useState(1)
   const [showAbout, setShowAbout] = useState(false)
   const [showAppearance, setShowAppearance] = useState(false)
   const [appearance, setAppearance] = useState<AppearanceSettings>(DEFAULT_APPEARANCE)
@@ -124,28 +96,69 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
     dateStyle: 'medium', timeStyle: 'short',
   })
 
-  // ── NoteEditorCore callbacks ──────────────────────────────────────────────
-  const handleEditorReady = useCallback((ed: Editor) => {
-    editorRef.current = ed
-    setEditorReady(true)
-  }, [])
+  // ── Yjs room ──────────────────────────────────────────────────────────────
+  // Same room as the app's editor. Until the doc arrives the page shows the
+  // server-rendered copy read-only. A viewer cannot fill an empty room, so it
+  // keeps that copy until an editor has opened the note.
+  type Collab = { doc: Y.Doc; awareness: Awareness; provider: YProvider }
+  const [collab, setCollab] = useState<Collab | null>(null)
+  const [synced, setSynced] = useState(false)
+  const [hasContent, setHasContent] = useState(false)
+  useEffect(() => {
+    const doc = new Y.Doc()
+    const awareness = new Awareness(doc)
+    const provider = new YProvider(REALTIME_HOST, noteId, doc, { party: 'note-y', params: roomQuery(noteId, token), awareness })
+    provider.on('synced', (s: boolean) => { if (s) setSynced(true) })
+    provider.on('status', ({ status }: { status: string }) => setConnected(status === 'connected'))
+    const fragment = doc.getXmlFragment('default')
+    const onDoc = () => setHasContent(fragment.length > 0)
+    doc.on('update', onDoc)
+    const onAwareness = () => {
+      const others: Presence[] = []
+      awareness.getStates().forEach((s, id) => {
+        const u = (s as { user?: { name: string; color: string; imageUrl?: string } }).user
+        if (id !== doc.clientID && u) others.push({ id, ...u })
+      })
+      setPresenceList(others)
+      setConnections(awareness.getStates().size || 1)
+    }
+    awareness.on('change', onAwareness)
+    const offRoom = onRoomMessage(provider, (msg) => {
+      if (msg.type === 'tags' && msg.tags) setTags(msg.tags)
+      if (msg.type === 'title' && msg.title) document.title = `${msg.title} | bpad - A notepad for whatever`
+      if (msg.type === 'delete') setDeleted(true)
+    })
+    setCollab({ doc, awareness, provider })
+    return () => { offRoom(); provider.destroy(); awareness.destroy(); doc.destroy() }
+  }, [noteId, token])
 
-  const handleUpdate = useCallback((html: string, text: string, _title: string) => {
+  // ── Editing ───────────────────────────────────────────────────────────────
+  const [yEditor, setYEditor] = useState<Editor | null>(null)
+  const [seedDone, setSeedDone] = useState(false)
+  const seedDoneRef = useRef(false)
+  seedDoneRef.current = seedDone
+  const lastSavedHtmlRef = useRef(initialContent)
+  const editedRef = useRef(false)
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    if (!collab || !yEditor || !canEdit) return
+    return claimSeed(collab.provider, yEditor,
+      () => ({ html: initialContent, updatedAt: lastUpdatedRef.current }),
+      () => setSeedDone(true))
+  }, [collab, yEditor, canEdit, initialContent])
+
+  const handleUpdate = useCallback((html: string, text: string, _title: string, remote?: boolean) => {
+    // Skip Yjs's first render, unseeded docs, and merges this tab did not
+    // take part in (the editing tab saves those).
+    if (!seedDoneRef.current || html === lastSavedHtmlRef.current) return
+    if (remote && !editedRef.current) return
+    if (!remote) editedRef.current = true
     const title = text.split('\n')[0]?.trim().slice(0, 100) || 'Untitled'
-
-    pendingRef.current = true
-    lastLocalChangeTimeRef.current = Date.now()
-
-    if (sendTimerRef.current) clearTimeout(sendTimerRef.current)
-    sendTimerRef.current = setTimeout(() => {
-      const contentJson = editorRef.current?.getJSON()
-      socketRef.current?.send(JSON.stringify({ type: 'update', content: html, contentJson, title, ts: lastLocalChangeTimeRef.current }))
-    }, 50)
 
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
     setSaveStatus('saving')
     saveTimerRef.current = setTimeout(async () => {
-      pendingRef.current = false
       try {
         const res = await fetch(`/api/share/${token}`, {
           method: 'PATCH',
@@ -154,122 +167,27 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
         })
         if (res.ok) {
           const data = await res.json() as { updatedAt: string }
+          lastSavedHtmlRef.current = html
           setLastUpdated(data.updatedAt)
+          sendRoomMessage(collab?.provider, { type: 'saved', dbUpdatedAt: data.updatedAt })
           setSaveStatus('saved')
           setTimeout(() => setSaveStatus('idle'), 2000)
         }
       } catch {}
     }, 1000)
-  }, [token])
+  }, [token, collab])
 
-  const handleSelectionUpdate = useCallback((from: number, to: number) => {
-    if (!canEditRef.current) return
-    if (sendCursorTimerRef.current) clearTimeout(sendCursorTimerRef.current)
-    sendCursorTimerRef.current = setTimeout(() => {
-      socketRef.current?.send(JSON.stringify({
-        type: 'cursor', from, to,
-        name: userNameRef.current,
-        color: myColorRef.current,
-        imageUrl: userImageRef.current,
-      }))
-    }, 50)
-  }, [])
-
-  // ── PartyKit ──────────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!editorReady) return
-
-    const socket = new PartySocket({ host: REALTIME_HOST, room: noteId, query: roomQuery(noteId, token) })
-    socketRef.current = socket
-
-    socket.addEventListener('open', () => setConnected(true))
-    socket.addEventListener('close', () => setConnected(false))
-
-    socket.addEventListener('message', (evt) => {
-      type AnyMsg = {
-        type: 'sync' | 'update' | 'presence' | 'cursor' | 'cursor-leave' | 'tags' | 'title' | 'delete'
-        content?: string; contentJson?: Record<string, unknown>
-        title?: string; updatedAt?: string; connections?: number
-        tags?: import('@/types').Tag[]
-        cursors?: RemoteCursor[]
-        id?: string; from?: number; to?: number; name?: string; color?: string; imageUrl?: string
-        ts?: number
-      }
-      const msg = JSON.parse(evt.data as string) as AnyMsg
-      const ed = editorRef.current
-
-      if (msg.type === 'presence') {
-        setConnections(msg.connections ?? 1)
-        return
-      }
-
-      if (msg.type === 'sync' || msg.type === 'update') {
-        if (msg.connections !== undefined) setConnections(msg.connections)
-        const roomIsNewer = msg.type !== 'sync' || !msg.updatedAt || msg.updatedAt > lastUpdatedRef.current
-        if (!roomIsNewer) return
-        if (msg.content && ed) {
-          const safeToApply =
-            !canEditRef.current ||
-            msg.type === 'sync' ||
-            !isLocallyEditingRef.current
-          if (safeToApply) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            applyRemoteContent(ed, (msg.contentJson ?? msg.content) as any)
-          }
-        }
-        if (msg.content !== '') setLastUpdated(msg.updatedAt ?? lastUpdated)
-        if (msg.type === 'sync' && msg.cursors) {
-          remoteCursorsRef.current.clear()
-          for (const c of msg.cursors) remoteCursorsRef.current.set(c.id, c)
-          setPresenceList([...remoteCursorsRef.current.values()])
-          if (ed) setCursors(ed, [...remoteCursorsRef.current.values()])
-        }
-        return
-      }
-
-      if (msg.type === 'tags' && msg.tags) {
-        setTags(msg.tags)
-        return
-      }
-
-      if (msg.type === 'title' && msg.title) {
-        document.title = `${msg.title} | bpad - A notepad for whatever`
-        return
-      }
-
-      if (msg.type === 'delete') {
-        setDeleted(true)
-        return
-      }
-
-      if (msg.type === 'cursor' && msg.id && msg.from !== undefined && msg.to !== undefined) {
-        const existing = remoteCursorsRef.current.get(msg.id)
-        const cursor: RemoteCursor = {
-          ...existing,
-          id: msg.id, from: msg.from, to: msg.to,
-          name: msg.name ?? 'Guest', color: msg.color ?? '#888',
-          imageUrl: msg.imageUrl,
-        }
-        remoteCursorsRef.current.set(msg.id, cursor)
-        setPresenceList([...remoteCursorsRef.current.values()])
-        if (ed) setCursors(ed, [...remoteCursorsRef.current.values()])
-        return
-      }
-
-      if (msg.type === 'cursor-leave' && msg.id) {
-        remoteCursorsRef.current.delete(msg.id)
-        setPresenceList([...remoteCursorsRef.current.values()])
-        if (ed) setCursors(ed, [...remoteCursorsRef.current.values()])
-      }
-    })
-
-    return () => {
-      remoteCursorsRef.current.clear()
-      socket.close()
-      socketRef.current = null
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [noteId, editorReady])
+  const handleTagsChange = useCallback(async (newTags: Tag[]) => {
+    setTags(newTags)
+    sendRoomMessage(collab?.provider, { type: 'tags', tags: newTags })
+    try {
+      await fetch(`/api/share/${token}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tags: newTags }),
+      })
+    } catch {}
+  }, [token, collab])
 
   // ── Render ────────────────────────────────────────────────────────────────
   if (deleted) {
@@ -282,6 +200,8 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
       </div>
     )
   }
+
+  const live = !!collab && synced && (canEdit || hasContent)
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--editor-bg, #F9F7F4)', display: 'flex', flexDirection: 'column' }}>
@@ -424,13 +344,12 @@ export default function SharedNoteView({ token, noteId, initialTitle, initialCon
       {/* ── Editor (shared core) ── */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         <NoteEditorCore
+          key={live ? 'live' : 'preview'}
+          collab={live ? { doc: collab!.doc, awareness: collab!.awareness, user: { name: userNameRef.current, color: myColorRef.current, imageUrl: userImageRef.current } } : undefined}
           initialContent={initialContent}
-          editable={canEdit}
-          onEditorReady={handleEditorReady}
-          onUpdate={canEdit ? handleUpdate : undefined}
-          onSelectionUpdate={canEdit ? handleSelectionUpdate : undefined}
-          isLocallyEditingRef={isLocallyEditingRef}
-          localEditTimeoutRef={localEditTimeoutRef}
+          editable={live && canEdit && seedDone}
+          onEditorReady={live ? setYEditor : undefined}
+          onUpdate={live && canEdit ? handleUpdate : undefined}
           infoRows={[
             { label: 'Permission', value: permission === 'EDIT' ? 'Can edit' : 'View only' },
             { label: 'Updated', value: formattedDate },

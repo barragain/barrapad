@@ -1,6 +1,7 @@
 // barraPAD realtime server on Cloudflare Workers + Durable Objects (PartyServer).
-// Port of party/index.ts. Same rooms, same messages, same URL shape
-// (/parties/main/<room>), so the clients only need a new host.
+// Two kinds of room: NoteYParty (/parties/note-y/<noteId>) carries a note's
+// content as a Yjs doc plus its tags, title, delete and comment signals;
+// NoteParty (/parties/main/notif-<userId>) carries a user's notifications.
 import { Server, routePartykitRequest, type Connection, type ConnectionContext } from 'partyserver'
 import { YServer } from 'y-partyserver'
 import * as Y from 'yjs'
@@ -10,150 +11,41 @@ import * as Y from 'yjs'
 // rejected (anyone could otherwise fake notifications or delete-room signals).
 type Env = { Main: DurableObjectNamespace<NoteParty>; NoteY: DurableObjectNamespace<NoteYParty>; REALTIME_SECRET?: string }
 
-type ClientMessage =
-  | { type: 'update'; content: string; contentJson?: object; title: string; ts?: number }
-  | { type: 'tags'; tags: object[] }
-  | { type: 'title'; title: string }
-  | { type: 'delete' }
-  | { type: 'cursor'; from: number; to: number; name: string; color: string; imageUrl?: string; mx?: number; my?: number }
-  | { type: 'comment-update'; noteId: string }
+function allowedPush(request: Request, env: Env) {
+  return !env.REALTIME_SECRET || request.headers.get('x-realtime-secret') === env.REALTIME_SECRET
+}
 
-type CursorState = { id: string; from: number; to: number; name: string; color: string; imageUrl?: string; mx?: number; my?: number }
-
-type ServerMessage =
-  | { type: 'sync'; content: string; contentJson?: object; title: string; updatedAt: string; connections: number; cursors: CursorState[] }
-  | { type: 'update'; content: string; contentJson?: object; title: string; updatedAt: string; ts?: number }
-  | { type: 'tags'; tags: object[] }
-  | { type: 'title'; title: string }
-  | { type: 'delete' }
-  | { type: 'presence'; connections: number }
-  | { type: 'cursor'; id: string; from: number; to: number; name: string; color: string; imageUrl?: string; mx?: number; my?: number }
-  | { type: 'cursor-leave'; id: string }
-
+// Notification rooms: API routes POST, the room relays to the user's tabs.
 export class NoteParty extends Server<Env> {
-  // Not hibernated on purpose: cursors live in memory, like the PartyKit version.
-  private cursors = new Map<string, Omit<CursorState, 'id'>>()
-
-  private get isNotifRoom() { return this.name.startsWith('notif-') }
-  private send(msg: ServerMessage | Record<string, unknown>, exclude: string[] = []) {
-    this.broadcast(JSON.stringify(msg), exclude)
-  }
-
-  async onConnect(conn: Connection<{ readOnly: boolean }>, ctx: ConnectionContext) {
-    // Ticket was verified in onBeforeConnect; only its permission is read here.
-    const ticket = new URL(ctx.request.url).searchParams.get('ticket') ?? ''
-    conn.setState({ readOnly: ticket.startsWith('READ.') })
-    if (this.isNotifRoom) return
-
-    const deleted = await this.ctx.storage.get<boolean>('deleted')
-    if (deleted) {
-      conn.send(JSON.stringify({ type: 'delete' } satisfies ServerMessage))
-      return
-    }
-
-    const content     = (await this.ctx.storage.get<string>('content'))     ?? ''
-    const contentJson = (await this.ctx.storage.get<object>('contentJson')) ?? undefined
-    const title       = (await this.ctx.storage.get<string>('title'))       ?? ''
-    const updatedAt   = (await this.ctx.storage.get<string>('updatedAt'))   ?? new Date().toISOString()
-    const connections = [...this.getConnections()].length
-    const cursors     = [...this.cursors.entries()].map(([id, c]) => ({ id, ...c }))
-
-    conn.send(JSON.stringify({ type: 'sync', content, contentJson, title, updatedAt, connections, cursors } satisfies ServerMessage))
-    this.broadcastPresence()
-  }
-
-  onClose(conn: Connection) {
-    this.cursors.delete(conn.id)
-    this.send({ type: 'cursor-leave', id: conn.id })
-    this.broadcastPresence()
-  }
-
-  // Note the argument order: PartyServer passes (connection, message), PartyKit passed (message, sender).
-  async onMessage(sender: Connection, message: string | ArrayBuffer) {
-    let data: ClientMessage
-    try {
-      data = JSON.parse(typeof message === 'string' ? message : new TextDecoder().decode(message)) as ClientMessage
-    } catch {
-      return
-    }
-
-    // View-only connections may move their cursor and signal comments (viewers can comment).
-    const readOnly = (sender.state as { readOnly?: boolean } | null)?.readOnly
-    if (readOnly && data.type !== 'cursor' && data.type !== 'comment-update') return
-
-    if (data.type === 'update') {
-      const updatedAt = new Date().toISOString()
-      await this.ctx.storage.put('content', data.content)
-      await this.ctx.storage.put('title', data.title)
-      await this.ctx.storage.put('updatedAt', updatedAt)
-      if (data.contentJson) await this.ctx.storage.put('contentJson', data.contentJson)
-      this.send({ type: 'update', content: data.content, contentJson: data.contentJson, title: data.title, updatedAt, ts: data.ts }, [sender.id])
-    }
-
-    if (data.type === 'tags') this.send({ type: 'tags', tags: data.tags }, [sender.id])
-    if (data.type === 'title') this.send({ type: 'title', title: data.title }, [sender.id])
-
-    if (data.type === 'delete') {
-      await this.ctx.storage.put('deleted', true)
-      this.send({ type: 'delete' })
-    }
-
-    if (data.type === 'comment-update') this.send({ type: 'comment-update', noteId: data.noteId }, [sender.id])
-
-    if (data.type === 'cursor') {
-      const cursorData = { from: data.from, to: data.to, name: data.name, color: data.color, imageUrl: data.imageUrl, mx: data.mx, my: data.my }
-      this.cursors.set(sender.id, cursorData)
-      this.send({ type: 'cursor', id: sender.id, ...cursorData }, [sender.id])
-    }
-  }
-
-  // HTTP POST into a room from the Next.js API routes (title/delete/notification pushes).
   async onRequest(request: Request) {
-    if (request.method === 'POST') {
-      const secret = this.env.REALTIME_SECRET
-      if (secret && request.headers.get('x-realtime-secret') !== secret) {
-        return new Response('Forbidden', { status: 403 })
-      }
-      try {
-        const data = await request.json() as Record<string, unknown>
-        if (this.isNotifRoom) {
-          this.send(data)
-          return new Response('ok')
-        }
-        const msg = data as unknown as ClientMessage
-        if (msg.type === 'title') {
-          await this.ctx.storage.put('title', msg.title)
-          this.send({ type: 'title', title: msg.title })
-        }
-        if (msg.type === 'delete') {
-          await this.ctx.storage.put('deleted', true)
-          this.send({ type: 'delete' })
-        }
-      } catch {}
+    if (request.method !== 'POST') return new Response('ok')
+    if (!allowedPush(request, this.env)) return new Response('Forbidden', { status: 403 })
+    if (this.name.startsWith('notif-')) {
+      try { this.broadcast(JSON.stringify(await request.json())) } catch {}
     }
     return new Response('ok')
   }
-
-  private broadcastPresence() {
-    this.send({ type: 'presence', connections: [...this.getConnections()].length })
-  }
 }
 
-// Yjs room for note content (/parties/note-y/<noteId>), used by browsers with the
-// CRDT switch on. Titles, tags, deletes and comments stay on NoteParty.
+// Note rooms. The Y doc starts empty, so one client must fill it from the
+// database HTML. The client asks with "seed?" and its database updatedAt; the
+// room grants exactly one connection at a time, when the doc is empty or the
+// database is newer than the version the doc was last matched to (an edit
+// made outside the room). The granted client loads the HTML and answers
+// "seeded". Clients report each saved version with "saved", so the room knows
+// which database version it holds.
 //
-// The Y doc starts empty, so one client must fill it from the database HTML. The
-// client asks with "seed?" and its database updatedAt; the room grants exactly one
-// connection at a time, when the doc is empty or the database is newer than the
-// version the doc was last matched to (an edit from a client without CRDT). The
-// granted client loads the HTML and answers "seeded". Clients report each saved
-// version with "saved", so the room knows which database version it holds.
-type SeedMessage =
+// The other custom messages are relayed as they come: "tags", "title" and
+// "comment-update" from clients, "title" and "delete" from API routes.
+type ClientMessage =
   | { type: 'seed?'; dbUpdatedAt: string }
   | { type: 'seeded'; dbUpdatedAt: string }
   | { type: 'saved'; dbUpdatedAt: string }
+  | { type: 'tags'; tags: object[] }
+  | { type: 'title'; title: string }
+  | { type: 'comment-update'; noteId: string }
 
-export class NoteYParty extends YServer {
+export class NoteYParty extends YServer<Env> {
   static callbackOptions = { debounceWait: 1_000, debounceMaxWait: 5_000 }
   // In memory only: a seed that never finishes (tab closed) frees itself.
   private seeding: { id: string; until: number } | null = null
@@ -171,10 +63,14 @@ export class NoteYParty extends YServer {
     return (conn.state as { readOnly?: boolean } | null)?.readOnly === true
   }
 
-  onConnect(conn: Connection, ctx: ConnectionContext) {
+  async onConnect(conn: Connection, ctx: ConnectionContext) {
     const ticket = new URL(ctx.request.url).searchParams.get('ticket') ?? ''
     // Merge: YServer keeps awareness ids in the same connection state.
     conn.setState((prev: object | null) => ({ ...prev, readOnly: ticket.startsWith('READ.') }))
+    if (await this.ctx.storage.get<boolean>('deleted')) {
+      this.sendCustomMessage(conn, JSON.stringify({ type: 'delete' }))
+      return
+    }
     return super.onConnect(conn, ctx)
   }
 
@@ -184,11 +80,19 @@ export class NoteYParty extends YServer {
   }
 
   async onCustomMessage(conn: Connection, message: string) {
-    let msg: SeedMessage
-    try { msg = JSON.parse(message) as SeedMessage } catch { return }
-    if (this.isReadOnly(conn) || typeof msg.dbUpdatedAt !== 'string') return
-    const roomDb = (await this.ctx.storage.get<string>('dbUpdatedAt')) ?? ''
+    let msg: ClientMessage
+    try { msg = JSON.parse(message) as ClientMessage } catch { return }
+    // Viewers can comment, so they may signal it. Everything else is a write.
+    if (msg.type === 'comment-update') {
+      this.broadcastCustomMessage(JSON.stringify({ type: 'comment-update', noteId: msg.noteId }), conn)
+      return
+    }
+    if (this.isReadOnly(conn)) return
+    if (msg.type === 'tags') { this.broadcastCustomMessage(JSON.stringify({ type: 'tags', tags: msg.tags }), conn); return }
+    if (msg.type === 'title') { this.broadcastCustomMessage(JSON.stringify({ type: 'title', title: msg.title }), conn); return }
 
+    if (typeof msg.dbUpdatedAt !== 'string') return
+    const roomDb = (await this.ctx.storage.get<string>('dbUpdatedAt')) ?? ''
     if (msg.type === 'seed?') {
       if (this.seeding && this.seeding.until < Date.now()) this.seeding = null
       const empty = this.document.getXmlFragment('default').length === 0
@@ -201,6 +105,21 @@ export class NoteYParty extends YServer {
     }
     if (msg.type === 'seeded' && this.seeding?.id === conn.id) this.seeding = null
     if (msg.dbUpdatedAt > roomDb) await this.ctx.storage.put('dbUpdatedAt', msg.dbUpdatedAt)
+  }
+
+  // HTTP POST from the Next.js API routes: renames and deletes.
+  async onRequest(request: Request) {
+    if (request.method !== 'POST') return new Response('ok')
+    if (!allowedPush(request, this.env)) return new Response('Forbidden', { status: 403 })
+    try {
+      const msg = await request.json() as { type?: string; title?: string }
+      if (msg.type === 'title' && typeof msg.title === 'string') this.broadcastCustomMessage(JSON.stringify({ type: 'title', title: msg.title }))
+      if (msg.type === 'delete') {
+        await this.ctx.storage.put('deleted', true)
+        this.broadcastCustomMessage(JSON.stringify({ type: 'delete' }))
+      }
+    } catch {}
+    return new Response('ok')
   }
 }
 
@@ -216,7 +135,7 @@ async function verifyTicket(secret: string, room: string, ticket: string) {
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    // Binding "Main" => routes /parties/main/<room>, identical to the PartyKit URLs.
+    // Binding "Main" => /parties/main/<room>, "NoteY" => /parties/note-y/<room>.
     const res = await routePartykitRequest(request, env, {
       onBeforeConnect: async (req, lobby) => {
         if (!env.REALTIME_SECRET) return // local dev without a secret

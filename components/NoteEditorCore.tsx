@@ -24,7 +24,7 @@ import { FileAttachment } from '@/extensions/file-attachment'
 import { ResizableImage } from '@/extensions/resizable-image'
 import { Footnote } from '@/extensions/footnote'
 import { Poll } from '@/extensions/poll'
-import { CollabCursor, buildWidget } from '@/extensions/collab-cursor'
+import { buildWidget } from '@/extensions/collab-cursor'
 import Collaboration from '@tiptap/extension-collaboration'
 import { ySyncPluginKey } from '@tiptap/y-tiptap'
 import CollaborationCaret from '@tiptap/extension-collaboration-caret'
@@ -108,16 +108,7 @@ export interface NoteEditorCoreProps {
   onUpdate?: (html: string, text: string, title: string, remote?: boolean) => void
   /** Called when the editor loses focus. */
   onBlur?: () => void
-  /** Called on every selection change (for cursor broadcasting). */
-  onSelectionUpdate?: (from: number, to: number) => void
 
-  /**
-   * Refs managed by the parent and used by its PartyKit handler to decide
-   * whether to apply incoming remote content.
-   * If not provided, NoteEditorCore uses internal refs (fine for standalone use).
-   */
-  isLocallyEditingRef?: React.MutableRefObject<boolean>
-  localEditTimeoutRef?: React.MutableRefObject<ReturnType<typeof setTimeout> | null>
 
   /** Extra rows shown in the info popover after Words / Characters. */
   infoRows?: Array<{ label: string; value: string | number }>
@@ -139,7 +130,7 @@ export interface NoteEditorCoreProps {
 
   /** Yjs mode: content comes from this doc instead of initialContent, and the
    *  undo history is Yjs's own. Bound once at mount, so remount per note. */
-  collab?: { doc: Y.Doc; awareness: Awareness; user: { name: string; color: string } }
+  collab?: { doc: Y.Doc; awareness: Awareness; user: { name: string; color: string; imageUrl?: string } }
 
   className?: string
   rootStyle?: React.CSSProperties
@@ -151,9 +142,6 @@ export default function NoteEditorCore({
   onEditorReady,
   onUpdate,
   onBlur,
-  onSelectionUpdate,
-  isLocallyEditingRef: parentIsLocallyEditingRef,
-  localEditTimeoutRef: parentLocalEditTimeoutRef,
   infoRows,
   bottomSlot,
   noteId,
@@ -175,16 +163,9 @@ export default function NoteEditorCore({
   // note's onUpdate/onBlur, causing cross-note contamination during autosave.
   const onUpdateRef = useRef(onUpdate)
   const onBlurRef = useRef(onBlur)
-  const onSelectionUpdateRef = useRef(onSelectionUpdate)
   useEffect(() => { onUpdateRef.current = onUpdate }, [onUpdate])
   useEffect(() => { onBlurRef.current = onBlur }, [onBlur])
-  useEffect(() => { onSelectionUpdateRef.current = onSelectionUpdate }, [onSelectionUpdate])
 
-  // Sync-guard refs — use parent's if provided, otherwise own internal ones
-  const _ownIsLocallyEditingRef = useRef(false)
-  const _ownLocalEditTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const activeIsLocallyEditingRef = parentIsLocallyEditingRef ?? _ownIsLocallyEditingRef
-  const activeLocalEditTimeoutRef = parentLocalEditTimeoutRef ?? _ownLocalEditTimeoutRef
 
   // Touch detection — on mobile, let the browser handle long-press for native
   // text selection instead of showing the custom context menu.
@@ -328,7 +309,6 @@ export default function NoteEditorCore({
       Footnote,
       Poll,
       LoremIpsum,
-      CollabCursor,
       SpellCheck,
       UserMention,
       NoteMention,
@@ -480,17 +460,11 @@ export default function NoteEditorCore({
       setCharCount(text.length)
       const title = text.split('\n')[0]?.trim().slice(0, 100) || 'Untitled'
 
-      // Mark as actively editing for the PartyKit sync guard
-      activeIsLocallyEditingRef.current = true
-      if (activeLocalEditTimeoutRef.current) clearTimeout(activeLocalEditTimeoutRef.current)
-      activeLocalEditTimeoutRef.current = setTimeout(() => { activeIsLocallyEditingRef.current = false }, 1500)
-
       onUpdateRef.current?.(html, text, title, !!transaction.getMeta(ySyncPluginKey)?.isChangeOrigin)
     },
     onBlur: () => { onBlurRef.current?.(); setCommentBubble(null) },
     onSelectionUpdate: ({ editor: ed }) => {
       const { from, to } = ed.state.selection
-      onSelectionUpdateRef.current?.(from, to)
 
       // Show/hide floating comment bubble on text selection.
       // On mobile, skip — the native selection popup (Copy/Paste/Share)

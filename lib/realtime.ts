@@ -1,5 +1,6 @@
 // Single place for the realtime (PartyServer on Cloudflare Workers) host.
-// Rooms live at /parties/main/<room>; clients use wss://, API routes use https://.
+// Note rooms live at /parties/note-y/<noteId>, notification rooms at
+// /parties/main/notif-<userId>; clients use wss://, API routes use https://.
 export const REALTIME_HOST =
   process.env.NEXT_PUBLIC_REALTIME_HOST ?? 'barrapad-realtime.barra-ggez.workers.dev'
 
@@ -7,7 +8,8 @@ const isLocal = REALTIME_HOST.startsWith('localhost') || REALTIME_HOST.startsWit
 
 /** HTTP URL of a room, for server-side pushes (title, delete, notifications). */
 export function roomUrl(room: string) {
-  return `${isLocal ? 'http' : 'https'}://${REALTIME_HOST}/parties/main/${room}`
+  const party = room.startsWith('notif-') ? 'main' : 'note-y'
+  return `${isLocal ? 'http' : 'https'}://${REALTIME_HOST}/parties/${party}/${room}`
 }
 
 /** partysocket `query` for the browser. Fetches a fresh room ticket on every

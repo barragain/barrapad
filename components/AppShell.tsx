@@ -60,7 +60,7 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
   const isGuest = isLoaded ? !isSignedIn : guest
   const {
     notes, notesRef, updateNotes, activeNoteId, setActiveNoteId,
-    serverFetchVersion, notesLoaded, setNotesLoaded, manualSaving, autoSaving, selfDeleteRef,
+    notesLoaded, setNotesLoaded, manualSaving, autoSaving, selfDeleteRef,
     fetchNotes, handleLocalChange, handleRemoteContent, handleAutoSave, handleManualSaveContent,
     handleNewNote, handleRenameNote, handleDeleteNote,
   } = useNotes({ initialNotes, guest, isGuest, isSignedIn })
@@ -580,7 +580,6 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
             <EditorWrapper
               note={activeNote}
               allTags={allTags}
-              serverFetchVersion={serverFetchVersion}
               serverReady={notesLoaded}
               onLocalChange={handleLocalChange}
               onRemoteContent={handleRemoteContent}
