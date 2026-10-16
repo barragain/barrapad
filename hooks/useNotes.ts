@@ -330,6 +330,8 @@ export function useNotes({ initialNotes, guest, isGuest, isSignedIn }: {
       const tempNote = notesRef.current.find(n => n.id === tempId)
       const tempContent = tempNote?.content
       const tempTitle = tempNote?.title || 'Untitled'
+      // The Editor moves the temp note's Yjs doc online under the real id.
+      window.dispatchEvent(new CustomEvent('barrapad:promoted', { detail: { tempId, id: note.id } }))
       // Preserve any content/title typed while the API request was in flight
       updateNotes((prev) => {
         const temp = prev.find((n) => n.id === tempId)

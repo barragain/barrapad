@@ -192,7 +192,9 @@ export class NoteYParty extends YServer {
     if (msg.type === 'seed?') {
       if (this.seeding && this.seeding.until < Date.now()) this.seeding = null
       const empty = this.document.getXmlFragment('default').length === 0
-      const grant = !this.seeding && (empty || msg.dbUpdatedAt > roomDb)
+      // No stamp yet with content present: a note created online in a tab
+      // (temp- doc); its first save stamps it. Never replace that content.
+      const grant = !this.seeding && (empty || (roomDb !== '' && msg.dbUpdatedAt > roomDb))
       if (grant) this.seeding = { id: conn.id, until: Date.now() + 10_000 }
       this.sendCustomMessage(conn, JSON.stringify({ type: 'seed', grant }))
       return

@@ -29,7 +29,7 @@ import Collaboration from '@tiptap/extension-collaboration'
 import { ySyncPluginKey } from '@tiptap/y-tiptap'
 import CollaborationCaret from '@tiptap/extension-collaboration-caret'
 import type * as Y from 'yjs'
-import type YProvider from 'y-partyserver/provider'
+import type { Awareness } from 'y-protocols/awareness'
 import { CommentMark } from '@/extensions/comment-mark'
 import Toolbar from './Toolbar'
 import CommentSidebar from './CommentSidebar'
@@ -139,7 +139,7 @@ export interface NoteEditorCoreProps {
 
   /** Yjs mode: content comes from this doc instead of initialContent, and the
    *  undo history is Yjs's own. Bound once at mount, so remount per note. */
-  collab?: { doc: Y.Doc; provider: YProvider; user: { name: string; color: string } }
+  collab?: { doc: Y.Doc; awareness: Awareness; user: { name: string; color: string } }
 
   className?: string
   rootStyle?: React.CSSProperties
@@ -301,7 +301,8 @@ export default function NoteEditorCore({
       ...(collab ? [
         Collaboration.configure({ document: collab.doc }),
         CollaborationCaret.configure({
-          provider: collab.provider,
+          // Only the awareness is read; the doc may not be online yet (temp- note).
+          provider: { awareness: collab.awareness },
           user: collab.user,
           render: (u: { name: string; color: string }) => buildWidget(u.name, u.color),
           selectionRender: (u: { color: string }) => ({ nodeName: 'span', style: `background:${u.color}33;` }),
