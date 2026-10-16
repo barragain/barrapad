@@ -10,6 +10,6 @@ Poll votes are remembered per browser, so the same person can vote again from an
 
 The first document request of a cold session spends about 0.4 seconds in Clerk's handshake redirect, and the app ships about 370 KB of script.
 
-There is no PWA manifest or service worker, so the app cannot be installed on a phone and does not open offline.
+The app can be installed to a phone's home screen (web manifest), but there is no service worker, so it does not open offline.
 
 `npm run dev` on localhost cannot sign in, because Clerk is a production instance. A Clerk development instance would fix that.

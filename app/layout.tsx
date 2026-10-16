@@ -8,6 +8,7 @@ export const metadata: Metadata = {
   description: 'A rich text notepad for whatever. Cloud sync, rich formatting, and more.',
   icons: {
     icon: [{ url: '/favicon.svg', type: 'image/svg+xml' }],
+    apple: '/icon-192.png',
   },
   openGraph: {
     title: 'bpad - A notepad for whatever',
