@@ -59,6 +59,9 @@ await tbtn(page, 'Align right').click()
 await sleep(500)
 const box2 = await page.locator('.barrapad-poll').first().boundingBox()
 check(!!box2 && !!ed && Math.abs((box2.x + box2.width) - (ed.x + ed.width)) < 40, 'poll moves right')
+const bubble = await page.locator('button', { hasText: /^Comment$/ }).last().boundingBox().catch(() => null)
+check(!!bubble && !!box2 && Math.abs((bubble.x + bubble.width / 2) - (box2.x + box2.width / 2)) < 20,
+  `comment bubble follows the poll (bubble mid ${bubble && Math.round(bubble.x + bubble.width / 2)}, poll mid ${box2 && Math.round(box2.x + box2.width / 2)})`)
 
 const notes = await page.evaluate(() => fetch('/api/notes').then((r) => r.json()))
 const note = (Array.isArray(notes) ? notes : notes.notes ?? []).find((n) => n.content?.includes(marker))

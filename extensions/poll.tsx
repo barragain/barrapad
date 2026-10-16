@@ -3,7 +3,7 @@
 import { Node, mergeAttributes } from '@tiptap/core'
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react'
 import type { NodeViewProps } from '@tiptap/react'
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useLayoutEffect, useRef } from 'react'
 import { BarChart2, Edit2, Minimize2, Maximize2, Square } from 'lucide-react'
 
 export type PollOption = { id: string; label: string; votes: number }
@@ -91,7 +91,8 @@ function PollView({ node, updateAttributes, selected }: NodeViewProps) {
   const pollWidth = POLL_SIZES[size]
   const align = (node.attrs.align as 'left' | 'center' | 'right') || 'left'
 
-  useEffect(() => {
+  // Layout effect so the poll has moved before the editor re-measures the comment bubble.
+  useLayoutEffect(() => {
     const outer = pollRef.current?.closest('[data-node-view-wrapper]')?.parentElement as HTMLElement | null
     if (!outer || outer.classList.contains('ProseMirror')) return
     outer.style.marginLeft = align === 'right' || align === 'center' ? 'auto' : ''

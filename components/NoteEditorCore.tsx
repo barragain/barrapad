@@ -76,6 +76,22 @@ function deselect(ed: Editor | null) {
   if ('node' in sel && sel.node) ed.commands.setTextSelection(sel.to)
 }
 
+// Comment bubble spot: above a selected block's visible box, or above the end of a text selection.
+function commentBubbleSpot(ed: Editor): { x: number; y: number } | null {
+  const sel = ed.state.selection
+  try {
+    if ('node' in sel && sel.node) {
+      const dom = ed.view.nodeDOM(sel.from) as HTMLElement | null
+      const box = (dom?.querySelector('[data-node-view-wrapper]') ?? dom)?.getBoundingClientRect()
+      if (box) return { x: box.left + box.width / 2, y: box.top - 36 }
+    }
+    const coords = ed.view.coordsAtPos(sel.to)
+    return { x: coords.left, y: coords.top - 36 }
+  } catch {
+    return null
+  }
+}
+
 export interface NoteEditorCoreProps {
   initialContent: string
   editable?: boolean
@@ -267,6 +283,8 @@ export default function NoteEditorCore({
 
   // ── Tiptap editor ────────────────────────────────────────────────────────
   const editor = useEditor({
+    // The shell is server-rendered; create the editor after hydration (dev throws otherwise).
+    immediatelyRender: false,
     extensions: [
       StarterKit.configure({ codeBlock: false, dropcursor: { color: '#D4550A', width: 4 } }),
       Underline,
@@ -456,15 +474,14 @@ export default function NoteEditorCore({
       // Show/hide floating comment bubble on text selection.
       // On mobile, skip — the native selection popup (Copy/Paste/Share)
       // covers the same area. Users can use the toolbar Comment button instead.
-      if (from !== to && editable && !isTouchRef.current) {
-        try {
-          const coords = ed.view.coordsAtPos(to)
-          setCommentBubble({ x: coords.left, y: coords.top - 36 })
-        } catch {
-          setCommentBubble(null)
-        }
-      } else {
-        setCommentBubble(null)
+      setCommentBubble(from !== to && editable && !isTouchRef.current ? commentBubbleSpot(ed) : null)
+    },
+    onTransaction: ({ editor: ed, transaction }) => {
+      // A block (poll, image) can move without the selection changing, e.g. when aligned.
+      // Wait a frame so its node view has re-rendered before measuring.
+      const sel = ed.state.selection
+      if (transaction.docChanged && 'node' in sel && sel.node && editable && !isTouchRef.current) {
+        requestAnimationFrame(() => setCommentBubble(commentBubbleSpot(ed)))
       }
     },
   })
@@ -1011,7 +1028,7 @@ export default function NoteEditorCore({
                   position: 'fixed',
                   left: commentBubble.x,
                   top: commentBubble.y,
-                  transform: 'translateX(-50%)',
+                  x: '-50%',  // motion owns transform, so a raw translateX would be dropped
                   zIndex: 40,
                   display: 'flex',
                   alignItems: 'center',
