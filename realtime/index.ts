@@ -2,11 +2,13 @@
 // Port of party/index.ts. Same rooms, same messages, same URL shape
 // (/parties/main/<room>), so the clients only need a new host.
 import { Server, routePartykitRequest, type Connection, type ConnectionContext } from 'partyserver'
+import { YServer } from 'y-partyserver'
+import * as Y from 'yjs'
 
 // REALTIME_SECRET: `wrangler secret put REALTIME_SECRET`; the same value is set on
 // Vercel so API routes can push into rooms. When set, HTTP pushes without it are
 // rejected (anyone could otherwise fake notifications or delete-room signals).
-type Env = { Main: DurableObjectNamespace<NoteParty>; REALTIME_SECRET?: string }
+type Env = { Main: DurableObjectNamespace<NoteParty>; NoteY: DurableObjectNamespace<NoteYParty>; REALTIME_SECRET?: string }
 
 type ClientMessage =
   | { type: 'update'; content: string; contentJson?: object; title: string; ts?: number }
@@ -134,6 +136,69 @@ export class NoteParty extends Server<Env> {
 
   private broadcastPresence() {
     this.send({ type: 'presence', connections: [...this.getConnections()].length })
+  }
+}
+
+// Yjs room for note content (/parties/note-y/<noteId>), used by browsers with the
+// CRDT switch on. Titles, tags, deletes and comments stay on NoteParty.
+//
+// The Y doc starts empty, so one client must fill it from the database HTML. The
+// client asks with "seed?" and its database updatedAt; the room grants exactly one
+// connection at a time, when the doc is empty or the database is newer than the
+// version the doc was last matched to (an edit from a client without CRDT). The
+// granted client loads the HTML and answers "seeded". Clients report each saved
+// version with "saved", so the room knows which database version it holds.
+type SeedMessage =
+  | { type: 'seed?'; dbUpdatedAt: string }
+  | { type: 'seeded'; dbUpdatedAt: string }
+  | { type: 'saved'; dbUpdatedAt: string }
+
+export class NoteYParty extends YServer {
+  static callbackOptions = { debounceWait: 1_000, debounceMaxWait: 5_000 }
+  // In memory only: a seed that never finishes (tab closed) frees itself.
+  private seeding: { id: string; until: number } | null = null
+
+  async onLoad() {
+    const state = await this.ctx.storage.get<Uint8Array>('ydoc')
+    if (state) Y.applyUpdate(this.document, state)
+  }
+
+  async onSave() {
+    await this.ctx.storage.put('ydoc', Y.encodeStateAsUpdate(this.document))
+  }
+
+  isReadOnly(conn: Connection) {
+    return (conn.state as { readOnly?: boolean } | null)?.readOnly === true
+  }
+
+  onConnect(conn: Connection, ctx: ConnectionContext) {
+    const ticket = new URL(ctx.request.url).searchParams.get('ticket') ?? ''
+    // Merge: YServer keeps awareness ids in the same connection state.
+    conn.setState((prev: object | null) => ({ ...prev, readOnly: ticket.startsWith('READ.') }))
+    return super.onConnect(conn, ctx)
+  }
+
+  onClose(conn: Connection, code: number, reason: string, wasClean: boolean) {
+    if (this.seeding?.id === conn.id) this.seeding = null
+    return super.onClose(conn, code, reason, wasClean)
+  }
+
+  async onCustomMessage(conn: Connection, message: string) {
+    let msg: SeedMessage
+    try { msg = JSON.parse(message) as SeedMessage } catch { return }
+    if (this.isReadOnly(conn) || typeof msg.dbUpdatedAt !== 'string') return
+    const roomDb = (await this.ctx.storage.get<string>('dbUpdatedAt')) ?? ''
+
+    if (msg.type === 'seed?') {
+      if (this.seeding && this.seeding.until < Date.now()) this.seeding = null
+      const empty = this.document.getXmlFragment('default').length === 0
+      const grant = !this.seeding && (empty || msg.dbUpdatedAt > roomDb)
+      if (grant) this.seeding = { id: conn.id, until: Date.now() + 10_000 }
+      this.sendCustomMessage(conn, JSON.stringify({ type: 'seed', grant }))
+      return
+    }
+    if (msg.type === 'seeded' && this.seeding?.id === conn.id) this.seeding = null
+    if (msg.dbUpdatedAt > roomDb) await this.ctx.storage.put('dbUpdatedAt', msg.dbUpdatedAt)
   }
 }
 

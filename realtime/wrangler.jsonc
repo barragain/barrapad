@@ -5,9 +5,10 @@
   "compatibility_date": "2026-10-01",
   "durable_objects": {
     // Binding name "Main" keeps the PartyKit URL shape: /parties/main/<room>
-    "bindings": [{ "name": "Main", "class_name": "NoteParty" }]
+    // "NoteY" => /parties/note-y/<room>, the Yjs content room (CRDT switch)
+    "bindings": [{ "name": "Main", "class_name": "NoteParty" }, { "name": "NoteY", "class_name": "NoteYParty" }]
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["NoteParty"] }],
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["NoteParty"] }, { "tag": "v2", "new_sqlite_classes": ["NoteYParty"] }],
   "observability": { "enabled": true },
   // No cron: a keep-warm ping kept the Neon compute running (and billed) around the clock.
   // An empty list removes the schedule from Cloudflare; omitting the key would leave it.

@@ -14,6 +14,8 @@
     "@prisma/client": "^6.19.3",
     "@tailwindcss/postcss": "^4.2.2",
     "@tiptap/extension-code-block-lowlight": "^3.32.0",
+    "@tiptap/extension-collaboration": "^3.32.0",
+    "@tiptap/extension-collaboration-caret": "^3.32.0",
     "@tiptap/extension-color": "^3.32.0",
     "@tiptap/extension-highlight": "^3.32.0",
     "@tiptap/extension-image": "^3.32.0",
@@ -33,6 +35,7 @@
     "@tiptap/react": "^3.32.0",
     "@tiptap/starter-kit": "^3.32.0",
     "@tiptap/suggestion": "^3.32.0",
+    "@tiptap/y-tiptap": "^3.0.10",
     "@vercel/blob": "^2.3.3",
     "dictionary-en": "^4.0.0",
     "framer-motion": "^12.38.0",
@@ -50,7 +53,9 @@
     "react-dom": "^19.3.1",
     "tailwindcss": "^4.2.2",
     "tippy.js": "^6.3.7",
-    "turndown": "^7.2.3"
+    "turndown": "^7.2.3",
+    "y-partyserver": "^2.2.0",
+    "yjs": "^13.6.33"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261015.1",
