@@ -89,6 +89,14 @@ function PollView({ node, updateAttributes, selected }: NodeViewProps) {
   )
 
   const pollWidth = POLL_SIZES[size]
+  const align = (node.attrs.align as 'left' | 'center' | 'right') || 'left'
+
+  useEffect(() => {
+    const outer = pollRef.current?.closest('[data-node-view-wrapper]')?.parentElement as HTMLElement | null
+    if (!outer || outer.classList.contains('ProseMirror')) return
+    outer.style.marginLeft = align === 'right' || align === 'center' ? 'auto' : ''
+    outer.style.marginRight = align === 'center' ? 'auto' : ''
+  })
   const SizeIcon = size === 'compact' ? Minimize2 : size === 'full' ? Maximize2 : Square
 
   // Sync TipTap's outer wrapper width so drag ghost + selection outline match.
@@ -117,6 +125,10 @@ function PollView({ node, updateAttributes, selected }: NodeViewProps) {
       ref={pollRef}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
+      onBlur={(e: React.FocusEvent) => {
+        // Clicking away from the form keeps what was typed (same as Save Poll).
+        if (editing && !pollRef.current?.contains(e.relatedTarget as globalThis.Node | null)) save()
+      }}
       style={{
         width: pollWidth ? `${pollWidth}px` : '100%',
         maxWidth: '100%',
@@ -261,6 +273,7 @@ export const Poll = Node.create({
         ]),
       },
       size: { default: 'medium' },
+      align: { default: 'left', rendered: false },
     }
   },
 
@@ -269,14 +282,16 @@ export const Poll = Node.create({
       tag: 'div[data-poll]',
       getAttrs: (el) => {
         const div = el as HTMLDivElement
-        return { size: div.getAttribute('data-poll-size') ?? 'medium' }
+        return { size: div.getAttribute('data-poll-size') ?? 'medium', align: div.getAttribute('data-poll-align') ?? 'left' }
       },
     }]
   },
 
-  renderHTML({ HTMLAttributes }) {
+  renderHTML({ node, HTMLAttributes }) {
+    const align = node.attrs.align as string
     return ['div', mergeAttributes(HTMLAttributes, {
       'data-poll': '',
+      ...(align && align !== 'left' ? { 'data-poll-align': align } : {}),
       ...(HTMLAttributes.size && HTMLAttributes.size !== 'medium' ? { 'data-poll-size': HTMLAttributes.size } : {}),
     })]
   },

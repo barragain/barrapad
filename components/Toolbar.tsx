@@ -40,7 +40,7 @@ import { uploadImage, uploadFile } from '@/lib/upload-image'
 /** Find any image or fileAttachment overlapping the current selection and set its align.
  *  Does not rely on instanceof — scans the doc for the active node. */
 function setNodeAlign(editor: Editor, align: 'left' | 'center' | 'right') {
-  const TYPES = ['image', 'fileAttachment']
+  const TYPES = ['image', 'fileAttachment', 'poll']
   const { from, to } = editor.state.selection
   let done = false
 
@@ -312,9 +312,9 @@ export default function Toolbar({ editor, commentsEnabled = true }: ToolbarProps
         isH3: ctx.editor.isActive('heading', { level: 3 }),
         canUndo: ctx.editor.can().undo(),
         canRedo: ctx.editor.can().redo(),
-        isAlignLeft: ctx.editor.isActive({ textAlign: 'left' }) || ctx.editor.isActive('image', { align: 'left' }) || ctx.editor.isActive('fileAttachment', { align: 'left' }),
-        isAlignCenter: ctx.editor.isActive({ textAlign: 'center' }) || ctx.editor.isActive('image', { align: 'center' }) || ctx.editor.isActive('fileAttachment', { align: 'center' }),
-        isAlignRight: ctx.editor.isActive({ textAlign: 'right' }) || ctx.editor.isActive('image', { align: 'right' }) || ctx.editor.isActive('fileAttachment', { align: 'right' }),
+        isAlignLeft: ctx.editor.isActive({ textAlign: 'left' }) || ctx.editor.isActive('image', { align: 'left' }) || ctx.editor.isActive('fileAttachment', { align: 'left' }) || ctx.editor.isActive('poll', { align: 'left' }),
+        isAlignCenter: ctx.editor.isActive({ textAlign: 'center' }) || ctx.editor.isActive('image', { align: 'center' }) || ctx.editor.isActive('fileAttachment', { align: 'center' }) || ctx.editor.isActive('poll', { align: 'center' }),
+        isAlignRight: ctx.editor.isActive({ textAlign: 'right' }) || ctx.editor.isActive('image', { align: 'right' }) || ctx.editor.isActive('fileAttachment', { align: 'right' }) || ctx.editor.isActive('poll', { align: 'right' }),
         isImageSelected: ctx.editor.isActive('image'),
         isFileAttachmentSelected: ctx.editor.isActive('fileAttachment'),
       }
