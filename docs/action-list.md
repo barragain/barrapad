@@ -103,6 +103,11 @@ Room auth (4.1) is done with signed tickets in place of Clerk tokens in the Work
 
 From section 7, attachments and voice memos go to Blob (7.6), poll votes are remembered per browser (7.4), and remote content is applied as a minimal diff so carets and remote cursors no longer drift when someone edits above them (7.7). Items 7.1, 7.2, 7.3, 7.5 and 7.8 were already fixed in earlier rounds, and 7.9 tested fine on the Worker (an access request reaches the owner's open tab live). TypeScript is pinned to 5.9 (5.2). Section 2 is done: `docs/architecture.md` and `docs/known-gaps.md` exist and the long comment blocks were already gone.
 
-New smoke tests in `portfolio-handoff/capture/`: `realtime-smoke.mjs` (live edits, caret stability, tickets, view-only writes dropped, access-request push) and `attach-smoke.mjs` (Blob uploads, download link, HTML refused).
+New smoke tests (now in `e2e/`): `realtime` (live edits, caret stability, tickets, view-only writes dropped, access-request push) and `attach` (Blob uploads, download link, HTML refused).
 
-Still open: 5.5 (Next 15, React 19, Prisma 6 upgrades), section 6 (splitting AppShell into hooks) and section 8.
+
+## Upgrades, refactor, extras (2026-10-16, later)
+
+5.5 is done: Prisma 6, then Next 15 with React 19 (async route params via the codemod, `serverExternalPackages`). From section 6, the bell notifications and the "opened your note" poll moved into `hooks/useNotifications.ts`, and the room host logic was already in `lib/realtime.ts`. The notes list and save pipeline (`useNotes`) and the shared-notes poll stay in AppShell on purpose: they share most of their state and refs with the editor callbacks, so splitting them is a large move with real regression risk and no user-facing change. From section 8, the web manifest is in (phones can install bpad) and the smoke tests live in `e2e/` with `npm run e2e`. Polls also save when you click away from the form and follow the toolbar's align buttons.
+
+Still open: `useNotes` / `useSharedNotes` split and the `Toolbar.tsx` split (6), CRDT sync and a Clerk development instance (8), renaming `NEXT_PUBLIC_PARTYKIT_HOST`.

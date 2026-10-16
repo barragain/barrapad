@@ -149,3 +149,7 @@ _reference/
 # Cloudflare Worker local state
 .wrangler/
 realtime/.wrangler/
+
+# E2E: saved demo logins and screenshots
+e2e/.auth/
+e2e/out/
