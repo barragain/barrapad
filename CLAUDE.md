@@ -24,6 +24,14 @@ Clerk is a production instance (`pk_live`), so sign-in only works on the deploye
 - Writing that users read (copy, docs, brand) goes through the `humanizer` skill. No lists in prose, no em dashes.
 - Never commit `.env*` files.
 
+## Testing
+
+Test every change in a real browser before calling it done; typecheck and build are not enough. Smoke tests live in `../portfolio-handoff/capture/` (run with `node` from that folder): `guest-smoke.mjs` (guest mode, guest-to-account import, sync indicator, 404), `sync-smoke.mjs` (cross-device sync), `stale-cache-smoke.mjs`. They use the demo login states saved there.
+
+Localhost is only good for logic, not layout: on this Windows machine `next build` drops the global CSS from the root layout (Linux builds on Vercel are fine), and Clerk's live keys don't load off bpad.cc. Vercel previews can't run either, because the Clerk keys are Production-only and the middleware fails without them. To test layout before shipping, deploy a production build without the domain (`npx vercel deploy --prod --skip-domain --yes`), get a bypass link with the Vercel MCP `get_access_to_vercel_url`, and run `BASE=<url> SHARE=<_vercel_share token> node guest-smoke.mjs`. Signed-in checks only pass on www.bpad.cc, so run the full suite again after the push.
+
+Clerk settings: use the Clerk MCP (`clerk`, user scope). The workspace also holds El Mercado and leDASH; only touch barraPAD (`app_3BqDKztvEAWWt2OPqFuGKWV9zwY`, production `ins_3BqJGIRRR6IyIKirD265ds2ePfY`).
+
 ## Layout
 
 `app/` routes and API handlers, `components/` (AppShell is the shell and state owner, Editor wires the room, NoteEditorCore is the Tiptap instance), `extensions/` Tiptap extensions, `lib/` server helpers (`realtime.ts` has the room host and push headers), `prisma/` schema, `realtime/` the Worker, `docs/` plans and the action list.
