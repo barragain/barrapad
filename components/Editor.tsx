@@ -141,7 +141,17 @@ export default function EditorComponent({
   // messages. The JSON room stays open for tags, titles, deletes and comments.
   // Guest and temp- notes have no room and keep the plain path.
   const [crdt] = useState(crdtEnabled)
-  const yMode = crdt && !/^(temp|local)-/.test(note.id)
+  // A note created in this tab keeps the plain editor when its temp- id turns
+  // into the real one: remounting mid-typing would drop focus and keystrokes.
+  // It joins Yjs the next time it is opened.
+  const plainIdsRef = useRef(new Set<string>())
+  const lastRenderIdRef = useRef(note.id)
+  if (lastRenderIdRef.current !== note.id) {
+    if (lastRenderIdRef.current.startsWith('temp-')) plainIdsRef.current.add(note.id)
+    else plainIdsRef.current.clear()
+    lastRenderIdRef.current = note.id
+  }
+  const yMode = crdt && !/^(temp|local)-/.test(note.id) && !plainIdsRef.current.has(note.id)
   const yModeRef = useRef(yMode)
   yModeRef.current = yMode
   const room = note.sharedNoteId ?? note.id
