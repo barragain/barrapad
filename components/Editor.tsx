@@ -11,6 +11,9 @@ import NoteEditorCore from './NoteEditorCore'
 import type { Note, Tag } from '@/types'
 
 import { REALTIME_HOST, roomQuery } from '@/lib/realtime'
+import { crdtEnabled } from '@/lib/crdt'
+import * as Y from 'yjs'
+import YProvider from 'y-partyserver/provider'
 
 function formatDate(dateStr: string) {
   const d = new Date(dateStr)
@@ -133,6 +136,74 @@ export default function EditorComponent({
     }
   }, [user])
 
+  // ── Yjs (CRDT switch) ─────────────────────────────────────────────────────
+  // Content syncs through a Y doc in the note-y room instead of 'update'
+  // messages. The JSON room stays open for tags, titles, deletes and comments.
+  // Guest and temp- notes have no room and keep the plain path.
+  const [crdt] = useState(crdtEnabled)
+  const yMode = crdt && !/^(temp|local)-/.test(note.id)
+  const yModeRef = useRef(yMode)
+  yModeRef.current = yMode
+  const room = note.sharedNoteId ?? note.id
+  const [collab, setCollab] = useState<{ room: string; doc: Y.Doc; provider: YProvider } | null>(null)
+  const [ySynced, setYSynced] = useState(false)
+  const [yEditor, setYEditor] = useState<Editor | null>(null)
+  const [seedDone, setSeedDone] = useState(false)
+  const noteContentRef = useRef(note.content)
+  useEffect(() => { noteContentRef.current = note.content }, [note.content])
+
+  useEffect(() => {
+    setYSynced(false); setYEditor(null); setSeedDone(false)
+    if (!yMode) { setCollab(null); return }
+    const doc = new Y.Doc()
+    const provider = new YProvider(REALTIME_HOST, room, doc, { party: 'note-y', params: roomQuery(room) })
+    const onSynced = (s: boolean) => { if (s) setYSynced(true) }
+    provider.on('synced', onSynced)
+    setCollab({ room, doc, provider })
+    return () => { provider.off('synced', onSynced); provider.destroy(); doc.destroy() }
+  }, [yMode, room])
+
+  // Seed claim (see NoteYParty): once the doc and the database copy are both
+  // known, ask the room whether this tab should load the database HTML.
+  useEffect(() => {
+    if (!collab || !yEditor || !serverReady) return
+    const { provider } = collab
+    let answered = false
+    const onMsg = (raw: string) => {
+      let msg: { type?: string; grant?: boolean }
+      try { msg = JSON.parse(raw) } catch { return }
+      if (msg.type !== 'seed' || answered) return
+      answered = true
+      if (msg.grant) {
+        yEditor.commands.setContent(noteContentRef.current || '', { emitUpdate: false })
+        provider.sendMessage(JSON.stringify({ type: 'seeded', dbUpdatedAt: noteUpdatedAtRef.current }))
+      }
+      setSeedDone(true)
+    }
+    provider.on('custom-message', onMsg)
+    provider.sendMessage(JSON.stringify({ type: 'seed?', dbUpdatedAt: noteUpdatedAtRef.current }))
+    // No answer (socket dropped mid-claim): unlock editing, Yjs merges later.
+    const t = setTimeout(() => setSeedDone(true), 5_000)
+    return () => { clearTimeout(t); provider.off('custom-message', onMsg) }
+  }, [collab, yEditor, serverReady])
+
+  // Tell the room which database version the doc now matches.
+  useEffect(() => {
+    if (!collab) return
+    const handler = (e: Event) => {
+      const { noteId, updatedAt } = (e as CustomEvent<{ noteId: string; updatedAt?: string }>).detail
+      if (noteId !== liveNoteIdRef.current || !updatedAt) return
+      collab.provider.sendMessage(JSON.stringify({ type: 'saved', dbUpdatedAt: updatedAt }))
+    }
+    window.addEventListener('barrapad:saved', handler)
+    return () => window.removeEventListener('barrapad:saved', handler)
+  }, [collab])
+
+  const handleYEditorReady = useCallback((ed: Editor) => {
+    editorRef.current = ed
+    setYEditor(ed)
+  }, [])
+
   // ── Auto-save flush ───────────────────────────────────────────────────────
   // Always uses the LIVE note.id from the ref + a callback ref for onAutoSave.
   // Both layers are intentional: the ref guarantees "this save is for THIS note
@@ -156,8 +227,10 @@ export default function EditorComponent({
   }, [])
 
   // ── NoteEditorCore callbacks ──────────────────────────────────────────────
+  const plainEditorRef = useRef<Editor | null>(null)
   const handleEditorReady = useCallback((ed: Editor) => {
     editorRef.current = ed
+    plainEditorRef.current = ed
     setEditorReady(true)
   }, [])
 
@@ -166,6 +239,9 @@ export default function EditorComponent({
     // routes onUpdate through a ref so we always see the LATEST handleUpdate,
     // but we still bind every save to a specific noteId for defense in depth.
     const editNoteId = liveNoteIdRef.current
+    // Yjs fires updates for its own first render and for remote edits; only a
+    // real content change should mark the note dirty and save.
+    if (yModeRef.current && html === noteContentRef.current) return
     onLocalChangeRef.current(editNoteId, title, html)
 
     lastLocalChangeTimeRef.current = Date.now()
@@ -174,7 +250,7 @@ export default function EditorComponent({
     // note-switch to prevent stale content from overwriting the room's state.
     // IMPORTANT: this guard must NOT block the auto-save pipeline below —
     // edits must always be persisted to the database regardless of PartyKit.
-    if (!pendingSyncRef.current) {
+    if (!pendingSyncRef.current && !yModeRef.current) {
       if (sendTimerRef.current) clearTimeout(sendTimerRef.current)
       sendTimerRef.current = setTimeout(() => {
         // Bail if the user has switched notes since this broadcast was queued —
@@ -199,6 +275,7 @@ export default function EditorComponent({
   }, [flushAutoSave])
 
   const handleSelectionUpdate = useCallback((from: number, to: number) => {
+    if (yModeRef.current) return  // carets travel through Yjs awareness
     if (sendCursorTimerRef.current) clearTimeout(sendCursorTimerRef.current)
     sendCursorTimerRef.current = setTimeout(() => {
       socketRef.current?.send(JSON.stringify({
@@ -244,6 +321,8 @@ export default function EditorComponent({
 
   // ── Note-switching ────────────────────────────────────────────────────────
   useEffect(() => {
+    // In Yjs mode the editor remounts per note and the doc supplies content,
+    // so only the previous note's save is flushed here.
     const ed = editorRef.current
     if (!ed) return
     const wasTemp = prevNoteIdRef.current.startsWith('temp-')
@@ -267,15 +346,18 @@ export default function EditorComponent({
 
     prevNoteIdRef.current = note.id
     prevNoteRef.current = { id: note.id, sharedToken: note.sharedToken, sharedPermission: note.sharedPermission }
-    const currentHtml = ed.getHTML()
+    // Only the long-lived plain editor is reused across notes. A Yjs editor is
+    // bound to the previous note's doc and is being unmounted: never write to it.
+    const reused = ed === plainEditorRef.current && !ed.isDestroyed
+    const currentHtml = reused ? ed.getHTML() : note.content
     // ── Temp → real promotion ─────────────────────────────────────────────
     // When a temp note is promoted to a real ID, the editor already has the
     // correct content from the temp phase. We must queue it for database
     // persistence under the new real ID — otherwise it only exists in
     // localStorage and will be wiped the next time fetchNotes runs.
     if (wasTemp && !note.id.startsWith('temp-')) {
-      const text = ed.getText()
-      const title = text.split('\n')[0]?.trim().slice(0, 100) || 'Untitled'
+      const text = reused ? ed.getText() : ''
+      const title = text.split('\n')[0]?.trim().slice(0, 100) || noteTitleRef.current || 'Untitled'
       const html = currentHtml
       if (html && html !== '<p></p>') {
         pendingRef.current = { title, html, noteId: note.id }
@@ -292,11 +374,11 @@ export default function EditorComponent({
       return
     }
     // ── Normal note switch ────────────────────────────────────────────────
-    if (currentHtml !== note.content) {
+    if (reused && !yMode && currentHtml !== note.content) {
       ed.commands.setContent(note.content || '', { emitUpdate: false })
     }
     // Auto-focus when switching to a brand new empty note so the user can type immediately
-    if (!note.content || note.content === '<p></p>') {
+    if (reused && !yMode && (!note.content || note.content === '<p></p>')) {
       requestAnimationFrame(() => ed.commands.focus())
     }
     pendingRef.current = null
@@ -318,6 +400,7 @@ export default function EditorComponent({
   // against the authoritative note.content and update if they diverge.
   useEffect(() => {
     if (serverFetchVersion === 0) return  // skip initial render
+    if (yModeRef.current) return  // the Y doc owns content; a newer DB copy is handled by the seed claim
     const ed = editorRef.current
     if (!ed || !editorReady) return
     // If the user has been typing since the note was opened, their local
@@ -336,7 +419,7 @@ export default function EditorComponent({
 
   // ── PartyKit ──────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!editorReady || /^(temp|local)-/.test(note.id)) return
+    if ((!editorReady && !yMode) || /^(temp|local)-/.test(note.id)) return
 
     const room = note.sharedNoteId ?? note.id
     const socket = new PartySocket({ host: REALTIME_HOST, room, query: roomQuery(room) })
@@ -363,6 +446,10 @@ export default function EditorComponent({
       }
       const msg = JSON.parse(evt.data as string) as Msg
       const ed = editorRef.current
+
+      // Yjs mode: content and carets come from the note-y room. Clients without
+      // the switch still send JSON content here; it is ignored during the trial.
+      if (yModeRef.current && ['sync', 'update', 'cursor', 'cursor-leave'].includes(msg.type)) return
 
       if (msg.type === 'sync' || msg.type === 'update') {
         if (msg.type === 'sync') {
@@ -469,6 +556,7 @@ export default function EditorComponent({
       // Only flush if pendingRef belongs to THIS note — otherwise we'd leak
       // content from one note into another note's room.
       if (
+        !yModeRef.current &&
         pendingRef.current &&
         pendingRef.current.noteId === note.id &&
         socket.readyState === WebSocket.OPEN
@@ -600,12 +688,18 @@ export default function EditorComponent({
     )
   }
 
+  // Yjs mode: until the doc arrives, show the cached copy read-only so the note
+  // never flashes blank, then mount an editor bound to this note's doc.
+  const yLive = yMode && collab?.room === room && ySynced
+  const yPreview = yMode && !yLive
   return (
     <NoteEditorCore
+      key={yLive ? `y-${room}` : yPreview ? `preview-${room}` : 'plain'}
+      collab={yLive ? { doc: collab!.doc, provider: collab!.provider, user: { name: userNameRef.current, color: myColorRef.current } } : undefined}
       initialContent={note.content || ''}
-      editable={editable}
-      onEditorReady={handleEditorReady}
-      onUpdate={handleUpdate}
+      editable={yLive ? editable && seedDone : editable && !yPreview}
+      onEditorReady={yLive ? handleYEditorReady : yPreview ? undefined : handleEditorReady}
+      onUpdate={yPreview ? undefined : handleUpdate}
       onBlur={flushAutoSave}
       onSelectionUpdate={handleSelectionUpdate}
       isLocallyEditingRef={isLocallyEditingRef}

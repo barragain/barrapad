@@ -24,7 +24,11 @@ import { FileAttachment } from '@/extensions/file-attachment'
 import { ResizableImage } from '@/extensions/resizable-image'
 import { Footnote } from '@/extensions/footnote'
 import { Poll } from '@/extensions/poll'
-import { CollabCursor } from '@/extensions/collab-cursor'
+import { CollabCursor, buildWidget } from '@/extensions/collab-cursor'
+import Collaboration from '@tiptap/extension-collaboration'
+import CollaborationCaret from '@tiptap/extension-collaboration-caret'
+import type * as Y from 'yjs'
+import type YProvider from 'y-partyserver/provider'
 import { CommentMark } from '@/extensions/comment-mark'
 import Toolbar from './Toolbar'
 import CommentSidebar from './CommentSidebar'
@@ -131,6 +135,10 @@ export interface NoteEditorCoreProps {
   /** Callback when user adds a comment via context menu or keyboard shortcut */
   onAddComment?: (commentId: string) => void
 
+  /** Yjs mode: content comes from this doc instead of initialContent, and the
+   *  undo history is Yjs's own. Bound once at mount, so remount per note. */
+  collab?: { doc: Y.Doc; provider: YProvider; user: { name: string; color: string } }
+
   className?: string
   rootStyle?: React.CSSProperties
 }
@@ -150,6 +158,7 @@ export default function NoteEditorCore({
   onMentionInserted,
   onNoteMentionClick,
   onAddComment,
+  collab,
   className,
   rootStyle,
 }: NoteEditorCoreProps) {
@@ -286,7 +295,16 @@ export default function NoteEditorCore({
     // The shell is server-rendered; create the editor after hydration (dev throws otherwise).
     immediatelyRender: false,
     extensions: [
-      StarterKit.configure({ codeBlock: false, dropcursor: { color: '#D4550A', width: 4 } }),
+      StarterKit.configure({ codeBlock: false, dropcursor: { color: '#D4550A', width: 4 }, ...(collab ? { undoRedo: false } : {}) }),
+      ...(collab ? [
+        Collaboration.configure({ document: collab.doc }),
+        CollaborationCaret.configure({
+          provider: collab.provider,
+          user: collab.user,
+          render: (u: { name: string; color: string }) => buildWidget(u.name, u.color),
+          selectionRender: (u: { color: string }) => ({ nodeName: 'span', style: `background:${u.color}33;` }),
+        }),
+      ] : []),
       Underline,
       Link.configure({ openOnClick: false, autolink: true }),
       TextStyle,
@@ -313,7 +331,7 @@ export default function NoteEditorCore({
       NoteMention,
       CommentMark,
     ],
-    content: initialContent,
+    content: collab ? undefined : initialContent,
     editable,
     editorProps: {
       // Native browser spell-check is ENABLED so the browser's smart suggestions

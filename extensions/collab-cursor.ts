@@ -17,7 +17,8 @@ const REMOTE_CONTENT = 'bpadRemoteContent'
 
 export const collabCursorKey = new PluginKey<{ cursors: RemoteCursor[] }>('collabCursor')
 
-function buildWidget(name: string, color: string): HTMLElement {
+/** Caret plus name label. Also used for Yjs carets (CollaborationCaret render). */
+export function buildWidget(name: string, color: string): HTMLElement {
   const wrap = document.createElement('span')
   wrap.style.cssText =
     'display:inline-block;position:relative;width:0;overflow:visible;pointer-events:none;vertical-align:text-bottom;'

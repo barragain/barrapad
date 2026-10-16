@@ -273,7 +273,10 @@ export function useNotes({ initialNotes, guest, isGuest, isSignedIn }: {
       })
       if (!res.ok) return
       if (dirtyVersionsRef.current.get(noteId) === versionAtSaveStart) dirtyVersionsRef.current.delete(noteId)
-      applyServerUpdatedAt(noteId, ((await res.json()) as { updatedAt?: string }).updatedAt)
+      const { updatedAt } = (await res.json()) as { updatedAt?: string }
+      applyServerUpdatedAt(noteId, updatedAt)
+      // The Yjs room records which database version its doc matches (Editor).
+      window.dispatchEvent(new CustomEvent('barrapad:saved', { detail: { noteId, updatedAt } }))
     }
 
     if (targetNote.sharedToken) {
