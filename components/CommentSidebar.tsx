@@ -552,7 +552,7 @@ export default function CommentSidebar({
 
   // Fetch comments
   const fetchComments = useCallback(async () => {
-    if (!noteId || noteId.startsWith('temp-')) return
+    if (!noteId || /^(temp|local)-/.test(noteId)) return
     try {
       const res = await fetch(`/api/notes/${noteId}/comments`)
       if (res.ok) {
@@ -564,7 +564,7 @@ export default function CommentSidebar({
 
   // Fetch note owner
   useEffect(() => {
-    if (!noteId || noteId.startsWith('temp-')) return
+    if (!noteId || /^(temp|local)-/.test(noteId)) return
     fetch(`/api/notes/${noteId}`)
       .then((r) => r.ok ? r.json() : null)
       .then((data) => { if (data?.userId) setNoteOwnerId(data.userId) })

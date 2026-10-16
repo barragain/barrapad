@@ -218,7 +218,7 @@ export default function EditorComponent({
   // to avoid false positives from transient network issues or cold starts.
   const consecutive404Ref = useRef(0)
   useEffect(() => {
-    if (note.id.startsWith('temp-')) return
+    if (/^(temp|local)-/.test(note.id)) return
     consecutive404Ref.current = 0
 
     const check = async () => {
@@ -341,7 +341,7 @@ export default function EditorComponent({
 
   // ── PartyKit ──────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!editorReady || note.id.startsWith('temp-')) return
+    if (!editorReady || /^(temp|local)-/.test(note.id)) return
 
     const room = note.sharedNoteId ?? note.id
     const socket = new PartySocket({ host: PARTYKIT_HOST, room })
@@ -503,7 +503,7 @@ export default function EditorComponent({
 
   useEffect(() => {
     const handler = () => {
-      if (!pendingRef.current || note.id.startsWith('temp-')) return
+      if (!pendingRef.current || /^(temp|local)-/.test(note.id)) return
       if (note.sharedToken && note.sharedPermission === 'READ') return
       // Don't save a stale pending entry to the wrong note.
       if (pendingRef.current.noteId !== note.id) return
@@ -553,7 +553,7 @@ export default function EditorComponent({
   // ── Mention notification ─────────────────────────────────────────────────
   const handleMentionInserted = useCallback((mentionedUserId: string, _displayName: string) => {
     const realNoteId = note.sharedNoteId ?? note.id
-    if (realNoteId.startsWith('temp-')) return
+    if (/^(temp|local)-/.test(realNoteId)) return
     const text = editorRef.current?.getText() ?? ''
     const title = text.split('\n')[0]?.trim().slice(0, 100) || 'Untitled'
     fetch('/api/notifications/mention', {

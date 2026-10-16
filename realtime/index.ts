@@ -137,7 +137,7 @@ export default {
   },
   // Cron (see wrangler.jsonc): keeps the Neon compute warm by hitting the
   // app's health route, which runs a single SELECT 1.
-  async scheduled(_event: ScheduledEvent, env: Env) {
+  async scheduled(_controller: ScheduledController, env: Env) {
     if (!env.APP_URL) return
     await fetch(`${env.APP_URL}/api/health`, {
       headers: env.REALTIME_SECRET ? { 'x-realtime-secret': env.REALTIME_SECRET } : {},

@@ -1,6 +1,7 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 
 const isPublicRoute = createRouteMatcher([
+  '/',                // guests can write without an account; notes stay in their browser
   '/sign-in(.*)',
   '/sign-up(.*)',
   '/s/(.*)',          // shared note pages — no account needed to view

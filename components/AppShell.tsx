@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
-import { Save, Share2, X, CloudUpload, Download, ChevronDown, Menu } from 'lucide-react'
+import { Save, Share2, X, Cloud, CloudCheck, RefreshCw, HardDrive, Download, ChevronDown, Menu } from 'lucide-react'
+import Link from 'next/link'
 import { useAuth, useUser } from '@clerk/nextjs'
 import { AnimatePresence, motion } from 'framer-motion'
 import PartySocket from 'partysocket'
@@ -85,10 +86,31 @@ function loadCachedNotes(): Note[] {
   return []
 }
 
+// Guests (no account) keep their notes only in this browser, under their own key
+// and with `local-` ids, so they never mix with an account's cache. On sign-in
+// they are moved into the account (see importGuestNotes).
+const GUEST_KEY = 'bpad_guest_notes'
+const isLocalId = (id: string | null | undefined) => !!id && id.startsWith('local-')
+// ponytail: module-level flag, fine while AppShell is mounted once per page
+let guestMode = false
+
+function loadGuestNotes(): Note[] {
+  if (typeof window === 'undefined') return []
+  try {
+    const raw = localStorage.getItem(GUEST_KEY)
+    if (raw) return (JSON.parse(raw) as Note[]).map(n => ({ ...n, tags: Array.isArray(n.tags) ? n.tags : [] }))
+  } catch {}
+  return []
+}
+
 function saveCachedNotes(notes: Note[]) {
   try {
+    if (guestMode) {
+      localStorage.setItem(GUEST_KEY, JSON.stringify(notes.filter((n) => isLocalId(n.id))))
+      return
+    }
     // Don't cache temp notes or shared notes (they're not the user's own)
-    const real = notes.filter((n) => !n.id.startsWith('temp-') && !n.sharedToken)
+    const real = notes.filter((n) => !n.id.startsWith('temp-') && !n.sharedToken && !isLocalId(n.id))
     localStorage.setItem('barrapad_notes', JSON.stringify(real))
   } catch {}
 }
@@ -110,14 +132,17 @@ function saveTagRegistry(tags: Tag[]) {
   } catch {}
 }
 
-export default function AppShell({ initialNotes }: { initialNotes?: Note[] } = {}) {
+export default function AppShell({ initialNotes, guest = false }: { initialNotes?: Note[]; guest?: boolean } = {}) {
   const { isLoaded, isSignedIn } = useAuth()
   const { user } = useUser()
   const needsOnboarding = isLoaded && isSignedIn && user && !user.firstName
+  // Server knows the auth state before Clerk boots in the browser.
+  const isGuest = isLoaded ? !isSignedIn : guest
+  guestMode = isGuest
   // Server-rendered notes win (fresh, no lock); otherwise the localStorage
   // cache renders instantly and the editor waits for the first fetch.
-  const [notes, setNotes] = useState<Note[]>(() => initialNotes ?? loadCachedNotes())
-  const [activeNoteId, setActiveNoteId] = useState<string | null>(() => (initialNotes ?? loadCachedNotes())[0]?.id ?? null)
+  const [notes, setNotes] = useState<Note[]>(() => guest ? loadGuestNotes() : initialNotes ?? loadCachedNotes())
+  const [activeNoteId, setActiveNoteId] = useState<string | null>(() => (guest ? loadGuestNotes() : initialNotes ?? loadCachedNotes())[0]?.id ?? null)
   const [tagRegistry, setTagRegistry] = useState<Tag[]>(() => loadTagRegistry())
   // Incremented every time fetchNotes applies newer server content — lets the
   // Editor know it should re-check its content against the latest note.content.
@@ -125,7 +150,7 @@ export default function AppShell({ initialNotes }: { initialNotes?: Note[] } = {
   // False until the first /api/notes answer this session. While false the editor
   // is read-only: typing on top of a stale localStorage copy and auto-saving it
   // is how another device's edits got overwritten.
-  const [notesLoaded, setNotesLoaded] = useState(!!initialNotes)
+  const [notesLoaded, setNotesLoaded] = useState(!!initialNotes || guest)
   const [sharedNotes, setSharedNotes] = useState<SharedAccessRecord[]>([])
   const [showShare, setShowShare] = useState(false)
   const [showAppearance, setShowAppearance] = useState(false)
@@ -134,6 +159,19 @@ export default function AppShell({ initialNotes }: { initialNotes?: Note[] } = {
   const [appearance, setAppearance] = useState<AppearanceSettings>(DEFAULT_APPEARANCE)
   const [manualSaving, setManualSaving] = useState(false)
   const [autoSaving, setAutoSaving] = useState(false)
+  // Brief "Saved" tick after a save finishes, so the sync indicator closes the loop.
+  const [justSaved, setJustSaved] = useState(false)
+  const wasSavingRef = useRef(false)
+  useEffect(() => {
+    const saving = autoSaving || manualSaving
+    if (wasSavingRef.current && !saving) {
+      setJustSaved(true)
+      const t = setTimeout(() => setJustSaved(false), 1600)
+      wasSavingRef.current = false
+      return () => clearTimeout(t)
+    }
+    wasSavingRef.current = saving
+  }, [autoSaving, manualSaving])
   const [notifications, setNotifications] = useState<CollabNotification[]>([])
   const [showNotifs, setShowNotifs] = useState(false)
   const [accessDeniedNoteId, setAccessDeniedNoteId] = useState<string | null>(null)
@@ -405,7 +443,43 @@ export default function AppShell({ initialNotes }: { initialNotes?: Note[] } = {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSignedIn])
 
+  // Move notes written as a guest into the account, one at a time. Each note
+  // leaves guest storage only after the server has it, so a failure retries
+  // on the next fetch instead of losing text.
+  const importingRef = useRef(false)
+  const importGuestNotes = async () => {
+    if (importingRef.current) return
+    importingRef.current = true
+    try {
+      for (const n of loadGuestNotes()) {
+        const res = await fetch('/api/notes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: n.title, content: n.content, tags: n.tags }),
+        })
+        if (!res.ok) return
+        try { localStorage.setItem(GUEST_KEY, JSON.stringify(loadGuestNotes().filter(g => g.id !== n.id))) } catch {}
+      }
+    } catch {} finally {
+      importingRef.current = false
+    }
+  }
+
   const fetchNotes = async () => {
+    if (!isSignedIn) {
+      // Guest: the browser is the only store. First visit opens a blank note.
+      const local = loadGuestNotes()
+      if (!local.length) {
+        const now = new Date().toISOString()
+        local.push({ id: `local-${Date.now()}`, userId: '', title: 'Untitled', content: '', tags: [], createdAt: now, updatedAt: now })
+        try { localStorage.setItem(GUEST_KEY, JSON.stringify(local)) } catch {}
+      }
+      setNotes(prev => [...local, ...prev.filter(n => n.sharedToken)])
+      setActiveNoteId(prev => (prev && (prev.startsWith('shared-') || local.some(n => n.id === prev))) ? prev : local[0]?.id ?? null)
+      setNotesLoaded(true)
+      return
+    }
+    if (loadGuestNotes().length) await importGuestNotes()
     try {
       const [notesRes, sharedRes] = await Promise.all([
         fetch('/api/notes', { cache: 'no-store' }),
@@ -606,7 +680,7 @@ export default function AppShell({ initialNotes }: { initialNotes?: Note[] } = {
    *  fall back to activeNoteId, that's how content from one note ends up
    *  saved against a different note's id during rapid switches. */
   const handleAutoSave = useCallback(async (noteId: string, contentTitle: string, content: string) => {
-    if (!noteId || noteId.startsWith('temp-')) return
+    if (!noteId || noteId.startsWith('temp-') || isLocalId(noteId)) return
     const targetNote = notesRef.current.find(n => n.id === noteId)
     if (!targetNote) return
 
@@ -710,6 +784,7 @@ export default function AppShell({ initialNotes }: { initialNotes?: Note[] } = {
       } catch {}
       return
     }
+    if (isLocalId(activeNoteId)) return
     try {
       await fetch(`/api/notes/${activeNoteId}`, {
         method: 'PATCH',
@@ -732,7 +807,7 @@ export default function AppShell({ initialNotes }: { initialNotes?: Note[] } = {
     }))
     // Persist to API for each affected note
     for (const { id, tags } of affectedNotes) {
-      if (id.startsWith('temp-') || id.startsWith('shared-')) continue
+      if (id.startsWith('temp-') || id.startsWith('shared-') || isLocalId(id)) continue
       fetch(`/api/notes/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -763,7 +838,7 @@ export default function AppShell({ initialNotes }: { initialNotes?: Note[] } = {
       return { ...n, tags: filtered }
     }))
     for (const { id, tags } of affectedNotes) {
-      if (id.startsWith('temp-') || id.startsWith('shared-')) continue
+      if (id.startsWith('temp-') || id.startsWith('shared-') || isLocalId(id)) continue
       fetch(`/api/notes/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -776,7 +851,7 @@ export default function AppShell({ initialNotes }: { initialNotes?: Note[] } = {
 
   /** Manual save — triggered by the Save button. Same noteId discipline as autosave. */
   const handleManualSaveContent = useCallback(async (noteId: string, title: string, content: string) => {
-    if (!noteId || noteId.startsWith('temp-')) return
+    if (!noteId || noteId.startsWith('temp-') || isLocalId(noteId)) return
     const targetNote = notesRef.current.find(n => n.id === noteId)
     if (!targetNote) return
     const versionAtSaveStart = dirtyVersionsRef.current.get(noteId) ?? 0
@@ -816,6 +891,13 @@ export default function AppShell({ initialNotes }: { initialNotes?: Note[] } = {
   }, [applyServerUpdatedAt])
 
   const handleNewNote = async () => {
+    if (isGuest) {
+      const now = new Date().toISOString()
+      const note: Note = { id: `local-${Date.now()}`, userId: '', title: 'Untitled', content: '', tags: [], createdAt: now, updatedAt: now }
+      updateNotes((prev) => [note, ...prev])
+      setActiveNoteId(note.id)
+      return
+    }
     const tempId = `temp-${Date.now()}`
     const tempNote: Note = {
       id: tempId,
@@ -895,6 +977,7 @@ export default function AppShell({ initialNotes }: { initialNotes?: Note[] } = {
     try { localStorage.setItem('barrapad_manual_titles', JSON.stringify([...manualTitlesRef.current])) } catch {}
     updateNotes((prev) => prev.map((n) => n.id === id ? { ...n, title: newTitle } : n))
     window.dispatchEvent(new CustomEvent('barrapad:rename', { detail: { id, title: newTitle } }))
+    if (isLocalId(id)) return
     try {
       const res = await fetch(`/api/notes/${id}`, {
         method: 'PATCH',
@@ -913,6 +996,7 @@ export default function AppShell({ initialNotes }: { initialNotes?: Note[] } = {
       const remaining = prev.filter((n) => n.id !== id)
       setActiveNoteId(remaining[0]?.id ?? null)
     }
+    if (isLocalId(id)) return
     try {
       await fetch(`/api/notes/${id}`, { method: 'DELETE' })
     } catch {
@@ -1205,23 +1289,57 @@ export default function AppShell({ initialNotes }: { initialNotes?: Note[] } = {
           {/* Push everything else to the right */}
           <div className="flex-1" />
 
-          {/* Sync indicator: pulsing while the first server fetch is pending (editor read-only) or during background save */}
-          <AnimatePresence>
-            {(autoSaving || !notesLoaded) && (
+          {/* Guests: notes live in this browser only. Say so, and offer the account. */}
+          {isGuest && (
+            <span className="hidden sm:flex items-center gap-1.5 text-xs" style={{ color: 'var(--muted)' }}>
+              <HardDrive size={12} />
+              Saved in this browser.
+              <Link href="/sign-up" className="font-medium hover:underline" style={{ color: '#D4550A' }}>
+                Sign up
+              </Link>
+              to keep notes in the cloud and share them.
+            </span>
+          )}
+          {isGuest && (
+            <Link href="/sign-up" className="sm:hidden text-xs font-medium" style={{ color: '#D4550A' }}>
+              Sign up to sync
+            </Link>
+          )}
+
+          {/* Sync indicator: spinning cloud while loading or saving, then a short "Saved" tick */}
+          <AnimatePresence mode="wait">
+            {!isGuest && (autoSaving || manualSaving || !notesLoaded) ? (
               <motion.span
-                key="autosave-indicator"
-                initial={{ opacity: 0, x: 8 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 8 }}
-                transition={{ duration: 0.18 }}
-                className="flex items-center gap-1"
+                key="sync-busy"
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.15 }}
+                className="flex items-center gap-1 text-[11px]"
                 style={{ color: 'var(--muted)' }}
-                title={notesLoaded ? 'Syncing to server…' : 'Loading latest from server… (read-only until done)'}
+                title={notesLoaded ? 'Saving to the cloud' : 'Loading your latest notes (read-only until done)'}
               >
-                <CloudUpload size={13} className="animate-pulse" />
-                {!notesLoaded && <span style={{ fontSize: 11 }}>Syncing…</span>}
+                <span className="relative inline-flex">
+                  <Cloud size={14} />
+                  <RefreshCw size={7} strokeWidth={3} className="absolute inset-0 m-auto translate-y-[1px] animate-spin [animation-duration:1.1s]" />
+                </span>
+                {notesLoaded ? 'Syncing' : 'Loading'}
               </motion.span>
-            )}
+            ) : !isGuest && justSaved ? (
+              <motion.span
+                key="sync-done"
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="flex items-center gap-1 text-[11px]"
+                style={{ color: 'var(--muted)' }}
+                title="All changes saved"
+              >
+                <CloudCheck size={14} />
+                Saved
+              </motion.span>
+            ) : null}
           </AnimatePresence>
 
           {isLoaded && isSignedIn && (
@@ -1322,7 +1440,18 @@ export default function AppShell({ initialNotes }: { initialNotes?: Note[] } = {
             </div>
           )}
 
-          {activeNote && (!activeNote.sharedToken || activeNote.sharedPermission === 'EDIT') && (
+          {activeNote && isGuest && (
+            <Link
+              href="/sign-up"
+              title="Sign up to share notes"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-lg hover:bg-black/5 transition-colors"
+              style={{ borderColor: 'var(--border)', color: 'var(--ink)' }}
+            >
+              <Share2 size={13} />
+              Share
+            </Link>
+          )}
+          {activeNote && !isGuest && (!activeNote.sharedToken || activeNote.sharedPermission === 'EDIT') && (
             <button
               onClick={() => setShowShare(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-lg hover:bg-black/5 transition-colors"

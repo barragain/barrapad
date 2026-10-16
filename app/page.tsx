@@ -11,5 +11,5 @@ export default async function Home() {
   // path (localStorage cache + fetch) if the query fails.
   const { userId } = await auth()
   const initialNotes = userId ? await listOwnedNotes(userId).catch(() => undefined) : undefined
-  return <AppShell initialNotes={initialNotes} />
+  return <AppShell initialNotes={initialNotes} guest={!userId} />
 }
