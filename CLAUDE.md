@@ -26,7 +26,7 @@ Clerk is a production instance (`pk_live`), so sign-in only works on the deploye
 
 ## Testing
 
-Test every change in a real browser before calling it done; typecheck and build are not enough. Smoke tests live in `../portfolio-handoff/capture/` (run with `node` from that folder): `guest-smoke.mjs` (guest mode, guest-to-account import, sync indicator, 404), `sync-smoke.mjs` (cross-device sync), `stale-cache-smoke.mjs`. They use the demo login states saved there.
+Test every change in a real browser before calling it done; typecheck and build are not enough. Smoke tests live in `../portfolio-handoff/capture/` (run with `node` from that folder): `guest-smoke.mjs` (guest mode, guest-to-account import, sync indicator, 404), `sync-smoke.mjs` (cross-device sync), `stale-cache-smoke.mjs`, `realtime-smoke.mjs` (live edits, caret stability, room tickets, view-only writes dropped, access-request push), `attach-smoke.mjs` (Blob uploads). They use the demo login states saved there. The app shell is server-rendered, so tests must wait about 3 s for hydration before clicking.
 
 Localhost is only good for logic, not layout: on this Windows machine `next build` drops the global CSS from the root layout (Linux builds on Vercel are fine), and Clerk's live keys don't load off bpad.cc. Vercel previews can't run either, because the Clerk keys are Production-only and the middleware fails without them. To test layout before shipping, deploy a production build without the domain (`npx vercel deploy --prod --skip-domain --yes`), get a bypass link with the Vercel MCP `get_access_to_vercel_url`, and run `BASE=<url> SHARE=<_vercel_share token> node guest-smoke.mjs`. Signed-in checks only pass on www.bpad.cc, so run the full suite again after the push.
 
@@ -34,4 +34,4 @@ Clerk settings: use the Clerk MCP (`clerk`, user scope). The workspace also hold
 
 ## Layout
 
-`app/` routes and API handlers, `components/` (AppShell is the shell and state owner, Editor wires the room, NoteEditorCore is the Tiptap instance), `extensions/` Tiptap extensions, `lib/` server helpers (`realtime.ts` has the room host and push headers), `prisma/` schema, `realtime/` the Worker, `docs/` plans and the action list.
+`app/` routes and API handlers, `components/` (AppShell is the shell and state owner, Editor wires the room, NoteEditorCore is the Tiptap instance), `extensions/` Tiptap extensions, `lib/` server helpers (`realtime.ts` has the room host, push headers and the browser's ticket query; `roomTicket.ts` signs room tickets), `docs/architecture.md` for the sync and room-auth design, `prisma/` schema, `realtime/` the Worker, `docs/` plans and the action list.
