@@ -118,4 +118,6 @@ The realtime host variable is now `NEXT_PUBLIC_REALTIME_HOST`; the old name is g
 
 A flaky guest test turned out to be a real race. Two signed-in tabs that both saw guest notes would both import them, so one note landed twice. A Web Lock now lets only one tab import, and the guest test opens two tabs at once to cover it. New checks: `tags` (add, rename, delete reach the database), and `attach` also records a voice memo and opens the mobile text style sheet. The suite is 7 files and 55 checks.
 
-Still open: `useNotes` / `useSharedNotes` (the save pipeline and shared-notes poll share refs with the editor callbacks), the Clerk development instance and CRDT sync.
+Local dev now signs in: `npm run dev` uses the Clerk development instance and the Neon branch `dev` through `.env.development.local` (see CLAUDE.md). The comment bubble also follows a selected poll when it is aligned.
+
+Still open: `useNotes` / `useSharedNotes` (the save pipeline and shared-notes poll share refs with the editor callbacks) and CRDT sync.
