@@ -111,3 +111,11 @@ New smoke tests (now in `e2e/`): `realtime` (live edits, caret stability, ticket
 5.5 is done: Prisma 6, then Next 15 with React 19 (async route params via the codemod, `serverExternalPackages`). From section 6, the bell notifications and the "opened your note" poll moved into `hooks/useNotifications.ts`, and the room host logic was already in `lib/realtime.ts`. The notes list and save pipeline (`useNotes`) and the shared-notes poll stay in AppShell on purpose: they share most of their state and refs with the editor callbacks, so splitting them is a large move with real regression risk and no user-facing change. From section 8, the web manifest is in (phones can install bpad) and the smoke tests live in `e2e/` with `npm run e2e`. Polls also save when you click away from the form and follow the toolbar's align buttons.
 
 Still open: `useNotes` / `useSharedNotes` split and the `Toolbar.tsx` split (6), CRDT sync and a Clerk development instance (8). The env rename is done (`NEXT_PUBLIC_REALTIME_HOST`).
+
+## Round 3 (2026-10-16, evening)
+
+The realtime host variable is now `NEXT_PUBLIC_REALTIME_HOST`; the old name is gone from Vercel. `Toolbar.tsx` went from 815 to about 500 lines: its helpers, `TBtn`, `MobileSheet` and the voice memo button live in `components/toolbar/`. The button groups stay in `Toolbar.tsx` because they share the dropdown state and `closeAll`, so splitting them would only move props around. Tags moved out of AppShell into `hooks/useTags.ts`, and rename and delete no longer read the affected notes from inside a `setNotes` updater, which React can run late.
+
+A flaky guest test turned out to be a real race. Two signed-in tabs that both saw guest notes would both import them, so one note landed twice. A Web Lock now lets only one tab import, and the guest test opens two tabs at once to cover it. New checks: `tags` (add, rename, delete reach the database), and `attach` also records a voice memo and opens the mobile text style sheet. The suite is 7 files and 55 checks.
+
+Still open: `useNotes` / `useSharedNotes` (the save pipeline and shared-notes poll share refs with the editor callbacks), the Clerk development instance and CRDT sync.
