@@ -164,6 +164,7 @@ const marker = `guest-${Date.now().toString(36)}`
   if (target) {
     await sp.getByText(target.title).first().click().catch(() => {})
     await sleep(800)
+    await sp.waitForFunction(editableEditor, null, { timeout: 15_000 }) // Yjs mode: preview until the doc arrives
     await sp.locator('.ProseMirror').first().click()
     await sp.keyboard.press('End')
     await sp.keyboard.type(' indicator')

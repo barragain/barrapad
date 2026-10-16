@@ -213,6 +213,23 @@ export default function EditorComponent({
     return () => window.removeEventListener('barrapad:saved', handler)
   }, [collab])
 
+  // Someone who clicked into the read-only preview expects to keep typing once
+  // the live editor replaces it, so hand the focus over.
+  const wantFocusRef = useRef(false)
+  useEffect(() => {
+    if (!yMode || ySynced) return
+    wantFocusRef.current = false
+    // A read-only editor cannot take focus, so watch for the click instead.
+    const onDown = (e: PointerEvent) => { if ((e.target as HTMLElement).closest?.('.ProseMirror')) wantFocusRef.current = true }
+    document.addEventListener('pointerdown', onDown)
+    return () => document.removeEventListener('pointerdown', onDown)
+  }, [yMode, ySynced, room])
+  useEffect(() => {
+    if (!seedDone || !yEditor || !wantFocusRef.current) return
+    wantFocusRef.current = false
+    yEditor.commands.focus('end')
+  }, [seedDone, yEditor])
+
   const handleYEditorReady = useCallback((ed: Editor) => {
     editorRef.current = ed
     setYEditor(ed)

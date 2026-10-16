@@ -41,8 +41,10 @@ async function open() {
   return { c, page, sockets }
 }
 async function openNote(tab, marker) {
-  await tab.page.getByText(marker, { exact: false }).first().click()
+  await tab.page.getByText(marker, { exact: false }).first().click({ timeout: 15_000 })
+  const t0 = Date.now()
   await tab.page.waitForFunction(editableEditor, null, { timeout: 15_000 })
+  console.log(`note editable ${Date.now() - t0} ms after the click`)
   await sleep(1_500)
 }
 const api = (page, url, init) => page.evaluate(({ url, init }) => fetch(url, init).then((r) => r.json()), { url, init })

@@ -33,6 +33,7 @@ await B.page.close()  // tab closed, cache keeps v1
 // A edits the same note to v2.
 const A = await open()
 await A.page.getByText(m, { exact: false }).first().click(); await sleep(1_000)
+await A.page.waitForFunction(editable, null, { timeout: 15_000 }) // Yjs mode: preview until the doc arrives
 await ed(A.page).click(); await A.page.keyboard.press('Control+End'); await A.page.keyboard.type(' v2-from-A'); await sleep(3_000)
 
 // B reopens (same context, so same localStorage with v1), waits for unlock, types.
@@ -42,12 +43,14 @@ const cachedFirst = await B2.evaluate(() => JSON.parse(localStorage.getItem('bar
 check(!cachedFirst, 'B started from a stale cache (v1 only)')
 await B2.waitForFunction(editable, null, { timeout: 30_000 })
 await B2.getByText(m, { exact: false }).first().click(); await sleep(1_500)
+await B2.waitForFunction(editable, null, { timeout: 15_000 })
 check((await ed(B2).innerText()).includes('v2-from-A'), 'B shows A\'s v2 before it can type')
 await ed(B2).click(); await B2.keyboard.press('Control+End'); await B2.keyboard.type(' v3-from-B'); await sleep(3_000)
 
 await A.page.reload({ waitUntil: 'domcontentloaded' })
 await A.page.waitForFunction(editable, null, { timeout: 30_000 })
 await A.page.getByText(m, { exact: false }).first().click(); await sleep(1_500)
+await A.page.waitForFunction(editable, null, { timeout: 15_000 })
 const final = await ed(A.page).innerText()
 check(final.includes('v1') && final.includes('v2-from-A') && final.includes('v3-from-B'), `final content has v1, v2 and v3: "${final.trim().slice(0, 80)}"`)
 
