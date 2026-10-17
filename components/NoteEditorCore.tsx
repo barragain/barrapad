@@ -4,6 +4,7 @@ import { useEffect, useCallback, useRef, useState } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import type { Editor } from '@tiptap/react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useKeyboardInset } from './toolbar/helpers'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
 import Link from '@tiptap/extension-link'
@@ -198,6 +199,7 @@ export default function NoteEditorCore({
   const editorContainerRef = useRef<HTMLDivElement>(null)
   const toolbarRef = useRef<HTMLDivElement>(null)
   const [isEditorFocused, setIsEditorFocused] = useState(false)
+  const keyboardInset = useKeyboardInset()
   const infoPopoverRef = useRef<HTMLDivElement>(null)
   const [showInfo, setShowInfo] = useState(false)
   // The info button lives in the top bar (AppShell); it toggles this popover by event.
@@ -350,7 +352,8 @@ export default function NoteEditorCore({
       Placeholder.configure({
         placeholder: ({ editor: ed }) => ed.isEmpty
           ? 'Start writing, or type / for headings, lists, tables and more'
-          : 'Type / for blocks',
+          // Also names the Shift+Tab lorem shortcut (extensions/lorem-ipsum.ts).
+          : 'Type / for blocks · Shift+Tab for lorem ipsum',
       }),
       GradientText,
       FileAttachment,
@@ -875,15 +878,21 @@ export default function NoteEditorCore({
       style={{ background: 'var(--editor-bg)', ...rootStyle }}
     >
       {/* Toolbar — on desktop: fades in/out (stays in flow to prevent layout shift).
-          On mobile: fully hidden when not focused so it doesn't leave a blank gap
-          that clips the note content when the user scrolls. */}
+          On mobile: pinned in one scrolling row right above the keyboard while
+          the editor has focus, hidden otherwise. */}
       {editor && editable && (
         <div
           ref={toolbarRef}
           data-chrome
+          className={isMobileView ? 'toolbar-pinned' : undefined}
           style={
             isMobileView
-              ? { display: isEditorFocused ? 'block' : 'none' }
+              ? {
+                  display: isEditorFocused ? 'block' : 'none',
+                  position: 'fixed', left: 0, right: 0, bottom: keyboardInset, zIndex: 40,
+                  paddingBottom: keyboardInset ? 0 : 'env(safe-area-inset-bottom)',
+                  background: 'var(--editor-bg)',
+                }
               : {
                   opacity: isEditorFocused ? 1 : 0,
                   pointerEvents: isEditorFocused ? 'auto' : 'none',
@@ -925,7 +934,8 @@ export default function NoteEditorCore({
       {/* Scrollable editor area */}
       <div
         className="flex-1 overflow-y-auto barrapad-scroll"
-        style={{ position: 'relative' }}
+        // Room under the last line for the pinned phone toolbar.
+        style={{ position: 'relative', paddingBottom: isMobileView && isEditorFocused ? 56 : undefined }}
         onDrop={handleOuterDrop}
         onDragOver={(e) => e.preventDefault()}
       >

@@ -68,3 +68,23 @@ export function useIsMobile() {
 export function key(isMac: boolean, mac: string, win: string) {
   return isMac ? mac : win
 }
+
+/** Pixels the on-screen keyboard covers at the bottom of the layout viewport.
+ *  Fixed elements use it as `bottom` to sit right above the keyboard: iOS
+ *  Safari and Chrome on Android shrink only the visual viewport. */
+export function useKeyboardInset() {
+  const [inset, setInset] = useState(0)
+  useEffect(() => {
+    const vv = window.visualViewport
+    if (!vv) return
+    const update = () => setInset(Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop)))
+    update()
+    vv.addEventListener('resize', update)
+    vv.addEventListener('scroll', update)
+    return () => {
+      vv.removeEventListener('resize', update)
+      vv.removeEventListener('scroll', update)
+    }
+  }, [])
+  return inset
+}

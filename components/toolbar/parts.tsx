@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useCallback } from 'react'
+import { useKeyboardInset } from './helpers'
 
 export function MobileSheet({
   onClose,
@@ -15,6 +16,8 @@ export function MobileSheet({
   const startYRef = useRef(0)
   const dragYRef = useRef(0)
   const draggingRef = useRef(false)
+  // Sit above the on-screen keyboard, which stays open while the editor has focus.
+  const keyboardInset = useKeyboardInset()
 
   const onPillTouchStart = useCallback((e: React.TouchEvent) => {
     e.stopPropagation()
@@ -50,7 +53,7 @@ export function MobileSheet({
   }, [onClose])
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col justify-end" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex flex-col justify-end" style={{ bottom: keyboardInset }} onClick={onClose}>
       <div
         ref={sheetRef}
         onClick={(e) => e.stopPropagation()}

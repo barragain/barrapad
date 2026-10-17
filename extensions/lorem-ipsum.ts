@@ -1,8 +1,6 @@
 'use client'
 
 import { Extension } from '@tiptap/core'
-import { Plugin, PluginKey } from 'prosemirror-state'
-import { Decoration, DecorationSet } from 'prosemirror-view'
 
 const LOREM_PARAGRAPHS = [
   'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.',
@@ -11,8 +9,6 @@ const LOREM_PARAGRAPHS = [
 ]
 
 let loremIndex = 0
-
-const hintPluginKey = new PluginKey('loremIpsumHint')
 
 export const LoremIpsum = Extension.create({
   name: 'loremIpsum',
@@ -48,50 +44,5 @@ export const LoremIpsum = Extension.create({
         return true
       },
     }
-  },
-
-  addProseMirrorPlugins() {
-    return [
-      new Plugin({
-        key: hintPluginKey,
-        props: {
-          decorations(state) {
-            const { selection } = state
-            if (!selection.empty) return DecorationSet.empty
-
-            const $from = selection.$from
-            // Only show hint on a completely empty paragraph (new line with no text)
-            if ($from.parent.type.name !== 'paragraph' || $from.parent.textContent !== '') {
-              return DecorationSet.empty
-            }
-
-            // Don't show hint on a completely empty doc — the placeholder is showing there
-            if (state.doc.textContent === '') return DecorationSet.empty
-
-            const widget = Decoration.widget(
-              selection.from,
-              () => {
-                const el = document.createElement('span')
-                el.textContent = 'shift+tab · lorem ipsum'
-                el.setAttribute('aria-hidden', 'true')
-                el.style.cssText = [
-                  'color: var(--muted)',
-                  'font-style: italic',
-                  'font-size: 0.9em',
-                  'pointer-events: none',
-                  'user-select: none',
-                  'white-space: nowrap',
-                  'padding-left: 6px',
-                ].join('; ')
-                return el
-              },
-              { side: 1, key: 'lorem-hint' }
-            )
-
-            return DecorationSet.create(state.doc, [widget])
-          },
-        },
-      }),
-    ]
   },
 })

@@ -1,5 +1,5 @@
 // Production smoke test on an iPhone-sized touch screen, signed in: no
-// selection bar on touch, the toolbar link box closes with its X, and a
+// selection bar on touch, the toolbar pinned to the bottom in one row, the toolbar link box closes with its X, and a
 // comment started from the toolbar and closed with X leaves no highlight.
 // Usage: node e2e/phone.mjs
 import { chromium, devices } from 'playwright'
@@ -31,6 +31,8 @@ try {
   const ed = p.locator('.ProseMirror[contenteditable="true"]').first()
   await ed.tap(); await p.keyboard.press('End'); await p.keyboard.press('Shift+Home'); await p.waitForTimeout(800)
   check(await p.locator('[data-selection-bar]').count() === 0, 'no selection bar on touch')
+  const bar = await p.locator('.toolbar-pinned').evaluate((el) => { const r = el.getBoundingClientRect(); return { bottom: Math.round(r.bottom), height: Math.round(r.height), vh: innerHeight } })
+  check(Math.abs(bar.bottom - bar.vh) <= 1 && bar.height < 64, `phone toolbar pinned to the bottom in one row (${JSON.stringify(bar)})`)
   await p.locator('.tbtn-wrapper', { hasText: 'Link' }).locator('button').first().tap()
   await p.waitForTimeout(500)
   const opened = await p.locator('input[placeholder="https://example.com"]').count()

@@ -243,7 +243,7 @@ export default function Toolbar({ editor, commentsEnabled = true }: ToolbarProps
         </TBtn>
 
         {/* Mobile row break */}
-        <div className="block md:hidden w-full" style={{ borderTop: '1px solid var(--border)', margin: '2px 0' }} />
+        <div className="toolbar-rowbreak block md:hidden w-full" style={{ borderTop: '1px solid var(--border)', margin: '2px 0' }} />
 
         {/* ── ROW 2: Text color · Highlight · Gradient · Lists ── */}
 
@@ -316,7 +316,7 @@ export default function Toolbar({ editor, commentsEnabled = true }: ToolbarProps
         </TBtn>
 
         {/* Mobile row break */}
-        <div className="block md:hidden w-full" style={{ borderTop: '1px solid var(--border)', margin: '2px 0' }} />
+        <div className="toolbar-rowbreak block md:hidden w-full" style={{ borderTop: '1px solid var(--border)', margin: '2px 0' }} />
 
         {/* ── ROW 3: Alignment · Table · Image · Code ── */}
 

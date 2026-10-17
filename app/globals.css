@@ -1161,3 +1161,16 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Phone toolbar pinned above the keyboard: one row that scrolls sideways. */
+.toolbar-pinned .toolbar {
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-bottom: none;
+  border-top: 1px solid var(--border);
+}
+.toolbar-pinned .toolbar::-webkit-scrollbar { display: none; }
+.toolbar-pinned .toolbar > * { flex-shrink: 0; }
+.toolbar-pinned .toolbar-rowbreak { display: none; }

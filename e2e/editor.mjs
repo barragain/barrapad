@@ -134,7 +134,7 @@ try {
     const p = document.querySelector('.ProseMirror > p.is-empty')
     return p && getComputedStyle(p, '::before').content
   })
-  check(/type \//.test(emptyHint ?? '') && lineHint === '"Type / for blocks"', `placeholders mention / (empty note "${emptyHint}", empty line ${lineHint})`)
+  check(/type \//.test(emptyHint ?? '') && lineHint === '"Type / for blocks · Shift+Tab for lorem ipsum"', `placeholders mention / (empty note "${emptyHint}", empty line ${lineHint})`)
 
   // Slash menu: "/" opens it, typing filters, Enter inserts, Esc closes.
   await page.keyboard.press('Control+a'); await page.keyboard.press('Delete')
