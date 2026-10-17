@@ -170,9 +170,14 @@ try {
     return { first: op('First'), item: op('Item'), last: op('Last'), sidebar: !![...document.querySelectorAll('[data-chrome]')].some((e) => e.offsetParent) }
   })
   check(focus.first === '0.3' && focus.item === '0.3' && focus.last === '1' && !focus.sidebar, `focus mode dims other blocks and hides chrome (${JSON.stringify(focus)})`)
+  await page.keyboard.type(' /')
+  await page.waitForTimeout(300)
   await page.keyboard.press('Escape')
   await page.waitForTimeout(300)
-  check(await page.locator('button[aria-label="Focus mode"]').isVisible(), 'Esc leaves focus mode')
+  const stayed = !(await page.locator('button[aria-label="Focus mode"]').isVisible())
+  await page.keyboard.press('Escape')
+  await page.waitForTimeout(300)
+  check(stayed && await page.locator('button[aria-label="Focus mode"]').isVisible(), `Esc closes the slash menu first, then leaves focus mode (stayed ${stayed})`)
   await page.context().close()
 
   // Dark mode: inline code has a visible chip, highlights keep dark text.

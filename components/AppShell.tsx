@@ -95,11 +95,20 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
         e.preventDefault()
         setFocusMode((v) => !v)
       }
-      // Menus inside the editor (slash menu, link box) take Esc first.
-      if (e.key === 'Escape' && !e.defaultPrevented) setFocusMode(false)
+    }
+    // Esc leaves focus mode, unless it is closing an open editor menu (slash
+    // menu, mentions). Capture phase: the editor swallows every Esc it sees.
+    const onEsc = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      const menuOpen = [...document.querySelectorAll<HTMLElement>('[data-tippy-root]')].some((el) => el.style.visibility !== 'hidden')
+      if (!menuOpen) setFocusMode(false)
     }
     window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    window.addEventListener('keydown', onEsc, true)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('keydown', onEsc, true)
+    }
   }, [])
   useEffect(() => {
     const onStorage = (e: Event) => setGuestStorageFull((e as CustomEvent<{ full: boolean }>).detail.full)
