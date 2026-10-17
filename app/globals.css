@@ -201,6 +201,15 @@ body {
   pointer-events: none;
   height: 0;
 }
+/* The empty line the caret is on, while the editor has focus. */
+.ProseMirror-focused > p.is-empty:not(.is-editor-empty)::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: var(--muted);
+  opacity: 0.6;
+  pointer-events: none;
+  height: 0;
+}
 
 /* ── Vertical rhythm (docs/design-audit.md) ─────────────────────────────
    Three gaps, smallest to largest: wrapped lines (line-height), list items

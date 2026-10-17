@@ -343,7 +343,12 @@ export default function NoteEditorCore({
       TaskList,
       TaskItem.configure({ nested: true }),
       CodeBlockLowlight.configure({ lowlight }),
-      Placeholder.configure({ placeholder: 'Start typing to get started...' }),
+      // Empty note: the full hint. An empty line the caret is on: a shorter one.
+      Placeholder.configure({
+        placeholder: ({ editor: ed }) => ed.isEmpty
+          ? 'Start writing, or type / for headings, lists, tables and more'
+          : 'Type / for blocks',
+      }),
       GradientText,
       FileAttachment,
       Footnote,

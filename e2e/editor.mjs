@@ -126,6 +126,16 @@ try {
   await page.waitForTimeout(300)
   check(await bar.count() === 0, 'selection bar hides when the selection collapses')
 
+  // Placeholders point at the slash menu.
+  await page.keyboard.press('Control+a'); await page.keyboard.press('Delete')
+  const emptyHint = await page.locator('.ProseMirror p.is-editor-empty').getAttribute('data-placeholder')
+  await page.keyboard.type('line'); await page.keyboard.press('Enter')
+  const lineHint = await page.evaluate(() => {
+    const p = document.querySelector('.ProseMirror > p.is-empty')
+    return p && getComputedStyle(p, '::before').content
+  })
+  check(/type \//.test(emptyHint ?? '') && lineHint === '"Type / for blocks"', `placeholders mention / (empty note "${emptyHint}", empty line ${lineHint})`)
+
   // Slash menu: "/" opens it, typing filters, Enter inserts, Esc closes.
   await page.keyboard.press('Control+a'); await page.keyboard.press('Delete')
   await page.keyboard.type('/')
