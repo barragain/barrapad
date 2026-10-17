@@ -42,7 +42,7 @@ At 16 px, DM Mono is 9.6 px a character, so the 833 px desktop column holds abou
 | Code blocks load syntax highlighting but no color theme, so code shows in one color | `components/NoteEditorCore.tsx:305` |
 | DM Mono is loaded only at weights 300 to 500, so bold, H1 and H2 are drawn as fake bold by the browser | `app/globals.css:1` |
 | H4 to H6 can be made with `####` or Ctrl+Alt+4 but have no style | StarterKit defaults |
-| Two spell checkers run at once (the browser's and ours), which can double the underlines | `extensions/spell-check.ts` |
+| Two spell checkers ran at once (the browser's and ours), which could double the underlines | Fixed: only the browser's checker is left |
 | The placeholder text color is 1.6:1 to 2.8:1 against the page in every theme; text needs 4.5:1 | `app/globals.css:37-104` |
 
 ### Dark mode and themes

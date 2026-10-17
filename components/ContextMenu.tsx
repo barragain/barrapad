@@ -55,6 +55,7 @@ export default function ContextMenu({ x, y, items, onClose }: ContextMenuProps) 
   return (
     <div
       ref={ref}
+      data-context-menu
       className="z-[100]"
       style={{
         position: 'fixed',

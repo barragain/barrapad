@@ -65,12 +65,9 @@ import {
   Superscript,
   BarChart2,
   Tag as TagIcon,
-  Wand2,
   MessageSquare,
   GripVertical,
 } from 'lucide-react'
-import { isCorrectSync, suggestSync, ensureLoaded } from '@/utils/spellcheck'
-import { SpellCheck, SPELL_KEY } from '@/extensions/spell-check'
 import { UserMention } from '@/extensions/user-mention'
 import { NoteMention } from '@/extensions/note-mention'
 import { SlashCommand } from '@/extensions/slash-command'
@@ -300,7 +297,7 @@ export default function NoteEditorCore({
     }
   }, [])
 
-  // ── Spell-check word lookup ───────────────────────────────────────────────
+  // ── Word under the pointer (right-click on a word opens the browser menu) ───────────────────────────────────────────────
   const getWordAtPos = useCallback((pos: number): { word: string; from: number; to: number } | null => {
     const ed = editorRef.current
     if (!ed) return null
@@ -367,7 +364,6 @@ export default function NoteEditorCore({
       Footnote,
       Poll,
       LoremIpsum,
-      SpellCheck,
       UserMention,
       NoteMention,
       SlashCommand,
@@ -376,11 +372,9 @@ export default function NoteEditorCore({
     content: collab ? undefined : initialContent,
     editable,
     editorProps: {
-      // Native browser spell-check is ENABLED so the browser's smart suggestions
-      // appear in its native context menu when right-clicking misspelled words.
-      // Our nspell SpellCheck extension provides persistent underlines (decorations
-      // that survive ProseMirror DOM rebuilds, unlike native browser underlines).
-      // CSS hides the browser's native underlines to avoid doubling up.
+      // Spell check is the browser's own: it knows far more words and languages
+      // than a bundled dictionary. Its suggestions only live in the browser's
+      // context menu, so right-clicking a word opens that menu (see below).
       attributes: { spellcheck: 'true' },
       // Serialize task lists with checkbox characters for clipboard text, so
       // pasting into Notion/Google Docs shows ☐/☑ instead of plain bullets.
@@ -551,17 +545,6 @@ export default function NoteEditorCore({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor])
 
-  // Once the nspell dictionary finishes loading, re-run decorations so that
-  // existing content (loaded before the dict was ready) gets underlines.
-  useEffect(() => {
-    if (!editor) return
-    ensureLoaded().then(() => {
-      if (!editor.isDestroyed) {
-        editor.view.dispatch(editor.view.state.tr.setMeta(SPELL_KEY, true))
-      }
-    })
-  }, [editor])
-
   // Sync noteId into editor storage for @mention collaborator lookups
   useEffect(() => {
     if (!editor || !noteId) return
@@ -643,12 +626,23 @@ export default function NoteEditorCore({
     // can select text. The custom context menu is a desktop-only feature.
     if (isTouchRef.current) return
 
-    e.preventDefault()
-
     const x = e.clientX
     const y = e.clientY
     const target = e.target as HTMLElement
     const coords = ed.view.posAtCoords({ left: x, top: y })
+
+    // Right-clicking a word (nothing selected) opens the browser's own menu,
+    // the only place its spelling suggestions and "Add to dictionary" live.
+    // Empty space, selections and special blocks keep the bpad menu.
+    if (ed.state.selection.empty && coords && !target.closest('blockquote, a, img, hr, .barrapad-fn-wrap, .barrapad-poll')) {
+      const w = getWordAtPos(coords.pos)
+      if (w) {
+        const a = ed.view.coordsAtPos(w.from), b = ed.view.coordsAtPos(w.to)
+        if (x >= a.left && x <= b.right && y >= Math.min(a.top, b.top) && y <= Math.max(a.bottom, b.bottom)) return
+      }
+    }
+
+    e.preventDefault()
     contextClickRef.current = { x, y, editorPos: coords?.inside ?? coords?.pos }
 
     const addTagItem: ContextMenuItem = {
@@ -778,36 +772,7 @@ export default function NoteEditorCore({
       return
     }
 
-    // Empty cursor — show spell suggestions if word is misspelled
-    const wordResult = coords?.pos !== undefined ? getWordAtPos(coords.pos) : null
-    const spellItems: ContextMenuItem[] = []
-    if (wordResult) {
-      const correct = isCorrectSync(wordResult.word)
-      if (correct === false) {
-        const suggestions = suggestSync(wordResult.word)
-        if (suggestions && suggestions.length > 0) {
-          suggestions.forEach((s) => {
-            spellItems.push({
-              type: 'item', label: s, icon: <Wand2 size={13} />,
-              onClick: () => {
-                // Replace the misspelled word. The SpellCheck plugin automatically
-                // recomputes decorations on every document change, so underlines
-                // on all remaining misspelled words stay intact with no extra work.
-                ed.chain().focus()
-                  .setTextSelection({ from: wordResult.from, to: wordResult.to })
-                  .insertContent(s)
-                  .run()
-                setContextMenu(null)
-              },
-            })
-          })
-          spellItems.push({ type: 'separator' })
-        }
-      }
-    }
-
     setContextMenu({ x, y, items: [
-      ...spellItems,
       { type: 'item', label: 'Paste', icon: <Clipboard size={13} />, onClick: () => {
         navigator.clipboard.readText().then(text => { if (text) ed.chain().focus().insertContent(text).run() }); setContextMenu(null)
       }},

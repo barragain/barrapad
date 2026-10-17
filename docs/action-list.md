@@ -38,7 +38,7 @@ Follow `docs/partykit-migration.md`. Worker code and config are in `realtime/`; 
 1. `partykit` goes away with step 3. `partysocket` stays.
 2. `typescript` is pinned to `^6.0.2` while Next 14 expects 5.x; `npm run build` works today but `next lint` and type checks may drift. Pin to the version Next 14 supports, or upgrade Next first.
 3. `@types/*`, `typescript`, `prisma`, `autoprefixer`, `postcss` are in `dependencies`; move them to `devDependencies`.
-4. `html2canvas`, `jspdf`, `html-docx-js`, `turndown` are already loaded lazily; `nspell` and the 1 MB `en.dic` are loaded eagerly on every page. Load the dictionary after first paint, or only when the editor gets focus.
+4. `html2canvas`, `jspdf`, `html-docx-js`, `turndown` are already loaded lazily; (`nspell` and its dictionary are gone since the switch to the browser's spell checker.)
 5. Upgrade path: Next 14 to 15 (the Portfolio is on 16, so you know the drill), React 18 to 19, Prisma 5 to 6. Do it after the realtime move, one at a time.
 6. The `.next` cache warning on `npm run dev` (`Restoring pack ... hasStartTime`) is a stale webpack cache. `rm -rf .next` fixes it.
 

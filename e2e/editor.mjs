@@ -227,6 +227,31 @@ try {
     await dp.context().close()
   }
 
+  // Spell check is the browser's: right-clicking a word leaves the browser's
+  // menu (its suggestions live there), empty space still opens the bpad menu.
+  {
+    const sp = await open()
+    await sp.keyboard.type('Hello wrold')
+    await sp.keyboard.press('Enter'); await sp.keyboard.press('Enter'); await sp.keyboard.press('Enter')
+    const word = await sp.evaluate(() => {
+      const p = document.querySelector('.ProseMirror p'); const r = document.createRange()
+      r.setStart(p.firstChild, 7); r.setEnd(p.firstChild, 10); const b = r.getBoundingClientRect()
+      return { x: b.x + b.width / 2, y: b.y + b.height / 2 }
+    })
+    await sp.mouse.click(word.x, word.y)
+    await sp.mouse.click(word.x, word.y, { button: 'right' })
+    await sp.waitForTimeout(300)
+    const onWord = await sp.locator('[data-context-menu]').count()
+    await sp.keyboard.press('Escape')
+    const last = await sp.locator('.ProseMirror p').last().boundingBox()
+    await sp.mouse.click(last.x + last.width - 40, last.y + last.height / 2, { button: 'right' })
+    await sp.waitForTimeout(300)
+    const onEmpty = await sp.locator('[data-context-menu]').count()
+    const native = await sp.evaluate(() => document.querySelector('.ProseMirror').getAttribute('spellcheck'))
+    check(onWord === 0 && onEmpty === 1 && native === 'true', `right-click on a word gives the browser menu, empty space the bpad menu (word ${onWord}, empty ${onEmpty}, spellcheck ${native})`)
+    await sp.context().close()
+  }
+
   // Dark mode: the Appearance panel's unselected buttons use light text.
   await dark.click('[data-hint="settings"]')
   await dark.waitForTimeout(400)

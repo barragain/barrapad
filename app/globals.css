@@ -2,15 +2,6 @@
 @import "tailwindcss";
 @import "prosemirror-tables/style/tables.css";
 
-/* Custom spell-check underlines — persistent across ProseMirror DOM rebuilds */
-.spell-error {
-  text-decoration-line: underline;
-  text-decoration-style: wavy;
-  text-decoration-color: color-mix(in srgb, #ef4444 65%, transparent);
-  text-decoration-thickness: 1px;
-  text-underline-offset: 3px;
-}
-
 /* Comment highlight marks */
 .comment-highlight {
   background: rgba(250, 204, 21, 0.30);
