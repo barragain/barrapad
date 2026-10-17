@@ -26,10 +26,14 @@ await page.keyboard.type(marker)
 await page.locator('input[type="file"]:not([accept])').first().setInputFiles({
   name: 'memo test.webm', mimeType: 'audio/webm', buffer: Buffer.alloc(600_000, 1),
 })
-await sleep(6_000)
 
-const notes = await page.evaluate(() => fetch('/api/notes').then((r) => r.json()))
-const note = (Array.isArray(notes) ? notes : notes.notes ?? []).find((n) => n.content?.includes(marker))
+// Upload plus the save debounce can take over 6 s, so poll for the saved Blob URL.
+let note
+for (let i = 0; i < 20 && !note?.content.includes('data-url="https://'); i++) {
+  await sleep(1_000)
+  const notes = await page.evaluate(() => fetch('/api/notes').then((r) => r.json()))
+  note = (Array.isArray(notes) ? notes : notes.notes ?? []).find((n) => n.content?.includes(marker))
+}
 const url = note?.content.match(/data-url="([^"]+)"/)?.[1] ?? ''
 check(url.startsWith('https://') && url.includes('blob.vercel-storage.com'), `attachment stored as Blob URL (${url.slice(0, 70)})`)
 check(!note?.content.includes('data:audio'), 'no base64 in the note')

@@ -61,8 +61,8 @@ const marker = `guest-${Date.now().toString(36)}`
   await sleep(17_000) // Editor's 404 poll would flag a deleted note after 15 s
   check(!(await page.getByText('Remove from my view').isVisible().catch(() => false)), 'local note not shown as deleted')
 
-  const guestNotes = await page.evaluate(() => JSON.parse(localStorage.getItem('bpad_guest_notes') ?? '[]'))
-  check(guestNotes.length === 2, `two guest notes stored (got ${guestNotes.length})`)
+  const guestNotes = (await page.evaluate(() => JSON.parse(localStorage.getItem('bpad_guest_notes') ?? '[]'))).filter((n) => n.id !== welcome.id)
+  check(guestNotes.length === 2, `two guest notes stored besides the welcome note (got ${guestNotes.length})`)
   check(sockets.length === 0, `no realtime sockets (got ${sockets.join(', ') || 'none'})`)
   check(badApi.length === 0, `no failing API calls (${badApi.join('; ') || 'none'})`)
   check(errors.length === 0, `no page errors (${errors.join('; ') || 'none'})`)
