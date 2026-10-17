@@ -7,6 +7,7 @@ import TagInput from './TagInput'
 import AppearanceModal from './AppearanceModal'
 import AboutModal from './AboutModal'
 import NoteEditorCore from './NoteEditorCore'
+import PresenceAvatars from './PresenceAvatars'
 import type { AppearanceSettings, Tag } from '@/types'
 import { pickColor } from '@/extensions/collab-cursor'
 
@@ -47,8 +48,6 @@ interface Props {
   updatedAt: string
 }
 
-type Presence = { id: number; name: string; color: string; imageUrl?: string }
-
 export default function SharedNoteView({ token, noteId, initialContent, initialTags, permission, updatedAt }: Props) {
   // Signed-in visitors and every edit link are redirected into the app
   // (app/s/[token]/page.tsx), so this page is always view-only.
@@ -60,7 +59,6 @@ export default function SharedNoteView({ token, noteId, initialContent, initialT
 
   // ── UI state ──────────────────────────────────────────────────────────────
   const [connected, setConnected] = useState(false)
-  const [presenceList, setPresenceList] = useState<Presence[]>([])
   const [connections, setConnections] = useState(1)
   const [showAbout, setShowAbout] = useState(false)
   const [showAppearance, setShowAppearance] = useState(false)
@@ -97,12 +95,6 @@ export default function SharedNoteView({ token, noteId, initialContent, initialT
     const onDoc = () => setHasContent(fragment.length > 0)
     doc.on('update', onDoc)
     const onAwareness = () => {
-      const others: Presence[] = []
-      awareness.getStates().forEach((s, id) => {
-        const u = (s as { user?: { name: string; color: string; imageUrl?: string } }).user
-        if (id !== doc.clientID && u) others.push({ id, ...u })
-      })
-      setPresenceList(others)
       setConnections(awareness.getStates().size || 1)
     }
     awareness.on('change', onAwareness)
@@ -156,25 +148,7 @@ export default function SharedNoteView({ token, noteId, initialContent, initialT
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           {/* Live presence avatars */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            {presenceList.slice(0, 5).map((p) => (
-              <div key={p.id} title={p.name} style={{ position: 'relative', flexShrink: 0 }}>
-                {p.imageUrl ? (
-                  <img src={p.imageUrl} alt={p.name} style={{
-                    width: 26, height: 26, borderRadius: '50%',
-                    border: `2px solid ${p.color}`, objectFit: 'cover',
-                  }} />
-                ) : (
-                  <div style={{
-                    width: 26, height: 26, borderRadius: '50%',
-                    background: p.color, color: '#fff',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 10, fontWeight: 700, border: '2px solid var(--editor-bg)',
-                  }}>
-                    {p.name.charAt(0).toUpperCase()}
-                  </div>
-                )}
-              </div>
-            ))}
+            {collab && <PresenceAvatars awareness={collab.awareness} />}
             <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
               <div style={{
                 width: 7, height: 7, borderRadius: '50%',
@@ -265,7 +239,7 @@ export default function SharedNoteView({ token, noteId, initialContent, initialT
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         <NoteEditorCore
           key={live ? 'live' : 'preview'}
-          collab={live ? { doc: collab!.doc, awareness: collab!.awareness, user: { name: 'Guest', color: myColorRef.current } } : undefined}
+          collab={live ? { doc: collab!.doc, awareness: collab!.awareness, user: { name: 'Guest', color: myColorRef.current, clientId: collab!.doc.clientID } } : undefined}
           initialContent={initialContent}
           editable={false}
           infoRows={[

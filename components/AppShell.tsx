@@ -430,6 +430,9 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
           {/* Push everything else to the right */}
           <div className="flex-1" />
 
+          {/* Editor portals the presence avatars of the open note in here */}
+          <div id="bpad-presence" className="flex items-center" />
+
           {/* Sync indicator: spinning cloud while loading or saving, then a short "Saved" tick */}
           <AnimatePresence mode="wait">
             {!isGuest && (autoSaving || manualSaving || !notesLoaded) ? (

@@ -94,6 +94,8 @@ The editor is Tiptap 3 on ProseMirror. The text column holds about 68 characters
 
 **Context menu.** On desktop, right-clicking in an editable note replaces the browser menu. What it shows depends on what was clicked: a quote offers "Remove quote"; a divider "Remove divider"; a footnote, poll, image or link offers the actions listed in their sections; selected text offers Bold, Italic, Underline, Strikethrough, "Link…", Copy, Cut, Comment (signed in only) and "Add tag…"; an empty spot offers spelling suggestions, Paste, "Select All", "Insert image", "Upload file", "Insert voice memo", "Insert table", "Insert lorem ipsum" and "Add tag…". On touch devices the browser's own long-press menu is kept, and the custom menu is not shown.
 
+**Presence.** When other people have the same note open, the top bar shows their avatars on the left of the sync indicator: their profile picture with a ring in their caret color, or their initial on that color. Up to five are shown, then "+n". Clicking an avatar scrolls the note to that person's caret and gives it a short pulse. If they have no caret in the note (they have not clicked into it yet), nothing happens. The public share page uses the same avatars, and everyone there is called Guest.
+
 **Note info.** The ⓘ button in the top bar opens a card under it with the word count, character count, created date and updated date. Clicking outside it or pressing Escape closes it. On the public share page the same button sits in that page's top bar, and the card shows the permission and the updated date instead.
 
 ### 2.5 Images
@@ -396,7 +398,7 @@ The smoke tests in `e2e/` run against production with `npm run e2e` (or one at a
 | 404 page | `guest.mjs` | Unknown URL gives 404 and "Nothing written here" |
 | Cross-device sync | `sync.mjs` | A second browser lists and shows a new note without a reload, both devices' text survives, the socket goes to the Worker |
 | Stale local cache | `stale-cache.mjs` | A device with an old cached copy shows the newer server copy before it can type, and the result keeps all edits |
-| Live edits and carets | `realtime.mjs`, `crdt.mjs` | Typing appears live in another tab, a caret stays put when someone edits above it, concurrent typing in one paragraph merges, remote carets are drawn |
+| Live edits and carets | `realtime.mjs`, `crdt.mjs` | Typing appears live in another tab, a caret stays put when someone edits above it, concurrent typing in one paragraph merges, remote carets are drawn, the other person's avatar appears in the top bar and leads to their caret |
 | Seeding and database authority | `crdt.mjs` | A fresh room is seeded exactly once, opening a note does not rename it, a newer database copy replaces the room doc |
 | Room tickets and view-only writes | `realtime.mjs`, `crdt.mjs` | Note and notification sockets carry tickets, a view link gets `READ`, a viewer's title message and Yjs update are dropped, a socket without a ticket is refused, an anonymous ticket request without a link gets 401 |
 | Public share page | `realtime.mjs` | Follows the owner's typing live and stays read-only |

@@ -65,6 +65,16 @@ await B.page.waitForFunction(() => document.querySelector('.ProseMirror')?.textC
 await sleep(500)
 await B.page.keyboard.type('Z')
 check((await editor(B.page).innerText()).trim().endsWith('live-AZ'), `B's caret stays put when A edits above (${(await editor(B.page).innerText()).replace(/\n/g, ' / ')})`)
+// Presence: A's top bar shows B's avatar, and clicking it finds B's caret.
+await A.page.waitForSelector('#bpad-presence [data-presence] button', { timeout: 8_000 }).catch(() => {})
+const avatars = await A.page.locator('#bpad-presence [data-presence] button').count()
+const caretFound = await A.page.evaluate(() => {
+  const btn = document.querySelector('#bpad-presence [data-presence] button')
+  const ids = [...document.querySelectorAll('.bpad-caret[data-client]')].map((c) => c.getAttribute('data-client'))
+  return !!btn && ids.length > 0
+})
+if (avatars) await A.page.locator('#bpad-presence [data-presence] button').first().click()
+check(avatars === 1 && caretFound, `presence avatar in the top bar, linked to a caret (${avatars} avatars, caret ${caretFound})`)
 
 check(B.sockets.some((u) => u.includes(`/parties/note-y/${noteId}`) && /ticket=(READ|WRITE)\./.test(u)), 'note socket carries a signed ticket')
 check(A.sockets.some((u) => u.includes('/parties/main/notif-') && /ticket=WRITE\./.test(u)), 'notification socket carries a signed ticket')

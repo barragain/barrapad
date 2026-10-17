@@ -137,7 +137,7 @@ export interface NoteEditorCoreProps {
 
   /** Yjs mode: content comes from this doc instead of initialContent, and the
    *  undo history is Yjs's own. Bound once at mount, so remount per note. */
-  collab?: { doc: Y.Doc; awareness: Awareness; user: { name: string; color: string; imageUrl?: string } }
+  collab?: { doc: Y.Doc; awareness: Awareness; user: { name: string; color: string; imageUrl?: string; clientId?: number } }
 
   className?: string
   rootStyle?: React.CSSProperties
@@ -326,7 +326,7 @@ export default function NoteEditorCore({
           // Only the awareness is read; the doc may not be online yet (temp- note).
           provider: { awareness: collab.awareness },
           user: collab.user,
-          render: (u: { name: string; color: string }) => buildWidget(u.name, u.color),
+          render: (u: { name: string; color: string; clientId?: number }) => buildWidget(u.name, u.color, u.clientId),
           selectionRender: (u: { color: string }) => ({ nodeName: 'span', style: `background:${u.color}33;` }),
         }),
       ] : []),

@@ -1,11 +1,13 @@
 'use client'
 
 import { useEffect, useCallback, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { Editor } from '@tiptap/react'
 import { useUser } from '@clerk/nextjs'
 import { pickColor } from '@/extensions/collab-cursor'
 import TagInput from './TagInput'
 import NoteEditorCore from './NoteEditorCore'
+import PresenceAvatars from './PresenceAvatars'
 import type { Note, Tag } from '@/types'
 
 import { REALTIME_HOST, roomQuery } from '@/lib/realtime'
@@ -105,6 +107,9 @@ export default function EditorComponent({
   const userNameRef = useRef('Me')
 
   const { user } = useUser()
+  // The top bar's slot for presence avatars (AppShell).
+  const [presenceSlot, setPresenceSlot] = useState<HTMLElement | null>(null)
+  useEffect(() => setPresenceSlot(document.getElementById('bpad-presence')), [])
   useEffect(() => {
     if (user) {
       userNameRef.current =
@@ -531,9 +536,11 @@ export default function EditorComponent({
   const yLive = yMode && ownDoc && (collab!.local || ySynced)
   const yPreview = yMode && !yLive
   return (
+    <>
+    {yLive && presenceSlot && createPortal(<PresenceAvatars awareness={collab!.awareness} />, presenceSlot)}
     <NoteEditorCore
       key={yLive ? `y-${collab!.key}` : yPreview ? `preview-${room}` : 'plain'}
-      collab={yLive ? { doc: collab!.doc, awareness: collab!.awareness, user: { name: userNameRef.current, color: myColorRef.current } } : undefined}
+      collab={yLive ? { doc: collab!.doc, awareness: collab!.awareness, user: { name: userNameRef.current, color: myColorRef.current, imageUrl: user?.imageUrl, clientId: collab!.doc.clientID } } : undefined}
       initialContent={note.content || ''}
       editable={yLive ? editable && seedDone : editable && !yPreview}
       onEditorReady={yLive ? handleYEditorReady : yPreview ? undefined : handleEditorReady}
@@ -557,5 +564,6 @@ export default function EditorComponent({
         />
       }
     />
+    </>
   )
 }
