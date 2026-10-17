@@ -130,7 +130,7 @@ try {
     await np.keyboard.press('Shift+Home')
     await np.locator('.toolbar .tbtn-wrapper', { hasText: 'Text color' }).locator('button').first().click()
     await np.waitForTimeout(300)
-    const sheet = await np.locator('.fixed.inset-0').count()
+    const sheet = await np.locator('.fixed.inset-0.justify-end').count() // bottom sheet, not the desktop click-away layer
     await np.locator('div:has(> [data-custom-color]) button[title="#16a34a"]').first().click()
     await np.waitForTimeout(400)
     const green = await np.evaluate(() => /16a34a|22, 163, 74/.test(document.querySelector('.ProseMirror p').innerHTML))
