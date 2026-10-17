@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import type { Editor } from '@tiptap/react'
+import { X } from 'lucide-react'
 
 interface LinkPopoverProps {
   editor: Editor
@@ -24,9 +25,15 @@ export default function LinkPopover({ editor, onClose, pos }: LinkPopoverProps) 
     setTimeout(() => inputRef.current?.focus(), 50)
   }, [])
 
+  // Cancel puts the caret back in the editor, so the selection survives.
+  const cancel = () => {
+    editor.commands.focus()
+    onClose()
+  }
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape') cancel()
     }
     const handleMouseDown = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
@@ -94,8 +101,18 @@ export default function LinkPopover({ editor, onClose, pos }: LinkPopoverProps) 
         width: 280,
       }}
     >
-      <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-        {hasLink ? 'Edit link' : 'Add link'}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          {hasLink ? 'Edit link' : 'Add link'}
+        </span>
+        <button
+          onClick={cancel}
+          aria-label="Cancel"
+          title="Cancel (Esc)"
+          style={{ display: 'grid', placeItems: 'center', padding: 4, margin: -4, borderRadius: 6, color: 'var(--muted)', background: 'none', border: 'none', cursor: 'pointer' }}
+        >
+          <X size={14} />
+        </button>
       </div>
 
       <input

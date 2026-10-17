@@ -1,10 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useEditorState } from '@tiptap/react'
 import type { Editor } from '@tiptap/react'
 import { motion } from 'framer-motion'
-import { Bold, Italic, Underline, Link2, Palette, Highlighter, MessageSquare, X } from 'lucide-react'
+import { Bold, Italic, Underline, Link2, Palette, Highlighter, MessageSquare, Ban } from 'lucide-react'
 import { PRESET_SWATCHES, HIGHLIGHT_SWATCHES } from './ColorPicker'
 import { TBtn } from './toolbar/parts'
 
@@ -31,6 +31,16 @@ export default function SelectionBar({ editor, pos, commentsEnabled, onLink, onC
       isHighlight: ctx.editor.isActive('highlight'),
     }),
   })
+
+  // Esc closes an open swatch row before anything else.
+  useEffect(() => {
+    if (!swatches) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { e.stopPropagation(); setSwatches(null) }
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [swatches])
 
   if (s.isBlock && !commentsEnabled) return null
 
@@ -91,10 +101,11 @@ export default function SelectionBar({ editor, pos, commentsEnabled, onLink, onC
           ))}
           <button
             aria-label={swatches === 'highlight' ? 'Remove highlight' : 'Remove color'}
+            title={swatches === 'highlight' ? 'Remove highlight' : 'Remove color'}
             onClick={() => pick(null)}
             style={{ width: 18, height: 18, borderRadius: 5, display: 'grid', placeItems: 'center', color: 'var(--muted)', border: '1px solid var(--border)', cursor: 'pointer' }}
           >
-            <X size={12} />
+            <Ban size={12} />
           </button>
         </div>
       )}

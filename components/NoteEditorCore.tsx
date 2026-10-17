@@ -260,6 +260,14 @@ export default function NoteEditorCore({
     setCommentSidebarOpen(true)
   }, [])
 
+  // Closing the sidebar any way (X, toolbar toggle) before the new comment is posted
+  // drops its highlight. The sidebar unmounts on close, so its own cleanup can't run.
+  useEffect(() => {
+    if (commentSidebarOpen || !pendingCommentMarkId) return
+    editorRef.current?.commands.unsetCommentMark(pendingCommentMarkId)
+    setPendingCommentMarkId(null)
+  }, [commentSidebarOpen, pendingCommentMarkId])
+
   // Listen for toolbar toggle-comments and comment-new events
   useEffect(() => {
     const toggleHandler = () => setCommentSidebarOpen((v) => !v)
@@ -1062,7 +1070,7 @@ export default function NoteEditorCore({
           noteId={noteId ?? ''}
           editor={editor}
           open={commentSidebarOpen}
-          onClose={() => { setCommentSidebarOpen(false); setPendingCommentMarkId(null) }}
+          onClose={() => setCommentSidebarOpen(false)}
           activeCommentId={activeCommentThreadId}
           onActiveCommentChange={setActiveCommentThreadId}
           pendingMarkId={pendingCommentMarkId}

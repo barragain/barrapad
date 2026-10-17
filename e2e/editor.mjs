@@ -107,6 +107,12 @@ try {
   const formatted = await page.evaluate(() => document.querySelector('.ProseMirror p').innerHTML)
   check(formatted.includes('<strong>') && formatted.includes('<mark'), `bar applies bold and highlight (${formatted.slice(0, 120)})`)
   check(await bar.locator('.tbtn-wrapper', { hasText: 'Comment' }).count() === 0, 'no Comment in the bar for guests')
+  await bar.locator('.tbtn-wrapper', { hasText: 'Link' }).locator('button').click()
+  await page.locator('button[aria-label="Cancel"]').click()
+  await page.waitForTimeout(300)
+  const linkGone = await page.locator('input[placeholder="https://example.com"]').count() === 0
+  const kept = await page.evaluate(() => getSelection().toString())
+  check(linkGone && kept === 'pick this word' && await bar.isVisible(), `link box X cancels and keeps the selection ("${kept}")`)
   await page.keyboard.press('End')
   await page.waitForTimeout(300)
   check(await bar.count() === 0, 'selection bar hides when the selection collapses')

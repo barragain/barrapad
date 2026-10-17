@@ -576,11 +576,7 @@ export default function CommentSidebar({
       // Always re-fetch when sidebar opens so new comments are visible
       fetchComments()
     } else {
-      // Clean up orphaned marks when sidebar closes with an unsaved pending comment
-      if (pendingMarkId && editor) {
-        editor.commands.unsetCommentMark(pendingMarkId)
-        onPendingMarkConsumed?.()
-      }
+      // A pending comment's highlight is dropped by NoteEditorCore when the sidebar closes.
       setLocalActive(null)
       // Remove active highlight from editor
       document.querySelectorAll('.comment-highlight.comment-active').forEach((el) => el.classList.remove('comment-active'))
@@ -806,6 +802,7 @@ export default function CommentSidebar({
         )}
         <button
           onClick={onClose}
+          aria-label="Close comments"
           style={{
             background: 'none', border: 'none', color: 'var(--muted)',
             cursor: 'pointer', padding: 4, borderRadius: 6,

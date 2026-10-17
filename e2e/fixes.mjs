@@ -1,7 +1,8 @@
 // Production smoke test for the fixes that came out of writing docs/spec.md:
 // mention access check, owner id for comment deletes, share links for edit
 // collaborators, collaborator PATCH on a stranger, live downgrade to read-only,
-// no Rename for view-only, refused uploads, Ctrl+K. Usage: node e2e/fixes.mjs
+// no Rename for view-only, refused uploads, Ctrl+K, closing a new comment drops
+// its highlight. Usage: node e2e/fixes.mjs
 import { chromium } from 'playwright'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -89,6 +90,18 @@ try {
     .waitFor({ timeout: 5_000 }).then(() => true).catch(() => false)
   check(linkBox, 'Ctrl+K opens the link box')
   await A.keyboard.press('Escape')
+
+  // A new comment closed with the sidebar's X leaves no highlight behind.
+  await A.keyboard.press('End')
+  await A.keyboard.press('Shift+Home')
+  await A.waitForTimeout(300)
+  await A.locator('[data-selection-bar] .tbtn-wrapper', { hasText: 'Comment' }).locator('button').click()
+  await A.waitForTimeout(500)
+  const marked = await A.locator('.ProseMirror .comment-highlight').count()
+  await A.locator('button[aria-label="Close comments"]').click()
+  await A.waitForTimeout(500)
+  const left = await A.locator('.ProseMirror .comment-highlight').count()
+  check(marked === 1 && left === 0, `closing an unposted comment drops its highlight (before ${marked}, after ${left})`)
 
   let alerted = ''
   A.on('dialog', (d) => { alerted = d.message(); d.dismiss().catch(() => {}) })
