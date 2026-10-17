@@ -15,3 +15,7 @@ A collaborator moved to view only keeps an editable-looking editor for up to 10 
 Signed-in users can read their notes offline but not edit them. Offline editing for accounts would need the local Yjs doc to be kept (y-indexeddb) and merged on reconnect. If someone signs out and goes offline before the next page load, the saved offline page still holds their notes.
 
 The first document request of a cold session spends about 0.4 seconds in Clerk's handshake redirect, and the app ships about 370 KB of script.
+
+DM Mono has no bold weight (Google Fonts serves 300, 400 and 500), so bold text and headings in the default font are thickened by the browser. Switching the body font or the heading font would fix it and is a brand decision.
+
+Highlights made before 2026-10-17 with a dark color (the old picker offered black and saturated colors) are hard to read, because highlighted text is now always drawn dark.

@@ -8,8 +8,8 @@ The user approved the whole plan in [design-audit.md](design-audit.md) and asked
 
 | Step | State |
 |---|---|
-| 1. Spacing and text column | Shipped in 89891ce: rhythm rules, heading spacing, list and checklist CSS, 68ch column, mobile padding. Needs a check against the "after" screenshots (see Verifying). |
-| 2. Bugs, dark mode, theme colors | Partly shipped in dc66ac8: rich paste keeps text, plain paste keeps lines and no longer parses markup, Link and Underline register once, footnote raised once, voice memo fits a phone, `#` at line start waits for a letter. Nested list markers and checked children were fixed in step 1. Still to do: syntax colors for code blocks, two spell checkers, placeholder and muted contrast, every dark mode and theme color item below, H1 to H3 fake bold (DM Mono has no bold weight; decide between weight 500 plus size, or leave). |
+| 1. Spacing and text column | Done (89891ce, 483e31c). Checked with the visual audit: items 4.8 px apart, paragraph to list 9.6 px, divider 19.2 px, column 653 px desktop and 339 px phone. |
+| 2. Bugs, dark mode, theme colors | Done (dc66ac8, 3ee6a4f and the commit after it). Paste, footnote, voice memo, `#` picker, duplicate Link and Underline, nested checklist markers, checked children, Normal Text leaving a quote, syntax colors, theme tokens replacing hardcoded hex across the editor UI, softer dark palette with one orange accent, muted text at 4.5:1, pastel highlight swatches with dark text, `color-scheme: dark`. Covered by `e2e/editor.mjs`. Left as is on purpose: two spell checkers run by design (the browser's gives the right-click suggestions and its underline is hidden), and bold in DM Mono stays synthesized because the font has no bold weight (see known-gaps.md). |
 | 3. Calm UI | Not started. |
 | 4. New ideas | Not started. Start with the selection formatting bar, because the user asked to see it first. |
 

@@ -77,6 +77,8 @@
   --editor-bg: #16161f;
 }
 .dark body { -webkit-font-smoothing: antialiased; }
+/* Native controls (checkboxes, scrollbars) draw dark too. */
+.dark, [data-theme="synthwave"], [data-theme="midnight"] { color-scheme: dark; }
 
 /* Theme: Calm */
 [data-theme="calm"] {
