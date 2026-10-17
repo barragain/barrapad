@@ -92,7 +92,7 @@ export default function NotificationBell({
       <button
         onClick={onToggle}
         className="relative flex items-center p-1.5 rounded-lg transition-colors hover:bg-[var(--hover)]"
-        style={{ color: hasUnread ? 'var(--ink-soft)' : 'var(--muted)' }}
+        style={{ color: hasUnread ? 'var(--ink)' : 'var(--ink-soft)' }}
         title={hasUnread ? `Notifications (${unreadCount} unread)` : 'Notifications'}
         aria-label={hasUnread ? `Notifications, ${unreadCount} unread` : 'Notifications'}
       >

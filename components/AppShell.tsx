@@ -474,7 +474,7 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
               <span
                 key="offline"
                 className="flex items-center gap-1 text-[11px]"
-                style={{ color: 'var(--muted)' }}
+                style={{ color: 'var(--ink-soft)' }}
                 title="Offline. Notes opened on this device before can still be edited, and they sync when you are back online."
               >
                 <CloudOff size={14} />
@@ -488,7 +488,7 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
                 exit={{ opacity: 0, y: -4 }}
                 transition={{ duration: 0.15 }}
                 className="flex items-center gap-1 text-[11px]"
-                style={{ color: 'var(--muted)' }}
+                style={{ color: 'var(--ink-soft)' }}
                 title={notesLoaded ? 'Saving to the cloud' : 'Loading your latest notes (read-only until done)'}
               >
                 <span className="relative inline-flex">
@@ -505,7 +505,7 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.2 }}
                 className="flex items-center gap-1 text-[11px]"
-                style={{ color: 'var(--muted)' }}
+                style={{ color: 'var(--ink-soft)' }}
                 title="All changes saved. Ctrl+S saves right away."
               >
                 <CloudCheck size={14} />
@@ -515,7 +515,7 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
               <span
                 key="local"
                 className="flex items-center gap-1 text-[11px]"
-                style={{ color: 'var(--muted)' }}
+                style={{ color: 'var(--ink-soft)' }}
                 title="Notes are saved in this browser only. Sign up to sync them."
               >
                 <HardDrive size={13} />
@@ -578,7 +578,7 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
               onClick={() => setFocusMode(true)}
               data-hint="focus"
               className="p-1.5 rounded-lg transition-colors hover:bg-[var(--hover)]"
-              style={{ color: 'var(--muted)' }}
+              style={{ color: 'var(--ink-soft)' }}
               title="Focus mode (Ctrl+Shift+F)"
               aria-label="Focus mode"
             >
@@ -591,7 +591,7 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
               data-info-toggle
               onClick={() => window.dispatchEvent(new Event('barrapad:toggle-info'))}
               className="p-1.5 rounded-lg transition-colors hover:bg-[var(--hover)]"
-              style={{ color: 'var(--muted)' }}
+              style={{ color: 'var(--ink-soft)' }}
               title="Note info"
               aria-label="Note info"
             >
@@ -604,7 +604,7 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
               <button
                 onClick={() => setShowExport((v) => !v)}
                 className="flex items-center gap-1.5 px-2.5 py-1.5 text-sm rounded-lg transition-colors hover:bg-[var(--hover)]"
-                style={{ color: 'var(--ink-soft)' }}
+                style={{ color: 'color-mix(in srgb, var(--ink) 82%, var(--editor-bg))' }}
               >
                 <Download size={13} />
                 Export
@@ -655,7 +655,7 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
               href="/sign-up"
               title="Sign up to share notes"
               className="flex items-center gap-1.5 px-2.5 py-1.5 text-sm rounded-lg transition-colors hover:bg-[var(--hover)]"
-              style={{ color: 'var(--ink-soft)' }}
+              style={{ color: 'color-mix(in srgb, var(--ink) 82%, var(--editor-bg))' }}
             >
               <Share2 size={13} />
               Share
@@ -665,7 +665,7 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
             <button
               onClick={() => setShowShare(true)}
               className="flex items-center gap-1.5 px-2.5 py-1.5 text-sm rounded-lg transition-colors hover:bg-[var(--hover)]"
-              style={{ color: 'var(--ink-soft)' }}
+              style={{ color: 'color-mix(in srgb, var(--ink) 82%, var(--editor-bg))' }}
             >
               <Share2 size={13} />
               Share
