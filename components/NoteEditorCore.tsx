@@ -175,14 +175,11 @@ export default function NoteEditorCore({
   // text selection instead of showing the custom context menu.
   const isTouchRef = useRef(false)
   useEffect(() => {
-    const onTouch = () => { isTouchRef.current = true }
-    const onMouse = () => { isTouchRef.current = false }
-    document.addEventListener('touchstart', onTouch, { passive: true })
-    document.addEventListener('mousedown', onMouse, { passive: true })
-    return () => {
-      document.removeEventListener('touchstart', onTouch)
-      document.removeEventListener('mousedown', onMouse)
-    }
+    // pointerType, not touchstart/mousedown: a tap also fires a compatibility
+    // mousedown, which would flip the flag back to mouse.
+    const onPointer = (e: PointerEvent) => { isTouchRef.current = e.pointerType === 'touch' }
+    document.addEventListener('pointerdown', onPointer, { passive: true })
+    return () => document.removeEventListener('pointerdown', onPointer)
   }, [])
 
   // Mobile detection for toolbar collapse
