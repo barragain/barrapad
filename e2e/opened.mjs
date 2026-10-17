@@ -37,7 +37,7 @@ const status = await B.evaluate((id) => fetch(`/api/share/collab-${id}`).then((r
 check(status === 200, `collaborator opens the note (${status})`)
 
 // The owner's tab polls every 10 s.
-await A.locator('button[title="Notifications"]').click()
+await A.locator('button[title^="Notifications"]').click()
 const shown = await A.getByText(new RegExp(`opened "${title}"`)).first()
   .waitFor({ timeout: 25_000 }).then(() => true).catch(() => false)
 check(shown, 'owner sees "opened" notification')
