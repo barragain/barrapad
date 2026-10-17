@@ -2,6 +2,7 @@
 
 import { useEffect, useCallback, useRef, useState } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
+import DragHandle from '@tiptap/extension-drag-handle-react'
 import type { Editor } from '@tiptap/react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useKeyboardInset } from './toolbar/helpers'
@@ -66,6 +67,7 @@ import {
   Tag as TagIcon,
   Wand2,
   MessageSquare,
+  GripVertical,
 } from 'lucide-react'
 import { isCorrectSync, suggestSync, ensureLoaded } from '@/utils/spellcheck'
 import { SpellCheck, SPELL_KEY } from '@/extensions/spell-check'
@@ -1001,6 +1003,12 @@ export default function NoteEditorCore({
             onContextMenu={handleContextMenu}
           >
             <EditorContent editor={editor} className="barrapad-editor-content" />
+            {/* Grip left of the hovered block (list items too) to drag it up or down. Mouse only: touch has no hover. */}
+            {editor && editable && (
+              <DragHandle editor={editor} nested className="block-drag-handle">
+                <GripVertical size={15} />
+              </DragHandle>
+            )}
 
             {/* Hidden file inputs for context-menu "Replace image" / "Upload file" */}
             <input

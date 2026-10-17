@@ -1174,3 +1174,22 @@ body {
 .toolbar-pinned .toolbar::-webkit-scrollbar { display: none; }
 .toolbar-pinned .toolbar > * { flex-shrink: 0; }
 .toolbar-pinned .toolbar-rowbreak { display: none; }
+
+/* Block drag handle (@tiptap/extension-drag-handle-react). The plugin shows
+   and positions it next to the hovered block. */
+.block-drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 24px;
+  margin-right: 4px;
+  border-radius: 5px;
+  color: var(--muted);
+  cursor: grab;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+.block-drag-handle:hover { background: var(--hover); color: var(--accent); }
+.block-drag-handle:active { cursor: grabbing; }
+@media (pointer: coarse) { .block-drag-handle { display: none; } }
+[data-focus-mode] .block-drag-handle { display: none; }

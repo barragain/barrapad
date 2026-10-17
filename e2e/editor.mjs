@@ -211,6 +211,22 @@ try {
   check(colors.dark && colors.code !== 'rgba(0, 0, 0, 0)' && !colors.code.startsWith('rgba(0, 0, 0,'), `dark mode inline code has a background (${colors.code})`)
   check(colors.mark === 'rgb(31, 31, 31)', `dark mode highlight keeps dark text (${colors.mark})`)
 
+  // Block drag handle: hovering a block shows the grip, dragging it moves the block.
+  {
+    const dp = await open()
+    await dp.keyboard.type('Alpha'); await dp.keyboard.press('Enter'); await dp.keyboard.type('Bravo'); await dp.keyboard.press('Enter'); await dp.keyboard.type('Charlie')
+    const ch = await dp.locator('.ProseMirror p', { hasText: 'Charlie' }).boundingBox()
+    await dp.mouse.move(ch.x + 20, ch.y + ch.height / 2)
+    await dp.waitForTimeout(400)
+    const grip = dp.locator('.block-drag-handle')
+    const shown = await grip.isVisible()
+    await grip.dragTo(dp.locator('.ProseMirror p', { hasText: 'Alpha' }), { targetPosition: { x: 20, y: 2 } })
+    await dp.waitForTimeout(400)
+    const order = await dp.evaluate(() => [...document.querySelectorAll('.ProseMirror > p')].map((e) => e.textContent).join(','))
+    check(shown && order === 'Charlie,Alpha,Bravo', `drag handle moves a block (grip ${shown}, order ${order})`)
+    await dp.context().close()
+  }
+
   // Dark mode: the Appearance panel's unselected buttons use light text.
   await dark.click('[data-hint="settings"]')
   await dark.waitForTimeout(400)

@@ -190,11 +190,12 @@ The cheapest wins with the most effect are 1, 3, 4 and 5.
 | 4 | Mobile toolbar pinned above the keyboard | M | `visualViewport` resize and scroll; test on a real iPhone. Craft, Apple Notes. |
 | 5 | Command palette | M | `cmdk` with notes, tags and actions. Ctrl+K is the link shortcut now, so use another key such as Ctrl+P or Ctrl+/. |
 | 6 | Presence avatars that jump to a collaborator's caret | S to M | Figma follow, Google Docs. The room already has caret positions. |
-| 7 | Collapsible headings | S to M | Apple Notes since iOS 18. Fold state per person, not shared. |
+| 7 | Collapsible headings | S to M | Dropped by the user on 2026-10-17. |
 | 8 | Focus and typewriter mode | S | iA Writer. They advise it for drafting only. |
 | 9 | A first note that teaches by example | S | Kept in localStorage for guests. Craft, Notion, Bear. |
-| 10 | Block drag handle | M | `@tiptap/extension-drag-handle-react` (MIT). The ready-made menu is a paid Tiptap plan. |
+| 10 | Block drag handle | M | Done with `@tiptap/extension-drag-handle-react` (MIT), desktop only. The ready-made menu is a paid Tiptap plan. The old table-only handle still sits over the first cell. |
 | 11 | Replace the spell checker | M | Asked for by the user on 2026-10-17. The current nspell check (`utils/spellcheck`, `extensions/spell-check.ts`) is not accurate: it flags real words and its suggestions are poor. Replace it fully, but keep the look and flow of the custom right-click menu, where suggestions sit at the top when you right-click a misspelled word. Options to research: a better Hunspell dictionary set (en_US plus en_GB, a larger word list), a WASM Hunspell or SymSpell build for suggestions, LanguageTool (self-hosted or API, which also checks grammar), or letting the browser decide which words are wrong and only drawing our own menu. A user dictionary ("Add to dictionary") belongs with it. |
+| 12 | Import a file | S to M | Asked for by the user on 2026-10-17. An upload icon in the top bar turns a .md, .txt, .docx or .html file into a new note with its formatting kept, and gets a "Click here" hint like New note and Focus mode. |
 
 Skipped on purpose: Bear-style syntax shown at the cursor (bpad is rich text), and AI writing features (no AI in the app). The research could not confirm a Notion 2026 page redesign beyond a third-party post.
 
