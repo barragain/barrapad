@@ -73,10 +73,6 @@ await page.getByText(marker).first().click({ timeout: 10_000 })
 await sleep(5_000)
 await page.unroute('**/api/notes')
 check(createdId && (await editor().textContent()).includes(marker), 'switching away during note creation stays on the picked note')
-if (createdId) await page.evaluate((id) => fetch(`/api/notes/${id}`, { method: 'DELETE' }), createdId)
-
-if (s.id) await page.evaluate((id) => fetch(`/api/notes/${id}`, { method: 'DELETE' }), s.id)
-
 // Switching notes: the sheet stays put while the note loads (it used to sit
 // one toolbar row higher until the note turned editable, then jump down).
 {
@@ -96,6 +92,10 @@ if (s.id) await page.evaluate((id) => fetch(`/api/notes/${id}`, { method: 'DELET
   const spread = tops ? Math.max(...tops) - Math.min(...tops) : -1
   check(tops && spread <= 2, `the sheet does not jump when switching notes (tops ${tops ? [...new Set(tops)].join(',') : 'no rows'})`)
 }
+
+if (createdId) await page.evaluate((id) => fetch(`/api/notes/${id}`, { method: 'DELETE' }), createdId)
+
+if (s.id) await page.evaluate((id) => fetch(`/api/notes/${id}`, { method: 'DELETE' }), s.id)
 
 // Import while signed in: the new note and its formatting reach the database.
 const imp = `imp-${Date.now().toString(36)}`
