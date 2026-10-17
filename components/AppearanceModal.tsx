@@ -53,7 +53,7 @@ export default function AppearanceModal({ settings, onChange, onClose }: Appeara
         <div className="p-5 space-y-5 overflow-y-auto flex-1">
           {/* Mode */}
           <div>
-            <label className="text-xs font-medium text-[#C4BFB6] uppercase tracking-wider mb-2 block">Mode</label>
+            <label className="text-xs font-medium text-[var(--muted)] uppercase tracking-wider mb-2 block">Mode</label>
             <div className="flex gap-2">
               {(['light', 'dark', 'system'] as const).map((m) => (
                 <button
@@ -62,7 +62,7 @@ export default function AppearanceModal({ settings, onChange, onClose }: Appeara
                   className={`flex-1 py-2 rounded-lg text-sm border transition-colors capitalize ${
                     settings.mode === m
                       ? 'border-[#D4550A] bg-[#D4550A]/10 text-[#D4550A]'
-                      : 'border-[#E5E0D8] hover:bg-[#F5F2ED] text-[#1A1A1A]'
+                      : 'border-[var(--border)] hover:bg-[var(--hover)] text-[var(--ink)]'
                   }`}
                 >
                   {m}
@@ -73,7 +73,7 @@ export default function AppearanceModal({ settings, onChange, onClose }: Appeara
 
           {/* Font */}
           <div>
-            <label className="text-xs font-medium text-[#C4BFB6] uppercase tracking-wider mb-2 block">Font</label>
+            <label className="text-xs font-medium text-[var(--muted)] uppercase tracking-wider mb-2 block">Font</label>
             <div className="flex gap-2">
               {FONTS.map((f) => (
                 <button
@@ -82,13 +82,13 @@ export default function AppearanceModal({ settings, onChange, onClose }: Appeara
                   className={`flex-1 py-3 rounded-lg border flex flex-col items-center gap-1 transition-colors ${
                     settings.font === f.id
                       ? 'border-[#D4550A] bg-[#D4550A]/10'
-                      : 'border-[#E5E0D8] hover:bg-[#F5F2ED]'
+                      : 'border-[var(--border)] hover:bg-[var(--hover)]'
                   }`}
                 >
-                  <span style={{ fontFamily: f.style }} className="text-lg font-semibold text-[#1A1A1A]">
+                  <span style={{ fontFamily: f.style }} className="text-lg font-semibold text-[var(--ink)]">
                     {f.preview}
                   </span>
-                  <span className="text-xs text-[#C4BFB6]">{f.label}</span>
+                  <span className="text-xs text-[var(--muted)]">{f.label}</span>
                 </button>
               ))}
             </div>
@@ -96,21 +96,21 @@ export default function AppearanceModal({ settings, onChange, onClose }: Appeara
 
           {/* Zoom */}
           <div>
-            <label className="text-xs font-medium text-[#C4BFB6] uppercase tracking-wider mb-2 block">Zoom</label>
+            <label className="text-xs font-medium text-[var(--muted)] uppercase tracking-wider mb-2 block">Zoom</label>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => {
                   const idx = ZOOM_OPTIONS.indexOf(settings.zoom)
                   if (idx > 0) update({ zoom: ZOOM_OPTIONS[idx - 1] })
                 }}
-                className="p-1.5 rounded border border-[#E5E0D8] hover:bg-[#F5F2ED] transition-colors"
+                className="p-1.5 rounded border border-[var(--border)] hover:bg-[var(--hover)] transition-colors text-[var(--ink)]"
               >
                 <Minus size={14} />
               </button>
               <select
                 value={settings.zoom}
                 onChange={(e) => update({ zoom: Number(e.target.value) })}
-                className="flex-1 py-2 px-3 text-sm border border-[#E5E0D8] rounded-lg bg-white text-[#1A1A1A]"
+                className="flex-1 py-2 px-3 text-sm border border-[var(--border)] rounded-lg bg-[var(--editor-bg)] text-[var(--ink)]"
               >
                 {ZOOM_OPTIONS.map((z) => (
                   <option key={z} value={z}>{z}px</option>
@@ -121,13 +121,13 @@ export default function AppearanceModal({ settings, onChange, onClose }: Appeara
                   const idx = ZOOM_OPTIONS.indexOf(settings.zoom)
                   if (idx < ZOOM_OPTIONS.length - 1) update({ zoom: ZOOM_OPTIONS[idx + 1] })
                 }}
-                className="p-1.5 rounded border border-[#E5E0D8] hover:bg-[#F5F2ED] transition-colors"
+                className="p-1.5 rounded border border-[var(--border)] hover:bg-[var(--hover)] transition-colors text-[var(--ink)]"
               >
                 <Plus size={14} />
               </button>
               <button
                 onClick={() => update({ zoom: 16 })}
-                className="p-1.5 rounded border border-[#E5E0D8] hover:bg-[#F5F2ED] transition-colors"
+                className="p-1.5 rounded border border-[var(--border)] hover:bg-[var(--hover)] transition-colors text-[var(--ink)]"
                 title="Reset"
               >
                 <RotateCcw size={14} />
@@ -137,7 +137,7 @@ export default function AppearanceModal({ settings, onChange, onClose }: Appeara
 
           {/* Themes */}
           <div>
-            <label className="text-xs font-medium text-[#C4BFB6] uppercase tracking-wider mb-2 block">Theme</label>
+            <label className="text-xs font-medium text-[var(--muted)] uppercase tracking-wider mb-2 block">Theme</label>
             <div className="grid grid-cols-2 gap-2">
               {THEMES.map((t) => (
                 <button
@@ -159,8 +159,8 @@ export default function AppearanceModal({ settings, onChange, onClose }: Appeara
                   <div
                     className="text-xs py-1 text-center font-medium"
                     style={{
-                      background: settings.theme === t.id ? '#D4550A' : '#F5F2ED',
-                      color: settings.theme === t.id ? '#fff' : '#1A1A1A',
+                      background: settings.theme === t.id ? '#D4550A' : 'var(--hover)',
+                      color: settings.theme === t.id ? '#fff' : 'var(--ink)',
                     }}
                   >
                     {t.label}

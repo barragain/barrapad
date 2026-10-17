@@ -210,6 +210,35 @@ try {
   })
   check(colors.dark && colors.code !== 'rgba(0, 0, 0, 0)' && !colors.code.startsWith('rgba(0, 0, 0,'), `dark mode inline code has a background (${colors.code})`)
   check(colors.mark === 'rgb(31, 31, 31)', `dark mode highlight keeps dark text (${colors.mark})`)
+
+  // Dark mode: the Appearance panel's unselected buttons use light text.
+  await dark.click('[data-hint="settings"]')
+  await dark.waitForTimeout(400)
+  const light = await dark.evaluate(() => {
+    const b = [...document.querySelectorAll('.appearance-sheet button')].find((e) => e.textContent.trim() === 'light')
+    return getComputedStyle(b).color
+  })
+  const lum = light.match(/\d+/g).slice(0, 3).reduce((a, v) => a + Number(v), 0) / 3
+  check(lum > 150, `dark mode Appearance buttons are readable (${light})`)
+  await dark.context().close()
+
+  // Button hints: "Click here" labels on the first 3 visits (one browser tab
+  // each), gone on the 4th, and a label stops once its button is clicked.
+  const hc = await browser.newContext({ viewport: { width: 1400, height: 900 } })
+  const seen = []
+  for (let v = 1; v <= 4; v++) {
+    const p = await hc.newPage()
+    await p.goto(BASE + '/', { waitUntil: 'domcontentloaded' })
+    await p.waitForTimeout(5_000)
+    seen.push((await p.locator('[data-button-hint]').evaluateAll((es) => es.map((e) => e.dataset.buttonHint))).join('+') || 'none')
+    if (v === 1) {
+      await p.click('[data-hint="focus"]')
+      await p.keyboard.press('Escape')
+    }
+    await p.close()
+  }
+  check(seen[0] === 'new-note+focus+settings' && seen[1] === 'new-note+settings' && seen[2] === seen[1] && seen[3] === 'none', `button hints show 3 visits, drop once clicked (${seen.join(' | ')})`)
+  await hc.close()
 } finally {
   await browser.close()
 }

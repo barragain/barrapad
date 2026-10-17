@@ -14,6 +14,7 @@ import OnboardingModal from './OnboardingModal'
 import NotificationBell from './NotificationBell'
 import AccessDeniedView from './AccessDeniedView'
 import CommandPalette, { type PaletteAction } from './CommandPalette'
+import ButtonHints from './ButtonHints'
 import type { Note, AppearanceSettings, SharedAccessRecord, CollabNotification } from '@/types'
 
 import { useNotifications, loadKnownShared } from '@/hooks/useNotifications'
@@ -455,6 +456,7 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
             className="md:hidden p-1.5 rounded-lg hover:bg-black/5 transition-colors flex-shrink-0"
             style={{ color: 'var(--ink)' }}
             onClick={() => setSidebarOpen(true)}
+            data-hint="menu"
             aria-label="Open notes"
           >
             <Menu size={18} />
@@ -574,6 +576,7 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
               // Keep the caret in the editor so dimming starts at once.
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => setFocusMode(true)}
+              data-hint="focus"
               className="p-1.5 rounded-lg transition-colors hover:bg-[var(--hover)]"
               style={{ color: 'var(--muted)' }}
               title="Focus mode (Ctrl+Shift+F)"
@@ -778,6 +781,7 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
 
       {/* Onboarding — collect name on first sign-up */}
       {needsOnboarding && <OnboardingModal />}
+      {isLoaded && notesLoaded && activeNote && !needsOnboarding && <ButtonHints />}
 
       {/* Modals */}
       {showShare && activeNote && (

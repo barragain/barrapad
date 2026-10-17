@@ -176,6 +176,7 @@ export default function Sidebar({
       <div className="flex items-center justify-between px-3 pt-4 pb-2">
         <img src="/logo.svg" alt="bpad" className="h-9 w-auto" />
         <button
+          data-hint="new-note"
           onClick={onNewNote}
           className="p-1.5 rounded hover:bg-black/5 transition-colors text-[var(--ink-soft)]"
           title="New note"
@@ -581,6 +582,7 @@ export default function Sidebar({
             />
           )}
           <button
+            data-hint="settings"
             onClick={onOpenSettings}
             className="p-1.5 rounded hover:bg-black/5 transition-colors text-[var(--ink-soft)]"
             title="Settings"
