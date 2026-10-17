@@ -54,7 +54,7 @@ Cost: Durable Objects are on the Workers free plan (SQLite backed classes). Curr
 
 ## Behaviour notes
 
-- Rooms do not hibernate. Cursor state is kept in memory per room, as before. If idle rooms become a cost problem, enable `static options = { hibernate: true }` and move `cursors` into `connection.state`.
+- Both room classes hibernate (`static options = { hibernate: true }`, 2026-10-18). Without it every open tab kept its Durable Object awake and the account hit 90% of the free daily duration limit. y-partyserver keeps awareness ids in `connection.state`, so presence survives a wake-up; the Y doc reloads from storage in `onLoad`.
 - Room storage (content, title, deleted flag) is per Durable Object. Old PartyKit room storage is not migrated; the first client to open a note after cutover seeds the room from the database via its normal autosave path. Notes that were deleted before cutover will not carry the `deleted` flag, but the API returns 404 for them and the client's 404 polling already handles that.
 - Argument order differs in one place: PartyServer calls `onMessage(connection, message)`, PartyKit called `onMessage(message, sender)`. The port handles it.
 - The rooms still accept any connection. Anyone with a note id can join its room. That was true on PartyKit too; see the action list for the fix (verify the Clerk session in `onBeforeConnect`).

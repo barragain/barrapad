@@ -619,42 +619,9 @@ body {
   -webkit-touch-callout: default;
 }
 
-/* ── Table drag & resize ───────────────────────────────────────────────── */
+/* ── Table resize ──────────────────────────────────────────────────────── */
 .tableWrapper {
   position: relative;
-}
-
-.table-drag-handle {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 20px;
-  height: 20px;
-  background: var(--editor-bg);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  cursor: grab;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  transition: opacity 0.15s, background 0.15s;
-  z-index: 21;
-  color: var(--muted);
-}
-
-.table-drag-handle:hover {
-  background: var(--sidebar-bg);
-  color: var(--accent);
-}
-
-.table-drag-handle:active {
-  cursor: grabbing;
-}
-
-/* Show handle on table hover */
-.tableWrapper:hover > .table-drag-handle {
-  opacity: 1;
 }
 
 /* Style the column resize handle */

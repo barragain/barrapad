@@ -113,6 +113,37 @@ try {
   const attached = await A.locator('.ProseMirror').getByText('page.html').count()
   check(/isn't allowed/.test(alerted) && attached === 0 && uploads.length === 0,
     `HTML upload refused with a message, nothing embedded (alert "${alerted}", attached ${attached})`)
+
+  // "Delete note for everyone" asks first and says what it does.
+  const doomed = (await call(A, 'POST', '/api/notes', { title: `doomed-${stamp}`, content: `<p>doomed-${stamp}</p>` })).json
+  made.push(doomed.id)
+  await call(A, 'POST', `/api/notes/${doomed.id}/collaborators`, { targetUserId: bId, permission: 'EDIT' })
+  await call(B, 'GET', `/api/share/collab-${doomed.id}`)
+  await B.reload({ waitUntil: 'domcontentloaded' })
+  await B.waitForTimeout(4_000)
+  const doomedItem = B.getByText(`doomed-${stamp}`).first()
+  await doomedItem.waitFor({ timeout: 20_000 })
+  const askDelete = async () => {
+    await doomedItem.click({ button: 'right' })
+    await B.getByText('Delete note for everyone', { exact: true }).click()
+    return B.locator('[data-testid="confirm-shared-delete"]')
+  }
+  let dialog = await askDelete()
+  const text = await dialog.innerText().catch(() => '')
+  check(/can.t be undone/.test(text) && text.includes(`doomed-${stamp}`) && /notification/.test(text),
+    'delete for everyone opens a confirm that names the note and what happens')
+  await dialog.getByText('Cancel', { exact: true }).click()
+  await B.waitForTimeout(1_500)
+  const kept = await call(A, 'GET', `/api/notes/${doomed.id}`)
+  check(kept.status === 200, `Cancel keeps the owner's note (${kept.status})`)
+  dialog = await askDelete()
+  await dialog.getByText('Delete for everyone', { exact: true }).click()
+  let gone = 0
+  for (let i = 0; i < 20 && gone !== 404; i++) {
+    await B.waitForTimeout(500)
+    gone = (await call(A, 'GET', `/api/notes/${doomed.id}`)).status
+  }
+  check(gone === 404, `confirming deletes the owner's note (${gone})`)
 } finally {
   for (const id of made) await call(A, 'DELETE', `/api/notes/${id}`).catch(() => {})
   await browser.close()

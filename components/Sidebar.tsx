@@ -69,6 +69,8 @@ export default function Sidebar({
   const [renameValue, setRenameValue] = useState('')
   const [renamingSharedToken, setRenamingSharedToken] = useState<string | null>(null)
   const [renameSharedValue, setRenameSharedValue] = useState('')
+  // "Delete note for everyone" deletes someone else's note, so it asks first.
+  const [confirmSharedDelete, setConfirmSharedDelete] = useState<{ noteId: string; token: string; title: string; owner: string } | null>(null)
   // Tag context menu + inline editing
   const [tagCtx, setTagCtx] = useState<{ tag: Tag; x: number; y: number } | null>(null)
   const tagCtxRef = useRef<HTMLDivElement>(null)
@@ -497,7 +499,12 @@ export default function Sidebar({
                 label: 'Delete note for everyone',
                 danger: true,
                 onClick: () => {
-                  onDeleteSharedNote(sharedContextMenu.noteId, sharedContextMenu.token)
+                  setConfirmSharedDelete({
+                    noteId: sharedContextMenu.noteId,
+                    token: sharedContextMenu.token,
+                    title: record?.noteTitle || 'Untitled',
+                    owner: record?.ownerName || 'the owner',
+                  })
                   setSharedContextMenu(null)
                 },
               }, { type: 'separator' as const }] : []),
@@ -515,6 +522,54 @@ export default function Sidebar({
           />
         )
       })()}
+
+      {confirmSharedDelete && (
+        <div
+          className="modal-backdrop"
+          style={{ zIndex: 200, alignItems: 'center' }}
+          onMouseDown={(e) => { if (e.target === e.currentTarget) setConfirmSharedDelete(null) }}
+          onKeyDown={(e) => { if (e.key === 'Escape') setConfirmSharedDelete(null) }}
+        >
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="confirm-shared-delete-title"
+            data-testid="confirm-shared-delete"
+            className="rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6 flex flex-col gap-4"
+            style={{ background: 'var(--editor-bg)', border: '1px solid var(--border)' }}
+          >
+            <h2 id="confirm-shared-delete-title" className="text-base font-semibold" style={{ color: 'var(--ink)' }}>
+              Delete this note for everyone?
+            </h2>
+            <p className="text-sm" style={{ color: 'var(--muted)', lineHeight: 1.55 }}>
+              &ldquo;{confirmSharedDelete.title}&rdquo; belongs to {confirmSharedDelete.owner}. Deleting it removes it from {confirmSharedDelete.owner}&rsquo;s notes and from everyone it&rsquo;s shared with, along with its comments and share links. Anyone who has it open sees that it was deleted, and {confirmSharedDelete.owner} gets a notification. This can&rsquo;t be undone.
+            </p>
+            <p className="text-sm" style={{ color: 'var(--muted)', lineHeight: 1.55 }}>
+              To only take it off your own list, use Remove from my list instead.
+            </p>
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                autoFocus
+                onClick={() => setConfirmSharedDelete(null)}
+                className="px-4 py-2 rounded-xl text-sm font-medium"
+                style={{ color: 'var(--ink)', background: 'var(--hover)' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  onDeleteSharedNote(confirmSharedDelete.noteId, confirmSharedDelete.token)
+                  setConfirmSharedDelete(null)
+                }}
+                className="px-4 py-2 rounded-xl text-sm font-semibold text-white"
+                style={{ background: '#ef4444' }}
+              >
+                Delete for everyone
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {contextMenu && (
         <ContextMenu

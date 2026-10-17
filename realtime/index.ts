@@ -17,6 +17,10 @@ function allowedPush(request: Request, env: Env) {
 
 // Notification rooms: API routes POST, the room relays to the user's tabs.
 export class NoteParty extends Server<Env> {
+  // Hibernation: an idle open socket doesn't keep the Durable Object awake
+  // (and billed). Without it, every open tab cost duration all day long.
+  static options = { hibernate: true }
+
   async onRequest(request: Request) {
     if (request.method !== 'POST') return new Response('ok')
     if (!allowedPush(request, this.env)) return new Response('Forbidden', { status: 403 })
@@ -46,8 +50,10 @@ type ClientMessage =
   | { type: 'comment-update'; noteId: string }
 
 export class NoteYParty extends YServer<Env> {
+  static options = { hibernate: true }
   static callbackOptions = { debounceWait: 1_000, debounceMaxWait: 5_000 }
-  // In memory only: a seed that never finishes (tab closed) frees itself.
+  // In memory only (lost when the room hibernates, which is fine): a seed
+  // that never finishes (tab closed) frees itself.
   private seeding: { id: string; until: number } | null = null
 
   async onLoad() {

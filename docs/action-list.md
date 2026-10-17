@@ -28,6 +28,8 @@ Follow `docs/partykit-migration.md`. Worker code and config are in `realtime/`; 
 
 ## 4. Security (do before telling anyone about the app)
 
+Done on 2026-10-16 and checked live on 2026-10-18: sockets need an HMAC room ticket from `/api/realtime/ticket` (READ or WRITE, 10 minutes), room pushes need `x-realtime-secret`, and uploads are checked server side. The original notes follow.
+
 1. Rooms have no auth. Anyone with a note id can connect to its room, read the full content and push updates; anyone with a user id can listen to `notif-<userId>` and POST fake notifications. Fix in the new Worker: pass the Clerk session token as a query param from `partysocket`, verify it in `onBeforeConnect` and `onBeforeRequest` (Clerk's `verifyToken` works in Workers), and check the note's owner, collaborators and share links through a small internal API route (`/api/notes/[id]/access` exists already).
 2. The HTTP POST hooks into rooms (title, delete, notification push) should require a shared secret header set on both Vercel and the Worker.
 3. `app/api/upload/route.ts`: check file size and type server side, not only in the browser.

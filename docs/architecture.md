@@ -22,7 +22,7 @@ Polling covers what the rooms do not: the open note every 5 seconds (three 404s 
 
 ## Realtime rooms
 
-Each note has one room named by its id, at `/parties/note-y/<note>` on the Worker (`NoteYParty` in `realtime/index.ts`, a `YServer` from y-partyserver on Durable Objects). Each user also has a notification room at `/parties/main/notif-<userId>` (`NoteParty`). Guest notes have no room.
+Each note has one room named by its id, at `/parties/note-y/<note>` on the Worker (`NoteYParty` in `realtime/index.ts`, a `YServer` from y-partyserver on Durable Objects). Each user also has a notification room at `/parties/main/notif-<userId>` (`NoteParty`). Guest notes have no room. Both room classes hibernate, so an idle open socket does not keep its Durable Object running (and billed); a wake-up reloads the Y doc from storage and y-partyserver keeps awareness ids in the connection state.
 
 The note's content lives in the room as a Yjs doc, and Tiptap's Collaboration and CollaborationCaret extensions bind the editor to it, so two people typing in the same paragraph at the same moment both keep their text. Carets and the share page's presence avatars come from Yjs awareness. Everything else travels as custom messages on the same socket:
 
