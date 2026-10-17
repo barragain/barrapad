@@ -134,8 +134,8 @@ export default function SharedNoteView({ token, noteId, initialContent, initialT
       {/* ── Top bar ── */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '10px 20px', borderBottom: '1px solid #E5E0D8',
-        background: '#F9F7F4', position: 'sticky', top: 0, zIndex: 30,
+        padding: '10px 20px', borderBottom: '1px solid var(--border)',
+        background: 'var(--editor-bg)', position: 'sticky', top: 0, zIndex: 30,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <a href="/" style={{ textDecoration: 'none' }}>
@@ -144,9 +144,9 @@ export default function SharedNoteView({ token, noteId, initialContent, initialT
           {isLoaded && isSignedIn && (
             <a href="/" style={{
               display: 'flex', alignItems: 'center', gap: 5,
-              fontSize: 12, color: '#8A8178', textDecoration: 'none',
+              fontSize: 12, color: 'var(--muted)', textDecoration: 'none',
               padding: '4px 10px', borderRadius: 8,
-              border: '1px solid #E5E0D8', background: '#F5F2ED',
+              border: '1px solid var(--border)', background: 'var(--hover)',
             }}>
               ← My notes
             </a>
@@ -168,7 +168,7 @@ export default function SharedNoteView({ token, noteId, initialContent, initialT
                     width: 26, height: 26, borderRadius: '50%',
                     background: p.color, color: '#fff',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 10, fontWeight: 700, border: '2px solid #F9F7F4',
+                    fontSize: 10, fontWeight: 700, border: '2px solid var(--editor-bg)',
                   }}>
                     {p.name.charAt(0).toUpperCase()}
                   </div>
@@ -178,21 +178,21 @@ export default function SharedNoteView({ token, noteId, initialContent, initialT
             <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
               <div style={{
                 width: 7, height: 7, borderRadius: '50%',
-                background: connected ? '#22c55e' : '#C4BFB6',
+                background: connected ? '#22c55e' : 'var(--muted)',
                 transition: 'background 0.3s',
               }} />
-              <span style={{ fontSize: 12, color: '#8A8178' }}>
+              <span style={{ fontSize: 12, color: 'var(--muted)' }}>
                 {connected ? `${connections} online` : 'Connecting…'}
               </span>
             </div>
           </div>
 
-          <span style={{ fontSize: 12, color: '#C4BFB6' }}>Updated {formattedDate}</span>
+          <span style={{ fontSize: 12, color: 'var(--muted)' }}>Updated {formattedDate}</span>
 
           <span style={{
             fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 6,
-            background: permission === 'EDIT' ? '#D4550A1A' : '#F5F0E8',
-            color: permission === 'EDIT' ? '#D4550A' : '#8A8178',
+            background: permission === 'EDIT' ? 'var(--accent-soft)' : 'var(--hover)',
+            color: permission === 'EDIT' ? 'var(--accent-ink)' : 'var(--muted)',
             textTransform: 'uppercase', letterSpacing: '0.05em',
           }}>
             {permission === 'EDIT' ? 'Can edit' : 'View only'}
@@ -202,9 +202,9 @@ export default function SharedNoteView({ token, noteId, initialContent, initialT
             data-info-toggle
             onClick={() => window.dispatchEvent(new Event('barrapad:toggle-info'))}
             className="p-2 rounded-xl transition-all"
-            style={{ color: '#8A8178', opacity: 0.8, cursor: 'pointer', background: 'none', border: 'none' }}
-            onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.color = '#B8420A' }}
-            onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.8'; e.currentTarget.style.color = '#8A8178' }}
+            style={{ color: 'var(--muted)', opacity: 0.8, cursor: 'pointer', background: 'none', border: 'none' }}
+            onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.color = 'var(--accent-ink)' }}
+            onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.8'; e.currentTarget.style.color = 'var(--muted)' }}
             title="Note info"
           >
             <Info size={22} />
@@ -219,9 +219,9 @@ export default function SharedNoteView({ token, noteId, initialContent, initialT
               setShowAbout(true)
             }}
             className="p-2 rounded-xl transition-all"
-            style={{ color: '#8A8178', opacity: 0.8, cursor: 'pointer', background: 'none', border: 'none' }}
-            onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.color = '#B8420A' }}
-            onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.8'; e.currentTarget.style.color = '#8A8178' }}
+            style={{ color: 'var(--muted)', opacity: 0.8, cursor: 'pointer', background: 'none', border: 'none' }}
+            onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.color = 'var(--accent-ink)' }}
+            onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.8'; e.currentTarget.style.color = 'var(--muted)' }}
             title="About bpad"
           >
             <HelpCircle size={22} />
@@ -230,9 +230,9 @@ export default function SharedNoteView({ token, noteId, initialContent, initialT
           <button
             onClick={() => setShowAppearance(true)}
             className="p-2 rounded-xl transition-all"
-            style={{ color: '#8A8178', opacity: 0.8, cursor: 'pointer', background: 'none', border: 'none' }}
-            onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.color = '#B8420A' }}
-            onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.8'; e.currentTarget.style.color = '#8A8178' }}
+            style={{ color: 'var(--muted)', opacity: 0.8, cursor: 'pointer', background: 'none', border: 'none' }}
+            onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.color = 'var(--accent-ink)' }}
+            onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.8'; e.currentTarget.style.color = 'var(--muted)' }}
             title="Appearance"
           >
             <Settings size={22} />
