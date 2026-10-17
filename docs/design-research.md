@@ -194,10 +194,11 @@ The cheapest wins with the most effect are 1, 3, 4 and 5.
 | 8 | Focus and typewriter mode | S | iA Writer. They advise it for drafting only. |
 | 9 | A first note that teaches by example | S | Kept in localStorage for guests. Craft, Notion, Bear. |
 | 10 | Block drag handle | M | `@tiptap/extension-drag-handle-react` (MIT). The ready-made menu is a paid Tiptap plan. |
+| 11 | Replace the spell checker | M | Asked for by the user on 2026-10-17. The current nspell check (`utils/spellcheck`, `extensions/spell-check.ts`) is not accurate: it flags real words and its suggestions are poor. Replace it fully, but keep the look and flow of the custom right-click menu, where suggestions sit at the top when you right-click a misspelled word. Options to research: a better Hunspell dictionary set (en_US plus en_GB, a larger word list), a WASM Hunspell or SymSpell build for suggestions, LanguageTool (self-hosted or API, which also checks grammar), or letting the browser decide which words are wrong and only drawing our own menu. A user dictionary ("Add to dictionary") belongs with it. |
 
 Skipped on purpose: Bear-style syntax shown at the cursor (barraPAD is rich text), and AI writing features (no AI in the app). The research could not confirm a Notion 2026 page redesign beyond a third-party post.
 
-Suggested order inside step 4: selection bar first (user request), then the quiet save status, the slash menu, the first note for guests, focus mode, the mobile keyboard toolbar, presence avatars, the command palette, collapsible headings, and the drag handle.
+Suggested order inside step 4: selection bar first (user request), then the quiet save status, the slash menu, the first note for guests, focus mode, the mobile keyboard toolbar, presence avatars, the command palette, collapsible headings, the drag handle, and the spell checker replacement.
 
 ## Sources
 

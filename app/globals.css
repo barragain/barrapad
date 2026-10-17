@@ -789,32 +789,12 @@ body {
   to { transform: translateY(0); opacity: 1; }
 }
 
-/* Animated gradient border around the editor text column */
-@property --bp {
-  syntax: '<angle>';
-  inherits: false;
-  initial-value: 0deg;
-}
-
+/* Quiet frame around the editor text column: neutral, about 8% ink.
+   Phones drop the frame entirely (see .barrapad-card below). */
 .editor-anim-border {
   position: relative;
   border-radius: 12px;
-  padding: 1.5px;
-  background: conic-gradient(
-    from var(--bp),
-    var(--border)   0%,
-    var(--border)  25%,
-    var(--accent)  38%,
-    var(--border)  50%,
-    var(--muted)   62%,
-    var(--accent)  78%,
-    var(--border) 100%
-  );
-  animation: border-spin 14s linear infinite;
-}
-
-@keyframes border-spin {
-  to { --bp: 360deg; }
+  border: 1px solid color-mix(in srgb, var(--ink) 8%, transparent);
 }
 
 /* Sidebar styles */
@@ -1116,15 +1096,15 @@ body {
   --pad: 3rem;
   font-family: var(--editor-font);
   font-size: var(--editor-size);
-  max-width: calc(68ch + 2 * var(--pad) + 3px);
+  max-width: calc(68ch + 2 * var(--pad) + 2px);
   margin: 0 auto;
   position: relative;
 }
 .barrapad-card .barrapad-editor-content { padding: 2rem var(--pad); min-height: 70vh; }
 @media (max-width: 1024px) { .barrapad-card { --pad: 2rem; } }
 @media (max-width: 640px) {
-  .barrapad-scroll { padding: 1rem 0.5rem 4rem; }
-  .barrapad-card { --pad: 1rem; }
+  .barrapad-scroll { padding: 0.5rem 0 4rem; }
+  .barrapad-card { --pad: 16px; border: none; }
   .barrapad-card .barrapad-editor-content { padding-top: 1.25rem; }
 }
 
@@ -1154,3 +1134,12 @@ body {
 .ProseMirror pre :is(.hljs-meta, .hljs-tag, .hljs-attr, .hljs-params) { color: color-mix(in srgb, #7c3aed 65%, var(--ink)); }
 .ProseMirror pre .hljs-deletion { color: color-mix(in srgb, #dc2626 75%, var(--ink)); }
 .ProseMirror pre { font-size: 0.9em; line-height: 1.55; }
+
+/* Calm UI (docs/design-audit.md step 3): honor the system's reduced motion setting. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -40,17 +40,17 @@ Shared notes never take their title from their content. Their title only changes
 
 **Deleting** an owned note is done with the trash icon on its sidebar row or "Delete" in its right-click menu. There is no confirmation. The note disappears from the list at once, the server deletes it with its share links, collaborators, comments and access requests (database cascades), and every open tab on that note gets a `delete` message and shows "This note has been deleted" with a "Remove from my view" button. If the network request throws, the note comes back.
 
-The bottom strip has an X button ("Close note") that clears the editor and shows "No note selected" with a "Create a note" button.
+When no note is open (for example after deleting the last one), the editor area shows "No note selected" with a "Create a note" button.
 
 ### 2.2 Saving, sync and the save indicator
 
-Every change is written to the local copy at once (localStorage `barrapad_notes` for an account, `bpad_guest_notes` for a guest) and, for an account, sent live to the note's room through Yjs. After one second without typing, the note's HTML is saved with `PATCH /api/notes/<id>` (or `PATCH /api/share/<token>` for a shared note with edit rights). A save is also forced when the editor loses focus, when the tab is hidden, when the user switches notes, and on page unload with a synchronous request. The Save button in the top bar forces an immediate save; while it runs the button reads "Saving...".
+Every change is written to the local copy at once (localStorage `barrapad_notes` for an account, `bpad_guest_notes` for a guest) and, for an account, sent live to the note's room through Yjs. After one second without typing, the note's HTML is saved with `PATCH /api/notes/<id>` (or `PATCH /api/share/<token>` for a shared note with edit rights). A save is also forced when the editor loses focus, when the tab is hidden, when the user switches notes, and on page unload with a synchronous request. There is no Save button: Ctrl+S (Cmd+S on a Mac) forces an immediate save instead of opening the browser's save dialog.
 
 A per-note dirty counter makes sure a refetch never overwrites text that has not been saved yet. Each save is tied to the note id it was made for, so switching notes in the middle of a save cannot write one note's text into another. The `updatedAt` value always comes from the server.
 
 When the app loads, notes are rendered on the server, so a signed-in user can type immediately. If the server render failed, the cached copy is shown read-only until the first `GET /api/notes` answer. The app refetches on window focus, when the tab becomes visible and when the browser comes back online. If the tab was hidden for more than 60 seconds, editing is locked again until that refetch lands, so edits made on another computer in the meantime cannot be typed over. When the server copy and the local copy differ, the local copy wins only if it has unsaved edits or a newer server-issued `updatedAt`.
 
-The top bar shows a sync indicator for signed-in users: a spinning cloud with "Loading" while the first fetch is pending (hover text: "Loading your latest notes (read-only until done)"), "Syncing" while a save runs, then "Saved" with a check for about 1.6 seconds. Guests see no indicator.
+The top bar shows a sync indicator for signed-in users: a spinning cloud with "Loading" while the first fetch is pending (hover text: "Loading your latest notes (read-only until done)"), "Syncing" while a save runs, and a quiet gray "Saved" with a check the rest of the time. Guests see a gray "Local" label with a drive icon in the same place (hover text: "Notes are saved in this browser only. Sign up to sync them.").
 
 While a note is open, the app also checks every 5 seconds whether it still exists. Three 404 answers in a row show the "This note has been deleted" screen, in case the room's delete signal was missed.
 
@@ -94,7 +94,7 @@ The editor is Tiptap 3 on ProseMirror. The text column holds about 68 characters
 
 **Context menu.** On desktop, right-clicking in an editable note replaces the browser menu. What it shows depends on what was clicked: a quote offers "Remove quote"; a divider "Remove divider"; a footnote, poll, image or link offers the actions listed in their sections; selected text offers Bold, Italic, Underline, Strikethrough, "Link…", Copy, Cut, Comment (signed in only) and "Add tag…"; an empty spot offers spelling suggestions, Paste, "Select All", "Insert image", "Upload file", "Insert voice memo", "Insert table", "Insert lorem ipsum" and "Add tag…". On touch devices the browser's own long-press menu is kept, and the custom menu is not shown.
 
-**Note info.** The ⓘ button at the left edge of the page opens a card with the word count, character count, created date and updated date. On the public share page it shows the permission and the updated date instead.
+**Note info.** The ⓘ button in the top bar opens a card under it with the word count, character count, created date and updated date. Clicking outside it or pressing Escape closes it. On the public share page the same button sits in that page's top bar, and the card shows the permission and the updated date instead.
 
 ### 2.5 Images
 
@@ -128,15 +128,15 @@ On a shared note, tag changes are saved only with edit access.
 
 ### 2.10 Search and the sidebar
 
-The sidebar has the logo, a "New note" button, a search box ("Search..."), the tag chips, "My Notes", a "Shared with me" panel, and a footer with About, Settings (appearance) and either the Clerk user button or a "Sign In" link. Search matches the note title and the plain text of its content, case-insensitively, and the preview line under each note shows the match in context with the matched text highlighted. Without a search, the preview shows the start of the second line or "No additional content". Owned notes that have an active share link show a small link icon. An empty list reads "No notes yet", or "No results" during a search.
+The sidebar has the logo, a "New note" button, a search box ("Search..."), the tag chips, "My Notes", a "Shared with me" list, and a footer with About, Settings (appearance) and either the Clerk user button or a "Sign In" link. Search matches the note title and the plain text of its content, case-insensitively, and the preview line under each note shows the match in context with the matched text highlighted. Without a search, the preview shows the start of the second line or "No additional content". Owned notes that have an active share link show a small link icon. An empty list reads "No notes yet", or "No results" during a search.
 
-"Shared with me" lists notes shared with you, each with "Can edit" or "View only". It is empty for guests ("You don't have shared notes yet"). Clicking an entry opens the note in the main editor. Its right-click menu offers "Rename" and "Delete note for everyone" (both only with edit access) and "Remove from my list". The list is refreshed every 10 seconds, and a permission change reaches an open note then: a collaborator moved to view only sees the editor lock, while the room kick already stops their writes at once.
+"Shared with me" lists notes shared with you, each with "Can edit" or "View only", under a plain heading styled like "My Notes". The heading and list only appear when at least one note is shared with you, so guests never see them. Clicking an entry opens the note in the main editor. Its right-click menu offers "Rename" and "Delete note for everyone" (both only with edit access) and "Remove from my list". The list is refreshed every 10 seconds, and a permission change reaches an open note then: a collaborator moved to view only sees the editor lock, while the room kick already stops their writes at once.
 
 ### 2.11 Guest mode and importing guest notes
 
 A visitor without an account lands in the app, not on a sign-in page. On the first visit an empty "Untitled" note is created and opened. Guest notes are kept in localStorage under `bpad_guest_notes` with `local-` ids. They make no API calls and open no realtime sockets, so there is no sync indicator, no comments (no Comments button, no Comment item in the context menu), no tags on the server, and no mentions. The Share button links to `/sign-up`. Images that cannot be uploaded are shrunk and stored inline, as described in 2.5.
 
-About a second after load, a pill at the bottom reads "Saved on this device only" ("Local only" on narrow screens) with a "Sign up to sync" button and a dismiss X. Dismissing it is remembered (`bpad_guest_pill_dismissed`). If the browser refuses to store the notes because localStorage is full, the pill turns red, reads "Browser storage full, changes not saved" ("Storage full" on narrow screens), cannot be dismissed, and clears itself once a save succeeds again.
+After the guest's first edit in a page visit, a quiet pill at the bottom asks "Want this note on your other devices?" ("Use it on any device?" on narrow screens) with a "Sign up" link and a dismiss X. Dismissing it is remembered (`bpad_guest_pill_dismissed`), so it is offered until dismissed and then never again. If the browser refuses to store the notes because localStorage is full, the pill appears even if it was dismissed, shows a red dot, reads "Browser storage full, changes not saved" ("Storage full" on narrow screens), cannot be dismissed, and clears itself once a save succeeds again.
 
 When a guest signs in, the next notes fetch moves every guest note into the account, one at a time, with `POST /api/notes`. Each note leaves guest storage only after the server has it, so a failure retries on the next fetch. The request carries the guest note's local id, and the server derives the new note's id from the account and that local id, so a retry after a reload finds the same row instead of creating a copy. A Web Lock stops two open tabs from importing the same notes.
 
@@ -184,7 +184,7 @@ The API allows the owner, collaborators and signed-in people who opened the note
 
 ### 2.16 Notifications
 
-The bell in the top bar (signed in only) shows an unread count. Its panel lists up to 50 stored notifications plus the ones the browser works out itself, newest first, each with the sender's avatar or a colored dot, a type label, the message and the time. "Mark all as read" and "Delete all notifications" act on the stored ones. Clicking a notification that refers to a note opens that note (or the access request screen) and marks it read. For comment notifications it also opens the comment sidebar and highlights the thread. The footer reads "Read notifications disappear after 14 days", and the server deletes read notifications older than 14 days whenever the list is fetched.
+The bell in the top bar (signed in only) shows a small orange dot when something is unread, with no count; the count is in its hover text. Its panel lists up to 50 stored notifications plus the ones the browser works out itself, newest first, each with the sender's avatar or a colored dot, a type label, the message and the time. "Mark all as read" and "Delete all notifications" act on the stored ones. Clicking a notification that refers to a note opens that note (or the access request screen) and marks it read. For comment notifications it also opens the comment sidebar and highlights the thread. The footer reads "Read notifications disappear after 14 days", and the server deletes read notifications older than 14 days whenever the list is fetched.
 
 | Type | Stored on server | Sent to | When |
 |---|---|---|---|
@@ -388,7 +388,7 @@ The smoke tests in `e2e/` run against production with `npm run e2e` (or one at a
 | Feature | Covered by | What is checked |
 |---|---|---|
 | Guest mode | `guest.mjs` | Guest stays on `/`, editor is editable, notes survive a reload, two notes stored, no sockets, no failing API calls, no page errors |
-| Guest pill and storage warning | `guest.mjs` | Pill shown, dismiss remembered across reloads, storage-full warning appears and clears, pill fits a 375 px screen |
+| Guest pill and storage warning | `guest.mjs` | "Local" label shown, no pill before an edit, pill after the first edit, dismiss remembered across reloads, storage-full warning appears and clears, label and pill fit a 375 px screen |
 | Guest image shrinking | `guest.mjs` | A big PNG is stored as WebP at less than half its size |
 | No comments for guests | `guest.mjs` | No Comments button and no Comment menu item for guests, Comments button present once signed in |
 | Guest-to-account import | `guest.mjs` | Guest store emptied, both notes in the account, a reload during import makes no copies, two tabs do not double-import |

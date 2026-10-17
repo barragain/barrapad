@@ -91,48 +91,24 @@ export default function NotificationBell({
     <div ref={ref} className="relative">
       <button
         onClick={onToggle}
-        className="relative flex items-center gap-1.5 px-2.5 py-1.5 text-sm border rounded-lg hover:bg-black/5 transition-colors"
-        style={{
-          borderColor: 'var(--border)',
-          color: hasUnread ? 'var(--ink)' : 'var(--muted)',
-          opacity: hasUnread ? 1 : 0.6,
-        }}
-        title="Notifications"
+        className="relative flex items-center p-1.5 rounded-lg transition-colors hover:bg-[var(--hover)]"
+        style={{ color: hasUnread ? 'var(--ink-soft)' : 'var(--muted)' }}
+        title={hasUnread ? `Notifications (${unreadCount} unread)` : 'Notifications'}
+        aria-label={hasUnread ? `Notifications, ${unreadCount} unread` : 'Notifications'}
       >
-        <motion.div
-          animate={hasUnread && !open
-            ? { rotate: [0, -15, 15, -12, 12, -8, 8, 0] }
-            : { rotate: 0 }
-          }
-          transition={hasUnread && !open
-            ? { duration: 0.6, ease: 'easeInOut', repeat: Infinity, repeatDelay: 3 }
-            : { duration: 0.2 }
-          }
-          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-        >
-          <Bell size={13} />
-        </motion.div>
+        <Bell size={15} />
 
         <AnimatePresence>
           {hasUnread && (
             <motion.span
               key="badge"
-              initial={{ scale: 0, opacity: 0, width: 0 }}
-              animate={{ scale: 1, opacity: 1, width: 'auto' }}
-              exit={{ scale: 0, opacity: 0, width: 0 }}
-              transition={{ type: 'spring', stiffness: 500, damping: 28 }}
-              className="flex items-center justify-center text-white font-bold rounded-full overflow-hidden"
-              style={{
-                background: '#D4550A',
-                fontSize: 10,
-                minWidth: 16,
-                height: 16,
-                padding: '0 4px',
-                lineHeight: 1,
-              }}
-            >
-              {unreadCount > 9 ? '9+' : unreadCount}
-            </motion.span>
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="absolute rounded-full"
+              style={{ top: 4, right: 4, width: 6, height: 6, background: 'var(--accent)' }}
+            />
           )}
         </AnimatePresence>
       </button>
@@ -146,7 +122,7 @@ export default function NotificationBell({
               initial={{ opacity: 0, y: -6, scale: 0.96 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -6, scale: 0.96 }}
-              transition={{ duration: 0.15, ease: [0.34, 1.56, 0.64, 1] }}
+              transition={{ duration: 0.15, ease: 'easeOut' }}
               className="fixed z-[9999] rounded-xl shadow-xl overflow-hidden"
               style={{
                 background: 'var(--editor-bg)',

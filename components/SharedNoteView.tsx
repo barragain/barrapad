@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useUser } from '@clerk/nextjs'
-import { HelpCircle, Settings } from 'lucide-react'
+import { HelpCircle, Info, Settings } from 'lucide-react'
 import TagInput from './TagInput'
 import AppearanceModal from './AppearanceModal'
 import AboutModal from './AboutModal'
@@ -197,6 +197,18 @@ export default function SharedNoteView({ token, noteId, initialContent, initialT
           }}>
             {permission === 'EDIT' ? 'Can edit' : 'View only'}
           </span>
+
+          <button
+            data-info-toggle
+            onClick={() => window.dispatchEvent(new Event('barrapad:toggle-info'))}
+            className="p-2 rounded-xl transition-all"
+            style={{ color: '#8A8178', opacity: 0.8, cursor: 'pointer', background: 'none', border: 'none' }}
+            onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.color = '#B8420A' }}
+            onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.8'; e.currentTarget.style.color = '#8A8178' }}
+            title="Note info"
+          >
+            <Info size={22} />
+          </button>
 
           <button
             onClick={() => {

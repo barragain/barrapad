@@ -14,7 +14,7 @@ import {
   Check,
 } from 'lucide-react'
 import dynamic from 'next/dynamic'
-import { Users, Link2 } from 'lucide-react'
+import { Link2 } from 'lucide-react'
 import type { Note, Tag, SharedAccessRecord } from '@/types'
 import ContextMenu from './ContextMenu'
 
@@ -409,17 +409,14 @@ export default function Sidebar({
         ))}
       </div>
 
-      {/* Shared with me section */}
-      <div className="mx-2 mb-2 rounded-xl overflow-hidden" style={{ background: '#D4550A0D', border: '1px solid #D4550A22' }}>
-        <div className="flex items-center gap-1.5 px-3 pt-2.5 pb-1.5">
-          <Users size={10} style={{ color: 'var(--accent)' }} />
-          <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--accent)' }}>Shared with me</span>
+      {/* Shared with me: a plain heading like "My Notes", only when something is shared */}
+      {sharedNotes.length > 0 && (
+      <div className="mx-2 mb-2">
+        <div className="px-1 pt-2.5 pb-1">
+          <span className="text-[10px] font-semibold text-[var(--ink-soft)] uppercase tracking-widest">Shared with me</span>
         </div>
-        <div className="px-1 pb-1.5 space-y-0.5">
-          {sharedNotes.length === 0 ? (
-            <p className="text-[11px] px-2 pb-1" style={{ color: '#D4550A66' }}>You don&apos;t have shared notes yet</p>
-          ) : (
-            sharedNotes.map((record) => {
+        <div className="space-y-0.5">
+          {sharedNotes.map((record) => {
               const isActive = activeNoteId === `shared-${record.token}`
               return (
                 <button
@@ -468,16 +465,16 @@ export default function Sidebar({
                         {record.noteTitle || 'Untitled'}
                       </p>
                     )}
-                    <p className="text-[10px] leading-tight" style={{ color: '#D4550A99' }}>
+                    <p className="text-[10px] leading-tight" style={{ color: 'var(--muted)' }}>
                       {record.permission === 'EDIT' ? 'Can edit' : 'View only'}
                     </p>
                   </div>
                 </button>
               )
-            })
-          )}
+          })}
         </div>
       </div>
+      )}
 
       {sharedContextMenu && (() => {
         const record = sharedNotes.find(r => r.token === sharedContextMenu.token)

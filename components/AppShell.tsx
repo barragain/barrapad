@@ -1,10 +1,10 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Save, Share2, X, Cloud, CloudCheck, RefreshCw, HardDrive, Download, ChevronDown, Menu } from 'lucide-react'
+import { Info, Share2, X, Cloud, CloudCheck, RefreshCw, HardDrive, Download, ChevronDown, Menu } from 'lucide-react'
 import Link from 'next/link'
 import { useAuth, useUser } from '@clerk/nextjs'
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, MotionConfig, motion } from 'framer-motion'
 import { downloadTxt, downloadMd, downloadPdf, downloadDocx } from '@/lib/export'
 import Sidebar from './Sidebar'
 import EditorWrapper from './EditorWrapper'
@@ -70,33 +70,33 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [appearance, setAppearance] = useState<AppearanceSettings>(DEFAULT_APPEARANCE)
   const [guestStorageFull, setGuestStorageFull] = useState(false)
-  // Guest pill shows after a short beat (not on top of the first paint) and
-  // stays away once dismissed.
+  // The guest sign-up pill waits for the first real edit, and stays away once
+  // dismissed. "Local" in the top bar says where notes live the rest of the time.
   const [pillReady, setPillReady] = useState(false)
   const [pillDismissed, setPillDismissed] = useState(false)
   useEffect(() => {
     try { setPillDismissed(localStorage.getItem('bpad_guest_pill_dismissed') === '1') } catch {}
-    const t = setTimeout(() => setPillReady(true), 900)
-    return () => clearTimeout(t)
+  }, [])
+  const onLocalChange = useCallback((noteId: string, title: string, content: string) => {
+    if (isGuest) setPillReady(true)
+    handleLocalChange(noteId, title, content)
+  }, [isGuest, handleLocalChange])
+  // Ctrl/Cmd+S saves now (there is no Save button) instead of the browser's save dialog.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault()
+        window.dispatchEvent(new Event('barrapad:save'))
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
   }, [])
   useEffect(() => {
     const onStorage = (e: Event) => setGuestStorageFull((e as CustomEvent<{ full: boolean }>).detail.full)
     window.addEventListener('bpad:guest-storage', onStorage)
     return () => window.removeEventListener('bpad:guest-storage', onStorage)
   }, [])
-  // Brief "Saved" tick after a save finishes, so the sync indicator closes the loop.
-  const [justSaved, setJustSaved] = useState(false)
-  const wasSavingRef = useRef(false)
-  useEffect(() => {
-    const saving = autoSaving || manualSaving
-    if (wasSavingRef.current && !saving) {
-      setJustSaved(true)
-      const t = setTimeout(() => setJustSaved(false), 1600)
-      wasSavingRef.current = false
-      return () => clearTimeout(t)
-    }
-    wasSavingRef.current = saving
-  }, [autoSaving, manualSaving])
   const { notifications, setNotifications, detectSharedNotesChanges } =
     useNotifications(isLoaded && isSignedIn && user ? user.id : null)
   const {
@@ -227,10 +227,6 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
     })
   }, [notes, updateNotes])
 
-  const triggerManualSave = () => {
-    window.dispatchEvent(new Event('barrapad:save'))
-  }
-
   const handleExport = async (fmt: 'txt' | 'md' | 'pdf' | 'docx') => {
     if (!activeNote) return
     setShowExport(false)
@@ -328,6 +324,7 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
   }, [])
 
   return (
+    <MotionConfig reducedMotion="user">
     <div className="flex h-screen overflow-hidden" style={{ background: 'var(--editor-bg)' }}>
 
       {/* Mobile backdrop */}
@@ -433,21 +430,31 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
                 </span>
                 {notesLoaded ? 'Syncing' : 'Loading'}
               </motion.span>
-            ) : !isGuest && justSaved ? (
+            ) : !isGuest ? (
               <motion.span
                 key="sync-done"
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.2 }}
                 className="flex items-center gap-1 text-[11px]"
                 style={{ color: 'var(--muted)' }}
-                title="All changes saved"
+                title="All changes saved. Ctrl+S saves right away."
               >
                 <CloudCheck size={14} />
                 Saved
               </motion.span>
-            ) : null}
+            ) : (
+              <span
+                key="local"
+                className="flex items-center gap-1 text-[11px]"
+                style={{ color: 'var(--muted)' }}
+                title="Notes are saved in this browser only. Sign up to sync them."
+              >
+                <HardDrive size={13} />
+                Local
+              </span>
+            )}
           </AnimatePresence>
 
           {isLoaded && isSignedIn && (
@@ -498,11 +505,24 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
           )}
 
           {activeNote && (
+            <button
+              data-info-toggle
+              onClick={() => window.dispatchEvent(new Event('barrapad:toggle-info'))}
+              className="p-1.5 rounded-lg transition-colors hover:bg-[var(--hover)]"
+              style={{ color: 'var(--muted)' }}
+              title="Note info"
+              aria-label="Note info"
+            >
+              <Info size={15} />
+            </button>
+          )}
+
+          {activeNote && (
             <div ref={exportRef} className="relative">
               <button
                 onClick={() => setShowExport((v) => !v)}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-lg hover:bg-black/5 transition-colors"
-                style={{ borderColor: 'var(--border)', color: 'var(--ink)' }}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 text-sm rounded-lg transition-colors hover:bg-[var(--hover)]"
+                style={{ color: 'var(--ink-soft)' }}
               >
                 <Download size={13} />
                 Export
@@ -538,7 +558,7 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
                     ))}
                     <div
                       className="mx-1 mt-1 mb-0.5 px-3 py-2 rounded-xl text-center text-[11px] font-medium leading-snug"
-                      style={{ background: '#D4550A1A', color: '#D4550A' }}
+                      style={{ background: 'var(--hover)', color: 'var(--muted)' }}
                     >
                       PDF preserves your design.<br />Others export basic or no styles.
                     </div>
@@ -552,8 +572,8 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
             <Link
               href="/sign-up"
               title="Sign up to share notes"
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-lg hover:bg-black/5 transition-colors"
-              style={{ borderColor: 'var(--border)', color: 'var(--ink)' }}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-sm rounded-lg transition-colors hover:bg-[var(--hover)]"
+              style={{ color: 'var(--ink-soft)' }}
             >
               <Share2 size={13} />
               Share
@@ -562,21 +582,13 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
           {activeNote && !isGuest && (!activeNote.sharedToken || activeNote.sharedPermission === 'EDIT') && (
             <button
               onClick={() => setShowShare(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-lg hover:bg-black/5 transition-colors"
-              style={{ borderColor: 'var(--border)', color: 'var(--ink)' }}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-sm rounded-lg transition-colors hover:bg-[var(--hover)]"
+              style={{ color: 'var(--ink-soft)' }}
             >
               <Share2 size={13} />
               Share
             </button>
           )}
-          <button
-            onClick={triggerManualSave}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg hover:opacity-80 transition-opacity"
-            style={{ background: 'var(--ink)', color: 'var(--editor-bg)' }}
-          >
-            <Save size={13} />
-            {manualSaving ? 'Saving...' : 'Save'}
-          </button>
         </div>
 
         {/* Editor */}
@@ -595,7 +607,7 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
               note={activeNote}
               allTags={allTags}
               serverReady={notesLoaded}
-              onLocalChange={handleLocalChange}
+              onLocalChange={onLocalChange}
               onRemoteContent={handleRemoteContent}
               onAutoSave={handleAutoSave}
               onManualSave={handleManualSaveContent}
@@ -620,31 +632,19 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
           )}
         </div>
 
-        {/* Bottom strip */}
-        <div className="flex items-center justify-end px-4 py-1 border-t" style={{ background: 'var(--editor-bg)', borderColor: 'var(--border)' }}>
-          <button
-            className="p-1.5 rounded hover:bg-black/5 transition-colors"
-            style={{ color: 'var(--muted)' }}
-            title="Close note"
-            onClick={() => setActiveNoteId(null)}
-          >
-            <X size={15} />
-          </button>
-        </div>
-
-      {/* Guest pill: same floating style as the shared-note CTA. Dismissible,
+      {/* Guest pill: a one-time sign-up offer after the first edit. Dismissible,
           except when storage is full, because then edits are being lost. */}
       <AnimatePresence>
-        {isGuest && pillReady && (guestStorageFull || !pillDismissed) && (
+        {isGuest && (guestStorageFull || (pillReady && !pillDismissed)) && (
           <motion.div
             key={guestStorageFull ? 'guest-pill-full' : 'guest-pill'}
             role={guestStorageFull ? 'alert' : 'status'}
-            initial={{ opacity: 0, y: 16, x: '-50%' }}
-            animate={{ opacity: 1, y: 0, x: '-50%' }}
-            exit={{ opacity: 0, y: 16, x: '-50%' }}
-            transition={{ type: 'spring', stiffness: 420, damping: 32 }}
-            className="absolute bottom-0.5 left-[calc(50%-16px)] sm:left-1/2 z-50 flex items-center gap-2.5 rounded-full py-1 pl-4 pr-1 whitespace-nowrap"
-            style={{ background: '#1A1A1A', color: '#fff', boxShadow: '0 4px 24px rgba(0,0,0,0.18)' }}
+            initial={{ opacity: 0, x: '-50%' }}
+            animate={{ opacity: 1, x: '-50%' }}
+            exit={{ opacity: 0, x: '-50%' }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className="absolute bottom-4 left-1/2 z-50 flex items-center gap-2.5 rounded-full py-1 pl-4 pr-1 whitespace-nowrap"
+            style={{ background: 'var(--editor-bg)', color: 'var(--ink-soft)', border: '1px solid var(--border)', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}
           >
             {guestStorageFull ? (
               <span className="flex items-center gap-2 text-xs font-medium">
@@ -653,19 +653,18 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
                 <span className="sm:hidden">Storage full</span>
               </span>
             ) : (
-              <span className="flex items-center gap-2 text-xs" style={{ color: '#D9D4CC' }}>
-                <HardDrive size={12} />
-                <span className="hidden sm:inline">Saved on this device only</span>
-                <span className="sm:hidden">Local only</span>
+              <span className="text-xs">
+                <span className="hidden sm:inline">Want this note on your other devices?</span>
+                <span className="sm:hidden">Use it on any device?</span>
               </span>
             )}
             <Link
               href="/sign-up"
               title="Sign up to keep your notes in the cloud and share them"
-              className="rounded-full px-3.5 py-1 text-xs font-bold text-white hover:opacity-90 transition-opacity"
-              style={{ background: '#D4550A' }}
+              className="rounded-full px-2 py-1 text-xs font-semibold hover:underline"
+              style={{ color: 'var(--accent-ink)' }}
             >
-              Sign up to sync
+              Sign up
             </Link>
             {!guestStorageFull && (
               <button
@@ -674,8 +673,8 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
                   try { localStorage.setItem('bpad_guest_pill_dismissed', '1') } catch {}
                 }}
                 aria-label="Dismiss"
-                className="rounded-full p-1 transition-colors hover:bg-white/10"
-                style={{ color: '#8A8178' }}
+                className="rounded-full p-1 transition-colors hover:bg-[var(--hover)]"
+                style={{ color: 'var(--muted)' }}
               >
                 <X size={13} />
               </button>
@@ -706,5 +705,6 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
         />
       )}
     </div>
+    </MotionConfig>
   )
 }

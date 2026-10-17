@@ -38,7 +38,6 @@ import LinkPopover from './LinkPopover'
 import ContextMenu from './ContextMenu'
 import type { ContextMenuItem } from './ContextMenu'
 import {
-  Info,
   Clipboard,
   MousePointer2,
   ImageIcon as ImageIconLucide,
@@ -195,8 +194,29 @@ export default function NoteEditorCore({
   const editorContainerRef = useRef<HTMLDivElement>(null)
   const toolbarRef = useRef<HTMLDivElement>(null)
   const [isEditorFocused, setIsEditorFocused] = useState(false)
-  const infoButtonRef = useRef<HTMLButtonElement>(null)
+  const infoPopoverRef = useRef<HTMLDivElement>(null)
   const [showInfo, setShowInfo] = useState(false)
+  // The info button lives in the top bar (AppShell); it toggles this popover by event.
+  useEffect(() => {
+    const toggle = () => setShowInfo((v) => !v)
+    window.addEventListener('barrapad:toggle-info', toggle)
+    return () => window.removeEventListener('barrapad:toggle-info', toggle)
+  }, [])
+  useEffect(() => {
+    if (!showInfo) return
+    const close = (e: Event) => {
+      if (e instanceof KeyboardEvent && e.key !== 'Escape') return
+      const t = e.target as HTMLElement | null
+      if (e.type === 'mousedown' && (infoPopoverRef.current?.contains(t) || t?.closest('[data-info-toggle]'))) return
+      setShowInfo(false)
+    }
+    document.addEventListener('mousedown', close)
+    document.addEventListener('keydown', close)
+    return () => {
+      document.removeEventListener('mousedown', close)
+      document.removeEventListener('keydown', close)
+    }
+  }, [showInfo])
   const [wordCount, setWordCount] = useState(0)
   const [charCount, setCharCount] = useState(0)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; items: ContextMenuItem[] } | null>(null)
@@ -886,57 +906,37 @@ export default function NoteEditorCore({
           ref={editorContainerRef}
           className="editor-anim-border barrapad-card"
         >
-          {/* ⓘ Info button — snapped to left border, popover opens right */}
-          <div style={{ position: 'absolute', top: 10, left: -28, transform: 'translateX(-50%)', zIndex: 20 }}>
-            <motion.button
-              ref={infoButtonRef}
-              onClick={() => setShowInfo((v) => !v)}
-              className="p-2 rounded-xl"
-              style={{ color: showInfo ? '#7A2C06' : '#D4550A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-              initial={{ rotate: 0, backgroundColor: 'rgba(0,0,0,0)' }}
-              animate={{
-                rotate: showInfo ? 22 : 0,
-                backgroundColor: showInfo ? 'rgba(212,85,10,0.13)' : 'rgba(0,0,0,0)',
-              }}
-              whileHover={{ scale: 1.15, backgroundColor: 'rgba(212,85,10,0.09)' }}
-              whileTap={{ scale: 0.78, rotate: showInfo ? 0 : 30 }}
-              transition={{ type: 'spring', stiffness: 460, damping: 18, mass: 0.6 }}
-              title="Note info"
-            >
-              <Info size={22} />
-            </motion.button>
-            {/* Absolute wrapper so the popover never shifts the button */}
-            <div style={{ position: 'absolute', top: 0, left: '100%', paddingLeft: 12, zIndex: 50 }}>
-              <AnimatePresence>
-                {showInfo && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.92 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.94, transition: { duration: 0.12 } }}
-                    transition={{ type: 'spring', stiffness: 480, damping: 26, mass: 0.55 }}
-                    style={{ transformOrigin: 'top left' }}
-                  >
-                    <div style={{
-                      background: 'var(--editor-bg)', border: '1px solid var(--border)',
-                      borderRadius: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.10)',
-                      width: 220, padding: '12px 16px',
-                    }}>
-                      {[
-                        { label: 'Words', value: wordCount },
-                        { label: 'Characters', value: charCount },
-                        ...(infoRows ?? []),
-                      ].map(({ label, value }) => (
-                        <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 12 }}>
-                          <span style={{ color: 'var(--muted)' }}>{label}</span>
-                          <span style={{ fontWeight: 600, color: 'var(--ink)', textAlign: 'right', maxWidth: 130, whiteSpace: 'pre-line' }}>{String(value)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          </div>
+          {/* Note info popover, opened from the top bar's info button */}
+          <AnimatePresence>
+            {showInfo && (
+              <motion.div
+                ref={infoPopoverRef}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                style={{
+                  position: 'fixed', top: 60, right: 16, zIndex: 60,
+                  background: 'var(--editor-bg)', border: '1px solid var(--border)',
+                  borderRadius: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.10)',
+                  width: 220, padding: '12px 16px',
+                }}
+                role="dialog"
+                aria-label="Note info"
+              >
+                {[
+                  { label: 'Words', value: wordCount },
+                  { label: 'Characters', value: charCount },
+                  ...(infoRows ?? []),
+                ].map(({ label, value }) => (
+                  <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 12 }}>
+                    <span style={{ color: 'var(--muted)' }}>{label}</span>
+                    <span style={{ fontWeight: 600, color: 'var(--ink)', textAlign: 'right', maxWidth: 130, whiteSpace: 'pre-line' }}>{String(value)}</span>
+                  </div>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Editor canvas */}
           <div
