@@ -1,7 +1,8 @@
 // Production smoke test for editor formatting (docs/design-audit.md steps 1
 // and 2), run as a guest: spacing between list items and blocks, checklist
 // nesting, rich and plain paste, "# " headings, Normal Text leaving a quote,
-// dark mode colors for inline code and highlights, and the selection bar.
+// dark mode colors for inline code and highlights, the selection bar and the
+// slash menu.
 // Usage: node e2e/editor.mjs
 import { chromium } from 'playwright'
 
@@ -124,6 +125,27 @@ try {
   await page.keyboard.press('End')
   await page.waitForTimeout(300)
   check(await bar.count() === 0, 'selection bar hides when the selection collapses')
+
+  // Slash menu: "/" opens it, typing filters, Enter inserts, Esc closes.
+  await page.keyboard.press('Control+a'); await page.keyboard.press('Delete')
+  await page.keyboard.type('/')
+  await page.waitForTimeout(300)
+  const menuCount = await page.locator('[data-slash-menu] button').count()
+  await page.keyboard.type('todo')
+  await page.waitForTimeout(300)
+  const filtered = await page.locator('[data-slash-menu] button').allInnerTexts()
+  await page.keyboard.press('Enter')
+  await page.waitForTimeout(300)
+  const task = await page.locator('.ProseMirror ul[data-type="taskList"]').count()
+  const leftover = await page.evaluate(() => document.querySelector('.ProseMirror').textContent)
+  check(menuCount > 10 && filtered.join() === 'Checklist' && task === 1 && !leftover.includes('/'), `"/todo" Enter makes a checklist (menu ${menuCount}, filtered ${filtered}, text "${leftover}")`)
+  await page.keyboard.press('Control+a'); await page.keyboard.press('Delete')
+  await page.keyboard.type('a/b /')
+  await page.waitForTimeout(300)
+  const afterSpace = await page.locator('[data-slash-menu]').count()
+  await page.keyboard.press('Escape')
+  await page.waitForTimeout(300)
+  check(afterSpace === 1 && await page.locator('[data-slash-menu]').isVisible().catch(() => false) === false, 'slash menu opens after a space and Esc closes it')
   await page.context().close()
 
   // Dark mode: inline code has a visible chip, highlights keep dark text.

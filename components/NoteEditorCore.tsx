@@ -69,6 +69,7 @@ import { isCorrectSync, suggestSync, ensureLoaded } from '@/utils/spellcheck'
 import { SpellCheck, SPELL_KEY } from '@/extensions/spell-check'
 import { UserMention } from '@/extensions/user-mention'
 import { NoteMention } from '@/extensions/note-mention'
+import { SlashCommand } from '@/extensions/slash-command'
 import MentionProfilePopover from './MentionProfilePopover'
 import { uploadImage, uploadFile } from '@/lib/upload-image'
 
@@ -351,6 +352,7 @@ export default function NoteEditorCore({
       SpellCheck,
       UserMention,
       NoteMention,
+      SlashCommand,
       CommentMark,
     ],
     content: collab ? undefined : initialContent,
