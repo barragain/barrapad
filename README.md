@@ -4,7 +4,7 @@ A notepad that syncs between your devices and lets you share a note with someone
 
 ## Stack
 
-Next.js 14, React 18, Tiptap, Clerk, Prisma on Postgres, Vercel Blob, Cloudflare Workers + Durable Objects (PartyServer) for realtime, Tailwind 4.
+Next.js 15, React 19, Tiptap, Clerk, Prisma on Postgres, Vercel Blob, Cloudflare Workers + Durable Objects (PartyServer) for realtime, Tailwind 4.
 
 ## Run locally
 
@@ -20,5 +20,7 @@ Set `NEXT_PUBLIC_REALTIME_HOST=localhost:8787` in `.env.local` to use the local 
 ## Deploy
 
 Vercel builds from `main`. The Worker deploys with `npm run deploy:realtime`. `REALTIME_SECRET` must match between Vercel and the Worker (`wrangler secret put REALTIME_SECRET`).
+
+`docs/spec.md` is the full product and behavior spec: every feature, the permission matrix, data model, API reference, realtime protocol and test coverage.
 
 `docs/architecture.md` explains saving, sync and who can join a realtime room. `docs/known-gaps.md` lists what is still missing, and `docs/action-list.md` is the cleanup plan with its progress notes.

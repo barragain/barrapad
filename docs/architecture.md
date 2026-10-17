@@ -40,7 +40,7 @@ The room keeps the doc in its storage, but the database is still where the note 
 
 The editor is mounted once per note, because Collaboration binds one doc per editor. A new note gets its doc at once and goes online on that same doc when its `temp-` id becomes the real one, so typing is never interrupted. Undo and redo come from Yjs, so they only undo your own edits.
 
-The public share page (`/s/<token>`) joins the same room with its share token. An edit link works like the app's editor and saves through `/api/share/<token>`. A view-only visitor cannot fill an empty room, so it keeps the server-rendered copy until someone with edit access has opened the note.
+The public share page (`/s/<token>`) is only for signed-out visitors of a view link, and it is always read-only. Edit links and signed-in visitors are redirected into the app (`/?shared=<token>`), where the note joins the room with the share token and saves through `/api/share/<token>`. The share page joins the same room with its token too. A view-only visitor cannot fill an empty room, so it keeps the server-rendered copy until someone with edit access has opened the note.
 
 ## Who can join a room
 
