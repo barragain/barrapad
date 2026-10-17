@@ -91,9 +91,10 @@ try {
   check(quoted === 1 && left === 0, `Normal Text leaves a quote (before ${quoted}, after ${left})`)
 
   // Selection bar: appears over selected text, formats it, has no Comment for guests.
+  await page.click('.ProseMirror')
   await page.keyboard.press('Control+a'); await page.keyboard.press('Delete')
   await page.keyboard.type('pick this word')
-  await page.locator('.ProseMirror p').first().dblclick()
+  await page.keyboard.press('Shift+Home')
   await page.waitForTimeout(300)
   const bar = page.locator('[data-selection-bar]')
   check(await bar.isVisible(), 'selection bar shows on a text selection')
