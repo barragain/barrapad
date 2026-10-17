@@ -115,6 +115,18 @@ try {
   await page.waitForTimeout(300)
   const blue = await page.evaluate(() => document.querySelector('.ProseMirror p').innerHTML.includes('#3b82f6') || document.querySelector('.ProseMirror p').innerHTML.includes('59, 130, 246'))
   check(morePicker && blue, `color row expands to the full picker and applies a color (${morePicker}, ${blue})`)
+  // Toolbar color dropdown: swatches only until "Custom color" opens the board and hex box.
+  {
+    await page.locator('.toolbar .tbtn-wrapper', { hasText: 'Text color' }).locator('button').first().click()
+    await page.waitForTimeout(300)
+    const picker = page.locator('div:has(> [data-custom-color])')
+    const hexBefore = await picker.locator('input').count()
+    await page.locator('[data-custom-color]').click()
+    await page.waitForTimeout(200)
+    const hexAfter = await picker.locator('input').count()
+    check(hexBefore === 0 && hexAfter > 0, `toolbar color dropdown folds the custom picker away until asked (inputs before ${hexBefore}, after ${hexAfter})`)
+    await page.keyboard.press('Escape')
+  }
   check(await bar.locator('.tbtn-wrapper', { hasText: 'Comment' }).count() === 0, 'no Comment in the bar for guests')
   await bar.locator('.tbtn-wrapper', { hasText: 'Link' }).locator('button').click()
   await page.locator('button[aria-label="Cancel"]').click()
@@ -271,16 +283,23 @@ try {
   }))
   check(fonts.join() === 'AgMono,AgSans,AgSerif' && midnight.inert && !midnight.dark, `Appearance: Mono first, no Comic, own-color themes turn off the mode row (${fonts.join()} ${JSON.stringify(midnight)})`)
   // "Start every visit in focus mode": on after a reload, off again once unticked.
+  // open() rewrites the setting on every load, so the reloads use a clean context.
   await dark.locator('.appearance-sheet [role="switch"]').click()
-  await dark.reload({ waitUntil: 'domcontentloaded' })
-  await dark.waitForTimeout(4_000)
-  const focusOn = await dark.evaluate(() => document.querySelector('[data-focus-mode]') !== null)
-  await dark.evaluate(() => { const s = JSON.parse(localStorage.getItem('barrapad_appearance')); s.startFocus = false; localStorage.setItem('barrapad_appearance', JSON.stringify(s)) })
-  await dark.reload({ waitUntil: 'domcontentloaded' })
-  await dark.waitForTimeout(4_000)
-  const focusOff = await dark.evaluate(() => document.querySelector('[data-focus-mode]') === null)
-  check(focusOn && focusOff, `start in focus mode switch opens the next visit in focus mode (on ${focusOn}, off after untick ${focusOff})`)
+  const saved = await dark.evaluate(() => JSON.parse(localStorage.getItem('barrapad_appearance')).startFocus === true)
   await dark.context().close()
+  const fc = await browser.newContext({ viewport: { width: 1400, height: 900 } })
+  const fp = await fc.newPage()
+  await fp.goto(BASE + '/', { waitUntil: 'domcontentloaded' })
+  await fp.evaluate(() => localStorage.setItem('barrapad_appearance', JSON.stringify({ startFocus: true })))
+  await fp.reload({ waitUntil: 'domcontentloaded' })
+  await fp.waitForTimeout(4_000)
+  const focusOn = await fp.evaluate(() => document.querySelector('[data-focus-mode]') !== null)
+  await fp.evaluate(() => localStorage.setItem('barrapad_appearance', JSON.stringify({ startFocus: false })))
+  await fp.reload({ waitUntil: 'domcontentloaded' })
+  await fp.waitForTimeout(4_000)
+  const focusOff = await fp.evaluate(() => document.querySelector('[data-focus-mode]') === null)
+  check(saved && focusOn && focusOff, `start in focus mode switch is saved and opens the next visit in focus mode (saved ${saved}, on ${focusOn}, off ${focusOff})`)
+  await fc.close()
 
   // Button hints: "Click here" labels on the first 3 visits (one browser tab
   // each), gone on the 4th, and a label stops once its button is clicked.

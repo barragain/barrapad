@@ -10,6 +10,10 @@ interface ColorPickerProps {
   onModeChange?: (mode: 'color' | 'gradient') => void
   /** Preset rows; highlights pass HIGHLIGHT_SWATCHES. */
   swatches?: string[][]
+  /** Show the color board and hex box from the start. Otherwise the color
+   *  tab opens with only the swatches and a "Custom color" toggle, so the
+   *  dropdown stays small. */
+  boardOpen?: boolean
 }
 
 export const PRESET_SWATCHES = [
@@ -392,8 +396,9 @@ function AnglePicker({ angle, onChange }: AnglePickerProps) {
   )
 }
 
-export default function ColorPicker({ value, onChange, mode = 'color', onModeChange, swatches = PRESET_SWATCHES }: ColorPickerProps) {
+export default function ColorPicker({ value, onChange, mode = 'color', onModeChange, swatches = PRESET_SWATCHES, boardOpen = false }: ColorPickerProps) {
   const [activeTab, setActiveTab] = useState<'color' | 'gradient'>(mode)
+  const [showBoard, setShowBoard] = useState(boardOpen)
 
   // Gradient state
   const [gradientType, setGradientType] = useState<'linear' | 'radial'>('linear')
@@ -493,8 +498,6 @@ export default function ColorPicker({ value, onChange, mode = 'color', onModeCha
       {/* Color tab */}
       {activeTab === 'color' && (
         <>
-          <ColorBoard color={currentColor} onChange={onChange} />
-
           {/* Presets */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             {swatches.map((row, ri) => (
@@ -526,6 +529,27 @@ export default function ColorPicker({ value, onChange, mode = 'color', onModeCha
               </div>
             ))}
           </div>
+
+          {/* Custom color: the board and hex box, folded away by default. */}
+          <button
+            type="button"
+            aria-expanded={showBoard}
+            data-custom-color
+            onPointerDown={(e) => e.preventDefault()}
+            onClick={() => setShowBoard((v) => !v)}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '6px 8px', borderRadius: 8, border: '1px solid var(--border)',
+              background: 'transparent', cursor: 'pointer', fontSize: 12, color: '#1A1A1A',
+            }}
+          >
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ width: 14, height: 14, borderRadius: 4, background: currentColor, boxShadow: '0 0 0 1px rgba(0,0,0,0.12)' }} />
+              Custom color
+            </span>
+            <span aria-hidden style={{ fontSize: 10, color: '#9b9b9b', transform: showBoard ? 'rotate(180deg)' : 'none', transition: 'transform 150ms ease' }}>▼</span>
+          </button>
+          {showBoard && <ColorBoard color={currentColor} onChange={onChange} />}
         </>
       )}
 

@@ -131,6 +131,7 @@ export default function SelectionBar({ editor, pos, commentsEnabled, onLink, onC
             swatches={swatches === 'highlight' ? HIGHLIGHT_SWATCHES : PRESET_SWATCHES}
             onChange={apply}
             mode="color"
+            boardOpen
           />
         </div>
       )}
