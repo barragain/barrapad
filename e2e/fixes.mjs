@@ -130,8 +130,8 @@ try {
   }
   let dialog = await askDelete()
   const text = await dialog.innerText().catch(() => '')
-  check(/can.t be undone/.test(text) && text.includes(`doomed-${stamp}`) && /notification/.test(text),
-    'delete for everyone opens a confirm that names the note and what happens')
+  check(/can.t be undone/.test(text) && text.includes(`doomed-${stamp}`) && /notification/.test(text) && !/belongs to the owner/.test(text),
+    `delete for everyone opens a confirm that names the note, its owner and what happens (${text.split('.')[0]})`)
   await dialog.getByText('Cancel', { exact: true }).click()
   await B.waitForTimeout(1_500)
   const kept = await call(A, 'GET', `/api/notes/${doomed.id}`)

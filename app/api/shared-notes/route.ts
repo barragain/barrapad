@@ -22,9 +22,15 @@ export async function GET() {
   // Avoid duplicates — if a noteId is already covered by a SharedAccess record, skip it
   const sharedNoteIds = new Set(sharedAccess.map((r) => r.noteId))
 
-  // Fetch owner display names from Clerk for collab invites
+  // Owner display names from Clerk, for every entry. SharedAccess rows are
+  // created with an empty ownerName, so they need the note's owner too.
   const collabsToShow = collaborations.filter((c) => !sharedNoteIds.has(c.noteId))
-  const ownerUserIds = [...new Set(collabsToShow.map((c) => c.note.userId))]
+  const accessOwners = await prisma.note.findMany({
+    where: { id: { in: sharedAccess.filter((r) => !r.ownerName).map((r) => r.noteId) } },
+    select: { id: true, userId: true },
+  })
+  const ownerOfNote = new Map(accessOwners.map((n) => [n.id, n.userId]))
+  const ownerUserIds = [...new Set([...collabsToShow.map((c) => c.note.userId), ...ownerOfNote.values()])]
   const ownerNameMap = new Map<string, string>()
   if (ownerUserIds.length > 0) {
     try {
@@ -60,7 +66,7 @@ export async function GET() {
       token: r.token,
       permission: r.permission,
       lastSeen: r.lastSeen.toISOString(),
-      ownerName: r.ownerName,
+      ownerName: r.ownerName || ownerNameMap.get(ownerOfNote.get(r.noteId) ?? '') || '',
     })),
     ...collabRecords,
   ]
