@@ -679,7 +679,7 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
 
       {/* Guest pill: a one-time sign-up offer after the first edit. Dismissible,
           except when storage is full, because then edits are being lost. On
-          phones it sits under the top bar, clear of the pinned toolbar. */}
+          phones it sits higher, clear of the pinned toolbar. */}
       <AnimatePresence>
         {isGuest && (guestStorageFull || (pillReady && !pillDismissed)) && (
           <motion.div
@@ -689,7 +689,7 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
             animate={{ opacity: 1, x: '-50%' }}
             exit={{ opacity: 0, x: '-50%' }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
-            className="absolute top-14 md:top-auto md:bottom-4 left-1/2 z-50 flex items-center gap-2.5 rounded-full py-1 pl-4 pr-1 whitespace-nowrap"
+            className="absolute bottom-16 md:bottom-4 left-1/2 z-50 flex items-center gap-2.5 rounded-full py-1 pl-4 pr-1 whitespace-nowrap"
             style={{ background: 'var(--editor-bg)', color: 'var(--ink-soft)', border: '1px solid var(--border)', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}
           >
             {guestStorageFull ? (
