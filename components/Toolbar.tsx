@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useEditorState } from '@tiptap/react'
 import type { Editor } from '@tiptap/react'
 import {
@@ -149,6 +149,21 @@ export default function Toolbar({ editor, commentsEnabled = true }: ToolbarProps
     setShowHighlight(false)
     setShowTable(false)
   }
+
+  // Ctrl/Cmd+K opens the link box, as the Link button's tooltip says.
+  const openLinkRef = useRef(openLink)
+  openLinkRef.current = openLink
+  useEffect(() => {
+    const dom = editor.view.dom
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k' && editor.isEditable) {
+        e.preventDefault()
+        openLinkRef.current()
+      }
+    }
+    dom.addEventListener('keydown', onKey)
+    return () => dom.removeEventListener('keydown', onKey)
+  }, [editor])
 
   const hasAnyDropdown = showTextStyle || showColor || showHighlight || showTable || showLink
 

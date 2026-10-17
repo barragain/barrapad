@@ -1,6 +1,7 @@
 import { auth, clerkClient } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { canOpenNote } from '@/lib/notes'
 import { pushNotification } from '@/lib/notifications'
 
 // PATCH /api/notes/[id]/comments/[commentId] — resolve or edit
@@ -27,12 +28,7 @@ export async function PATCH(
   if (!note) return NextResponse.json({ error: 'Note not found' }, { status: 404 })
 
   const isOwner = note.userId === userId
-  if (!isOwner) {
-    const collab = await prisma.noteCollaborator.findUnique({
-      where: { noteId_userId: { noteId, userId } },
-    })
-    if (!collab) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  if (!isOwner && !(await canOpenNote(noteId, userId))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const data: Record<string, unknown> = {}
   if (body.resolved !== undefined) {

@@ -34,7 +34,7 @@ A share-link visitor opens a `/s/<token>` link. A view-only link works without a
 
 The sidebar lists "My Notes", newest first by last update. The "New note" button creates a note called "Untitled" and opens it with the cursor in place. For a signed-in user the note appears at once under a temporary `temp-` id while `POST /api/notes` runs, and it takes its real id when the server answers. Text typed during that short window is kept and saved under the real id. If the user switches to another note before the server answers, the app stays on the note the user picked. If the create request fails, the temporary note disappears. A guest's new note gets a `local-` id and never touches the server.
 
-A note's **title** follows its first line of text (trimmed, up to 100 characters, "Untitled" when empty) until the user renames it. Renaming happens from the sidebar's right-click menu ("Rename") with an inline field; Enter or clicking away saves, Escape cancels, and an empty name becomes "Untitled". After a manual rename the title stops following the first line. That "manually renamed" flag is kept per browser in localStorage, so on a second device the title can still be replaced by the first line once someone types there (see [findings](#findings-from-writing-this-spec)). The server cuts titles to 200 characters only when a note is created with a body; renames are not limited. Renames are sent to the note's room, so other open tabs update their sidebar at once. The browser tab title is `<note title> | bpad - A notepad for whatever`.
+A note's **title** follows its first line of text (trimmed, up to 100 characters, "Untitled" when empty) until the user renames it. Renaming happens from the sidebar's right-click menu ("Rename") with an inline field; Enter or clicking away saves, Escape cancels, and an empty name becomes "Untitled". After a manual rename the title stops following the first line. That "manually renamed" flag is kept per browser in localStorage, so on a second device the title can still be replaced by the first line once someone types there (see [known-gaps.md](known-gaps.md)). The server cuts titles to 200 characters only when a note is created with a body; renames are not limited. Renames are sent to the note's room, so other open tabs update their sidebar at once. The browser tab title is `<note title> | bpad - A notepad for whatever`.
 
 Shared notes never take their title from their content. Their title only changes through an explicit rename by someone with edit access.
 
@@ -67,7 +67,7 @@ The editor is Tiptap 3 on ProseMirror. The placeholder in an empty note reads "S
 | Shortcut | Action |
 |---|---|
 | Ctrl/Cmd+B, I, U | Bold, italic, underline |
-| Ctrl/Cmd+K | Shown in the Link button's tooltip, but no key handler is registered for it, so the shortcut does nothing |
+| Ctrl/Cmd+K | Open the link box (editable notes only) |
 | Ctrl/Cmd+Z, Ctrl+Y or Shift+Cmd+Z | Undo, redo |
 | Ctrl/Cmd+Shift+V | Paste as plain text |
 | Shift+Tab | Outdent a list or checklist item; in an ordinary paragraph, insert a lorem ipsum paragraph |
@@ -98,13 +98,13 @@ The editor is Tiptap 3 on ProseMirror. The placeholder in an empty note reads "S
 
 ### 2.5 Images
 
-Images can be added with the toolbar's "Insert image", the context menu, pasting (a screenshot, an image file, or HTML that contains images, such as an image copied from a web page) and dropping files onto the page. Files are uploaded to Vercel Blob through `POST /api/upload`, and the note stores only the URL. An image pasted from a web page whose source is an `http(s)` URL is inserted with that URL, without copying the file. If the upload fails for any reason (guest, offline, file too large, refused type), the image is stored inside the note as a base64 data URL instead; PNG, JPEG, WebP and BMP images are first re-encoded as WebP at most 1600 px on the long side, when that makes them smaller. GIFs keep their animation.
+Images can be added with the toolbar's "Insert image", the context menu, pasting (a screenshot, an image file, or HTML that contains images, such as an image copied from a web page) and dropping files onto the page. Files are uploaded to Vercel Blob through `POST /api/upload`, and the note stores only the URL. An image pasted from a web page whose source is an `http(s)` URL is inserted with that URL, without copying the file. Files over 10 MB and HTML, SVG, XML or JavaScript types are refused before upload with a browser alert naming the file, and nothing is inserted; the same happens if the server answers 413 or 415. If the upload fails for any other reason (guest, offline, server error), the image is stored inside the note as a base64 data URL instead; PNG, JPEG, WebP and BMP images are first re-encoded as WebP at most 1600 px on the long side, when that makes them smaller. GIFs keep their animation.
 
 An image can be resized by dragging its handle, between 80 and 900 px wide. Its options menu (the button on the image) offers "Replace image", "Add caption" or "Edit caption", alt text, left, center or right alignment, "Wide width" (700 px), "Full width", "Reset size", download and delete. The right-click menu has "Copy image URL", "Download image", "Replace image" and "Remove image".
 
 ### 2.6 File attachments
 
-Any other file (toolbar "Upload file", context menu "Upload file", paste or drop) becomes an attachment card showing an icon (a special one for PDFs), the file name and its size. Uploads follow the same path as images: Blob first, base64 data URL if that fails, but attachments are never shrunk. The server accepts files up to 10 MB and refuses HTML, SVG, XML and JavaScript types with 415, because Blob serves files publicly. The download button adds `?download=1` to Blob URLs so the browser saves the file instead of opening it. Double-clicking the name renames the attachment in the note. Attachments can be aligned left, center or right. Audio files get a small player with play, pause and a seek bar.
+Any other file (toolbar "Upload file", context menu "Upload file", paste or drop) becomes an attachment card showing an icon (a special one for PDFs), the file name and its size. Uploads follow the same path as images: the same refusals, Blob first, base64 data URL if that fails for another reason, but attachments are never shrunk. The server accepts files up to 10 MB and refuses HTML, SVG, XML and JavaScript types with 415, because Blob serves files publicly. The download button adds `?download=1` to Blob URLs so the browser saves the file instead of opening it. Double-clicking the name renames the attachment in the note. Attachments can be aligned left, center or right. Audio files get a small player with play, pause and a seek bar.
 
 ### 2.7 Voice memos
 
@@ -130,7 +130,7 @@ On a shared note, tag changes are saved only with edit access.
 
 The sidebar has the logo, a "New note" button, a search box ("Search..."), the tag chips, "My Notes", a "Shared with me" panel, and a footer with About, Settings (appearance) and either the Clerk user button or a "Sign In" link. Search matches the note title and the plain text of its content, case-insensitively, and the preview line under each note shows the match in context with the matched text highlighted. Without a search, the preview shows the start of the second line or "No additional content". Owned notes that have an active share link show a small link icon. An empty list reads "No notes yet", or "No results" during a search.
 
-"Shared with me" lists notes shared with you, each with "Can edit" or "View only". It is empty for guests ("You don't have shared notes yet"). Clicking an entry opens the note in the main editor. Its right-click menu offers "Rename", "Delete note for everyone" (only with edit access) and "Remove from my list".
+"Shared with me" lists notes shared with you, each with "Can edit" or "View only". It is empty for guests ("You don't have shared notes yet"). Clicking an entry opens the note in the main editor. Its right-click menu offers "Rename" and "Delete note for everyone" (both only with edit access) and "Remove from my list". The list is refreshed every 10 seconds, and a permission change reaches an open note then: a collaborator moved to view only sees the editor lock, while the room kick already stops their writes at once.
 
 ### 2.11 Guest mode and importing guest notes
 
@@ -174,7 +174,7 @@ Comments are for signed-in users on notes that have a server id. To start one, s
 
 Threads show the author's name and avatar, replies ("Reply... (type @ to mention)"), and Resolve. Resolving removes the highlight from the text and hides the thread unless "Show resolved (n)" is on; reopening puts the highlight back. In the `@` picker, an empty query lists the note's owner and collaborators and a typed query searches all users. The author of a comment and the note's owner may delete it; deleting a root comment removes its highlight. If the highlighted text is deleted while the sidebar is open, the thread is deleted with it. Any change makes the other open tabs refetch the comments through the room.
 
-The API only allows the owner and collaborators to read or write comments. People who reached a note only through a share link get 403, so the comment form saves nothing and the highlight is removed. View-only collaborators can read, reply to and resolve threads, but cannot start a new one in the UI because the toolbar, bubble and context menu are hidden when the editor is read-only.
+The API allows the owner, collaborators and signed-in people who opened the note through a share link that is still live to read and write comments. View-only collaborators can read, reply to and resolve threads, but cannot start a new one in the UI because the toolbar, bubble and context menu are hidden when the editor is read-only.
 
 ### 2.15 Mentions
 
@@ -235,14 +235,14 @@ Any unknown URL shows a 404 page styled as a blank ruled note: "Untitled · 404"
 | Read the note | own notes only | yes, share page | yes | yes | yes | yes | yes |
 | Live updates and presence | no rooms | yes | yes | yes | yes | yes | yes |
 | Edit content | yes, locally | no | no | yes | no | yes | yes |
-| Rename | yes, locally | no | no (the sidebar offers it, the server refuses) | yes | no (same) | yes | yes |
-| Add or remove tags | yes, locally | no | no (the picker is shown; nothing is saved) | yes | no (same) | yes | yes |
-| Vote in a poll | yes, per browser | no | count changes on screen only | yes | count changes on screen only | yes | yes |
+| Rename | yes, locally | no | no | yes | no | yes | yes |
+| Add or remove tags | yes, locally | no | no | yes | no | yes | yes |
+| Vote in a poll | yes, per browser | no | no | yes | no | yes | yes |
 | Delete the note | yes, locally | no | no | yes ("Delete note for everyone") | no | yes | yes |
 | Remove from "Shared with me" | n/a | n/a | yes | yes | yes | yes | n/a |
-| Read and write comments | no | no | no (API 403) | no (API 403) | read, reply, resolve | yes | yes |
-| Delete a comment | no | no | no | no | own only | own only | any (API), own only in the UI (see findings) |
-| See share links | no | no | no | yes, read-only | no | no | yes |
+| Read and write comments | no | no | read, reply, resolve | yes | read, reply, resolve | yes | yes |
+| Delete a comment | no | no | no | no | own only | own only | any |
+| See share links | no | no | no | yes, read-only | no | yes, read-only | yes |
 | Create, regenerate, revoke links | no | no | no | no | no | no | yes |
 | Invite, change, remove collaborators | no | no | no | no | no | no | yes |
 | Answer access requests | no | no | no | no | no | yes | yes |
@@ -276,7 +276,7 @@ All routes are Next.js route handlers under `app/api`. The middleware requires a
 |---|---|---|---|---|
 | `GET /api/notes` | signed in | none | Array of owned notes, newest first: `{id, userId, title, content, tags[], createdAt, updatedAt, isShared}`. `no-store`. | 401 |
 | `POST /api/notes` | signed in | Optional JSON `{title?, content?, tags?, guestId?}`. Without a body: an empty "Untitled" note. With `guestId`: the id is derived from the user and `guestId`, and an existing row is returned unchanged (idempotent import). Title cut to 200 chars. | The note, with `tags` as an array | 401 |
-| `GET /api/notes/:id` | owner | none | `{id}` only; used to check that the note still exists | 401, 404 (missing or not yours) |
+| `GET /api/notes/:id` | owner | none | `{id, userId}`; used to check that the note still exists and by the comment sidebar to know the owner | 401, 404 (missing or not yours) |
 | `PATCH /api/notes/:id` | owner | `{title?, content?, tags?}`; missing fields are kept | The updated note. A changed title is pushed to the room as `title`. | 401, 403, 404 |
 | `DELETE /api/notes/:id` | owner | none | `{success: true}`. Sends `delete` to the room first, deletes `SharedAccess` rows, then the note (cascades). | 401, 403, 404 |
 | `GET /api/notes/:id/access` | signed in | none | `{access: true, permission: "OWNER" or "READ" or "EDIT", noteTitle}` or `{access: false, noteTitle, pendingRequest: {id, status, resolvedByName, grantedPermission} or null}` | 401, 404 |
@@ -288,15 +288,15 @@ All routes are Next.js route handlers under `app/api`. The middleware requires a
 |---|---|---|---|---|
 | `GET /api/notes/:id/share` | owner | none | Active share links `[{id, token, noteId, permission, createdAt, revokedAt}]` | 401, 403, 404 |
 | `POST /api/notes/:id/share` | owner | `{permission: "READ" or "EDIT"}` (anything else means READ) | The new link. Any active link with the same permission is revoked first, and if one was, the room is kicked. | 401, 403, 404 |
-| `GET /api/notes/:id/collaborators` | owner or collaborator | none | Collaborators, newest first, with the owner added at the front as `{id: "owner-<userId>", permission: "OWNER", …}` for mention pickers | 401, 403, 404 |
+| `GET /api/notes/:id/collaborators` | owner, collaborator or live-link visitor | none | Collaborators, newest first, with the owner added at the front as `{id: "owner-<userId>", permission: "OWNER", …}` for mention pickers | 401, 403, 404 |
 | `POST /api/notes/:id/collaborators` | owner | `{targetUserId, permission?}` | The collaborator row (upserted, so inviting again updates the permission and profile) | 400 (`targetUserId required`, `Cannot invite yourself`), 401, 403, 404 (note, or `User not found` in Clerk) |
-| `PATCH /api/notes/:id/collaborators/:userId` | owner | `{permission: "READ" or "EDIT"}` | The updated row; kicks the room | 400 (`Invalid permission`), 401, 403 (`Not found or forbidden`), 500 if the user is not a collaborator |
-| `DELETE /api/notes/:id/collaborators/:userId` | owner | none | `{success: true}`; kicks the room | 401, 403 |
+| `PATCH /api/notes/:id/collaborators/:userId` | owner | `{permission: "READ" or "EDIT"}` | `{success: true, permission}`; updates the collaborator's "Shared with me" entry and kicks the room | 400 (`Invalid permission`), 401, 403 (`Not found or forbidden`), 404 (`Not a collaborator`) |
+| `DELETE /api/notes/:id/collaborators/:userId` | owner | none | `{success: true}`; removes the collaborator's "Shared with me" entry and kicks the room | 401, 403 |
 | `GET /api/share/:token` | none for link tokens; signed in for `collab-<noteId>` | none | `{noteId, title, content, tags[], permission, updatedAt}`, `no-store`. A `collab-` token also records a `SharedAccess` row. | 401 (collab token without a session), 404 (revoked, unknown, or not a collaborator) |
 | `PATCH /api/share/:token` | signed in with edit access through the link or as an edit collaborator (`collab-<noteId>`) | `{title?, content?, tags?}` | `{title, content, updatedAt}`. A changed title is pushed to the room. | 401, 403 (view-only), 404 |
 | `DELETE /api/share/:token` | owner | none | `{success: true}`; sets `revokedAt` and kicks the room | 401, 403, 404 |
 | `DELETE /api/share/:token/delete-note` | signed in with edit access (link or `collab-` token) | none | `{success: true}`. Sends `delete` to the room, deletes `SharedAccess` and collaborator rows, then the note. | 401, 403 (view-only), 404 |
-| `GET /api/share/:token/links` | signed in, `:token` must be an active edit link | none | Active links of that note | 401, 403, 404 (also for `collab-` tokens) |
+| `GET /api/share/:token/links` | signed in, `:token` must be an active edit link or `collab-<noteId>` for an edit collaborator | none | Active links of that note | 401, 403, 404 |
 | `GET /api/share/access-events` | signed in (returns `[]` otherwise) | none | `[{id: "<noteId>:<userId>", noteId, noteTitle, accessorName, accessedAt}]` for owned notes opened by users who are still collaborators | none |
 | `GET /api/shared-notes` | signed in (returns `[]` otherwise) | none | "Shared with me": up to 50 `SharedAccess` records, then collaborations not already covered, as `[{id, noteId, noteTitle, token, permission, lastSeen, ownerName}]`. Collaborations use the token `collab-<noteId>`. `no-store`. | none |
 | `DELETE /api/shared-notes` | signed in | `{noteId}` | `{ok: true}`; deletes your `SharedAccess` and collaborator rows for that note | 400, 401 |
@@ -305,9 +305,9 @@ All routes are Next.js route handlers under `app/api`. The middleware requires a
 
 | Method and path | Auth | Request | Response | Errors |
 |---|---|---|---|---|
-| `GET /api/notes/:id/comments` | owner or collaborator | none | All comments, oldest first | 401, 403, 404 |
-| `POST /api/notes/:id/comments` | owner or collaborator | `{content, commentId?, parentId?, mentions?: userId[]}` | The new comment. Sends `comment`, `comment_reply` and `comment_mention` notifications as in 2.16. | 400 (`Content required`), 401, 403, 404 |
-| `PATCH /api/notes/:id/comments/:commentId` | owner or collaborator | `{resolved?, content?}` | The updated comment. Resolving someone else's comment notifies them (`comment_resolved`). | 401, 403, 404 |
+| `GET /api/notes/:id/comments` | owner, collaborator or live-link visitor | none | All comments, oldest first | 401, 403, 404 |
+| `POST /api/notes/:id/comments` | owner, collaborator or live-link visitor | `{content, commentId?, parentId?, mentions?: userId[]}` | The new comment. Sends `comment`, `comment_reply` and `comment_mention` notifications as in 2.16. | 400 (`Content required`), 401, 403, 404 |
+| `PATCH /api/notes/:id/comments/:commentId` | owner, collaborator or live-link visitor | `{resolved?, content?}` | The updated comment. Resolving someone else's comment notifies them (`comment_resolved`). | 401, 403, 404 |
 | `DELETE /api/notes/:id/comments/:commentId` | comment author or note owner | none | `{ok: true}` (replies are deleted with a root) | 401, 403, 404 |
 
 ### Notifications and access requests
@@ -318,7 +318,7 @@ All routes are Next.js route handlers under `app/api`. The middleware requires a
 | `PATCH /api/notifications` | signed in | none | `{ok: true}`; marks all as read | 401 |
 | `DELETE /api/notifications` | signed in | none | `{ok: true}`; deletes all of yours | 401 |
 | `PATCH /api/notifications/:id` | the recipient | none | `{ok: true}`; marks one as read | 401, 404 |
-| `POST /api/notifications/mention` | signed in | `{mentionedUserId, noteId, noteTitle}` | `{ok: true}`; stores and pushes a `mention` notification (nothing if you mention yourself) | 400 (`Missing fields`), 401 |
+| `POST /api/notifications/mention` | owner, collaborator or live-link visitor of `noteId` | `{mentionedUserId, noteId}` | `{ok: true}`; stores and pushes a `mention` notification titled with the note's stored title (nothing if you mention yourself) | 400 (`Missing fields`), 401, 403, 404 |
 | `POST /api/access-requests` | signed in | `{noteId}` | `{id, status}`. Creates or resets the request to `pending` and notifies the owner and edit collaborators. | 400 (`noteId required`, `You own this note`, `You already have access`), 401, 404 |
 | `GET /api/access-requests` | signed in (returns `[]` otherwise) | none | Your requests: `{id, noteId, noteTitle, status, resolvedByName, grantedPermission, createdAt, resolvedAt}`. Not used by the UI today. | none |
 | `PATCH /api/access-requests/:id` | owner or edit collaborator of the note | `{action: "accept" or "deny", permission?}` | `{ok: true, action, resolvedByName}`. Accepting upserts a collaborator. Notifies the requester (`access_response`), marks every related `access_request` notification read with the outcome, and pushes `notification_update` to each holder. | 400 (`action required`, `Already resolved`), 401, 403, 404 |
@@ -404,6 +404,7 @@ The smoke tests in `e2e/` run against production with `npm run e2e` (or one at a
 | Revocation (kick) | `realtime.mjs` | A revoked edit link's open editor is cut off at once |
 | Access request push | `realtime.mjs` | The request reaches the owner's open tab without a reload |
 | "Opened" notification | `opened.mjs` | The owner's bell shows "<name> opened …" after an invited collaborator opens the note |
+| Fixes from the spec review | `fixes.mjs` | Mention refused from a note you can't open, owner id for comment deletes, share links for edit collaborators, PATCH on a non-collaborator is 404, a downgraded collaborator's editor locks without a reload, no Rename on view-only notes, Ctrl+K opens the link box, an HTML upload is refused with a message and nothing is embedded |
 | Attachments and uploads | `attach.mjs` | Attachment stored as a Blob URL, no base64 in the note, note stays small, download link forces a download, an HTML upload is refused with 415 |
 | Voice memos | `attach.mjs` | Recording pill shown, memo saved as a Blob attachment |
 | Mobile text style sheet | `attach.mjs` | The text style button opens a bottom sheet on a phone-sized screen |
@@ -420,39 +421,9 @@ The current list of what is missing or limited lives in [known-gaps.md](known-ga
 
 ### Findings from writing this spec
 
-These behaviors look like bugs or contradict the existing docs. They are recorded here so they are not lost; none of them was fixed as part of writing this file.
+Writing this spec turned up a list of bugs. Most were fixed on 2026-10-17 and are covered by `e2e/fixes.mjs`; what is left is below.
 
-The comment sidebar asks `GET /api/notes/:id` for the note's owner (`components/CommentSidebar.tsx:568`), but that route only returns `{id}` (`app/api/notes/[id]/route.ts:42`), so the owner never gets Delete buttons on other people's comments even though the API allows it.
-
-View-only users get a working tag picker, because the editor never passes `readOnly` to `TagInput` (`components/Editor.tsx:550`). Their tag changes show on screen and are never saved.
-
-The sidebar offers "Rename" on view-only shared notes (`components/Sidebar.tsx:491`). The server refuses it with 403, but the new name stays on screen until the next refresh (`hooks/useSharedNotes.ts:122`).
-
-When a collaborator is downgraded to view-only, their open note keeps its old `sharedPermission`, because the 10-second poll only drops notes that are gone (`hooks/useSharedNotes.ts:25`). Their editor stays editable, and their edits are dropped by the room and refused by the API without any message.
-
-Upload limits can be bypassed by accident: `uploadFile` falls back to an inline base64 data URL on any failed response (`lib/upload-image.ts:11`), so a file refused with 413 or 415 (including an HTML file) is embedded in the note anyway.
-
-The per-browser poll vote key uses the first option's id (`extensions/poll.tsx:30`), and polls inserted from the toolbar keep the default ids `a` and `b` (`extensions/poll.tsx:284`). Voting on one poll therefore marks every other toolbar-made poll in that browser as voted.
-
-The "manually renamed" flag is per browser (`hooks/useNotes.ts:783`), so typing in a note on a second device can replace its manual title with the first line again (`hooks/useNotes.ts:917`).
-
-If accepting or denying an access request from the bell fails (for example "Already resolved"), the item stays on "Processing..." forever (`components/NotificationBell.tsx:261`).
-
-Share-link visitors who are not collaborators see the Comments button, but every comment call returns 403 (`app/api/notes/[id]/comments/route.ts:60`), so new comments vanish.
-
-For an edit collaborator, the share dialog asks `/api/share/collab-<noteId>/links`, which only knows link tokens and returns 404 (`app/api/share/[token]/links/route.ts:13`), so the dialog shows no links.
-
-A revoked link that is open in the app ends on "This note has been deleted. Someone removed this note." (`components/Editor.tsx:320`), which is misleading when only access was removed.
-
-`POST /api/notifications/mention` does not check that the sender can see the note or that the target has anything to do with it (`app/api/notifications/mention/route.ts:17`). Any signed-in user can send a `mention` notification with any title text to any user id.
-
-Anyone signed in with an edit link can permanently delete the owner's note through "Delete note for everyone" (`app/api/share/[token]/delete-note/route.ts:40`). This may be intended, but it is a large power to hand to a link.
-
-The image options menu has no check for read-only editors (`extensions/resizable-image.tsx:309`), so view-only users can probably open it and change an image on their own screen; this was not tried in a browser.
-
-`PATCH /api/notes/:id/collaborators/:userId` uses `update`, which throws (500) when the user is not a collaborator (`app/api/notes/[id]/collaborators/[userId]/route.ts:30`).
-
-Unknown notification types have no label in the bell, so `mention`, `comment`, `shared`, `deleted` and `opened` show their raw type name as the badge (`components/NotificationBell.tsx:17`).
+Anyone signed in with an edit link can permanently delete the owner's note through "Delete note for everyone" (`app/api/share/[token]/delete-note/route.ts`). This may be intended, but it is a large power to hand to a link, and it is waiting on a product decision.
 
 `GET /api/access-requests`, `PATCH /api/user/username` and `components/InfoPopover.tsx` are not used by the UI.
 
@@ -470,4 +441,4 @@ Writing this spec also found places where the other docs disagreed with the code
 | `barrapad_appearance` | Appearance settings |
 | `barrapad_known_shared` | Snapshot of "Shared with me" for the browser-only notifications |
 | `barrapad_opened_notified` | "Opened" events already announced |
-| `bpad_poll_vote_<option id>` | The option this browser voted for in a poll |
+| `bpad_poll_vote_<first option id>` | The option a guest voted for in a poll |

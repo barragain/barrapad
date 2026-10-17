@@ -1,6 +1,7 @@
 import { auth, clerkClient } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { canOpenNote } from '@/lib/notes'
 
 async function verifyOwnership(noteId: string, userId: string) {
   const note = await prisma.note.findUnique({ where: { id: noteId } })
@@ -22,10 +23,7 @@ export async function GET(_request: NextRequest, props: { params: Promise<{ id: 
   const isOwner = note.userId === userId
   let isCollaborator = false
   if (!isOwner) {
-    const collab = await prisma.noteCollaborator.findUnique({
-      where: { noteId_userId: { noteId: params.id, userId } },
-    })
-    isCollaborator = !!collab
+    isCollaborator = await canOpenNote(params.id, userId)
   }
   if (!isOwner && !isCollaborator) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 

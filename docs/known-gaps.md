@@ -6,7 +6,11 @@ Guest notes keep images and files as base64 inside localStorage. Images are shru
 
 Someone cut off by a revoked link keeps whatever they typed in the open tab, but it never syncs or saves.
 
-Two people voting on the same poll in the same instant can overwrite each other's vote, because the votes live in one node attribute and the last write wins. A signed-in user who voted before votes moved to the account (2026-10-17) can vote once more.
+Two people voting on the same poll in the same instant can overwrite each other's vote, because the votes live in one node attribute and the last write wins. A signed-in user who voted before votes moved to the account (2026-10-17) can vote once more. Polls inserted before 2026-10-17 share the option ids `a` and `b`, so a guest who votes on one of them sees every other such poll as voted in that browser; new polls get random ids.
+
+The "manually renamed" flag is kept per browser, so typing in a renamed note on another device can put the first line back as its title. Keeping it would need a column on the note.
+
+A collaborator moved to view only keeps an editable-looking editor for up to 10 seconds (the shared list poll), though the room already drops their writes.
 
 Signed-in users can read their notes offline but not edit them. Offline editing for accounts would need the local Yjs doc to be kept (y-indexeddb) and merged on reconnect. If someone signs out and goes offline before the next page load, the saved offline page still holds their notes.
 

@@ -468,12 +468,10 @@ export default function EditorComponent({
   const handleMentionInserted = useCallback((mentionedUserId: string, _displayName: string) => {
     const realNoteId = note.sharedNoteId ?? note.id
     if (/^(temp|local)-/.test(realNoteId)) return
-    const text = editorRef.current?.getText() ?? ''
-    const title = text.split('\n')[0]?.trim().slice(0, 100) || 'Untitled'
     fetch('/api/notifications/mention', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mentionedUserId, noteId: realNoteId, noteTitle: title }),
+      body: JSON.stringify({ mentionedUserId, noteId: realNoteId }),
     }).catch(() => {})
   }, [note.id, note.sharedNoteId])
 
@@ -504,10 +502,10 @@ export default function EditorComponent({
         background: 'var(--editor-bg)', gap: 8, textAlign: 'center', padding: '0 2rem',
       }}>
         <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink)', margin: 0 }}>
-          This note has been deleted
+          {note.sharedToken ? 'You can no longer open this note' : 'This note has been deleted'}
         </p>
         <p style={{ fontSize: 13, color: 'var(--muted)', margin: 0 }}>
-          Someone removed this note.
+          {note.sharedToken ? 'It was deleted, or the owner stopped sharing it with you.' : 'Someone removed this note.'}
         </p>
         <button
           onClick={() => onNoteDeleted?.(note.id)}
@@ -553,6 +551,7 @@ export default function EditorComponent({
           onChange={handleTagsChangeWithSync}
           onRenameTag={onRenameTag}
           onDeleteTag={onDeleteTag}
+          readOnly={!editable}
         />
       }
     />

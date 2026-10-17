@@ -1,6 +1,7 @@
 import { auth, clerkClient } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { canOpenNote } from '@/lib/notes'
 import { pushNotification } from '@/lib/notifications'
 
 // GET /api/notes/[id]/comments — fetch all comments for a note
@@ -18,12 +19,7 @@ export async function GET(
   if (!note) return NextResponse.json({ error: 'Note not found' }, { status: 404 })
 
   const isOwner = note.userId === userId
-  if (!isOwner) {
-    const collab = await prisma.noteCollaborator.findUnique({
-      where: { noteId_userId: { noteId, userId } },
-    })
-    if (!collab) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  if (!isOwner && !(await canOpenNote(noteId, userId))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const comments = await prisma.comment.findMany({
     where: { noteId },
@@ -58,12 +54,7 @@ export async function POST(
   if (!note) return NextResponse.json({ error: 'Note not found' }, { status: 404 })
 
   const isOwner = note.userId === userId
-  if (!isOwner) {
-    const collab = await prisma.noteCollaborator.findUnique({
-      where: { noteId_userId: { noteId, userId } },
-    })
-    if (!collab) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  if (!isOwner && !(await canOpenNote(noteId, userId))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   // Get commenter info
   let userName = 'Someone'

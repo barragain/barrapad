@@ -22,3 +22,14 @@ export async function listOwnedNotes(userId: string): Promise<Note[]> {
     isShared: _count.shareLinks > 0,
   }))
 }
+
+/** Whether a user who is not the owner can open a note: a collaborator, or
+ *  someone who opened it through a share link that is still live. */
+export async function canOpenNote(noteId: string, userId: string): Promise<boolean> {
+  const [collab, access] = await Promise.all([
+    prisma.noteCollaborator.findUnique({ where: { noteId_userId: { noteId, userId } } }),
+    prisma.sharedAccess.findUnique({ where: { userId_noteId: { userId, noteId } } }),
+  ])
+  if (collab) return true
+  return !!access && (await prisma.shareLink.count({ where: { token: access.token, noteId, revokedAt: null } })) > 0
+}

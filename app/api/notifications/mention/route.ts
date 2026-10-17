@@ -1,6 +1,7 @@
 import { auth, clerkClient } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { canOpenNote } from '@/lib/notes'
 import { pushNotification } from '@/lib/notifications'
 
 // POST /api/notifications/mention — send mention notification
@@ -11,7 +12,6 @@ export async function POST(request: NextRequest) {
   const body = (await request.json()) as {
     mentionedUserId: string
     noteId: string
-    noteTitle: string
   }
 
   if (!body.mentionedUserId || !body.noteId) {
@@ -22,6 +22,13 @@ export async function POST(request: NextRequest) {
   if (body.mentionedUserId === userId) {
     return NextResponse.json({ ok: true })
   }
+
+  // Only someone who can open the note may mention from it, and the title
+  // comes from the database, not the request.
+  const note = await prisma.note.findUnique({ where: { id: body.noteId }, select: { userId: true, title: true } })
+  if (!note) return NextResponse.json({ error: 'Note not found' }, { status: 404 })
+  if (note.userId !== userId && !(await canOpenNote(body.noteId, userId))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  const noteTitle = note.title || 'a note'
 
   // Get sender info from Clerk
   let fromName = 'Someone'
@@ -40,8 +47,8 @@ export async function POST(request: NextRequest) {
     userId: body.mentionedUserId,
     type: 'mention',
     noteId: body.noteId,
-    noteTitle: body.noteTitle || 'a note',
-    message: `${fromName} mentioned you in "${body.noteTitle || 'a note'}"`,
+    noteTitle,
+    message: `${fromName} mentioned you in "${noteTitle}"`,
     fromUserId: userId,
     fromName,
     fromAvatar,

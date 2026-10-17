@@ -279,12 +279,9 @@ export const Poll = Node.create({
   addAttributes() {
     return {
       question: { default: '' },
-      options: {
-        default: JSON.stringify([
-          { id: 'a', label: '', votes: 0 },
-          { id: 'b', label: '', votes: 0 },
-        ]),
-      },
+      // Empty, so the editor view creates random option ids: the guest vote
+      // key is the first option's id, and fixed ids made every poll share it.
+      options: { default: '[]' },
       size: { default: 'medium' },
       align: { default: 'left', rendered: false },
       voters: { default: '{}' },

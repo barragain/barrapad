@@ -40,7 +40,7 @@ interface Props {
   onToggle: () => void
   onMarkAllRead: () => void
   onDeleteAll: () => void
-  onAccessRequestAction?: (requestId: string, action: 'accept' | 'deny', permission?: string) => void
+  onAccessRequestAction?: (requestId: string, action: 'accept' | 'deny', permission?: string) => Promise<void>
   onNotificationClick?: (notification: CollabNotification) => void
 }
 
@@ -244,7 +244,7 @@ function NotificationItem({
   notification: CollabNotification
   index: number
   isLast: boolean
-  onAccessRequestAction?: (requestId: string, action: 'accept' | 'deny', permission?: string) => void
+  onAccessRequestAction?: (requestId: string, action: 'accept' | 'deny', permission?: string) => Promise<void>
   onClick?: () => void
 }) {
   const [loading, setLoading] = useState(false)
@@ -259,7 +259,8 @@ function NotificationItem({
     const requestId = meta.accessRequestId as string
     if (!requestId || !onAccessRequestAction) return
     setLoading(true)
-    onAccessRequestAction(requestId, action, permChoice ?? 'READ')
+    await onAccessRequestAction(requestId, action, permChoice ?? 'READ')
+    setLoading(false)
   }
 
   return (

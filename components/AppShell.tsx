@@ -316,13 +316,13 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action, permission }),
       })
-      if (res.ok) {
-        // Re-fetch notifications to get updated state
-        const notifsRes = await fetch('/api/notifications')
-        if (notifsRes.ok) {
-          const data = await notifsRes.json() as CollabNotification[]
-          setNotifications(data)
-        }
+      // Re-fetch notifications either way: on failure (e.g. already resolved
+      // elsewhere) the server copy says what the item should show now.
+      if (!res.ok) window.alert(((await res.json().catch(() => ({}))) as { error?: string }).error ?? 'That request could not be updated.')
+      const notifsRes = await fetch('/api/notifications')
+      if (notifsRes.ok) {
+        const data = await notifsRes.json() as CollabNotification[]
+        setNotifications(data)
       }
     } catch {}
   }, [])

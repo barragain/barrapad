@@ -207,7 +207,7 @@ function ResizableImageView({ node, updateAttributes, selected, editor, getPos }
     outer.style.marginRight = align === 'center' ? 'auto' : ''
   })
 
-  const showHandle = selected || hovered || resizing
+  const showHandle = editor.isEditable && (selected || hovered || resizing)
   const isFullWidth = !width && align === 'center'
 
   return (

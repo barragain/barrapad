@@ -25,12 +25,15 @@ export function useSharedNotes({ isLoaded, isSignedIn, notes, notesRef, updateNo
   const applyShared = (freshShared: SharedAccessRecord[]) => {
     detectSharedNotesChanges(freshShared)
     setSharedNotes(freshShared)
-    const validIds = new Set(freshShared.map((r) => `shared-${r.token}`))
-    updateNotes((prev) => prev.some((n) => n.sharedToken && !validIds.has(n.id))
-      ? prev.filter((n) => !n.sharedToken || validIds.has(n.id))
+    const fresh = new Map(freshShared.map((r) => [`shared-${r.token}`, r.permission as 'READ' | 'EDIT']))
+    // Drop notes whose access is gone, and carry permission changes (a
+    // downgraded collaborator's open note turns read-only).
+    updateNotes((prev) => prev.some((n) => n.sharedToken && fresh.get(n.id) !== n.sharedPermission)
+      ? prev.filter((n) => !n.sharedToken || fresh.has(n.id))
+          .map((n) => n.sharedToken && fresh.get(n.id) !== n.sharedPermission ? { ...n, sharedPermission: fresh.get(n.id) } : n)
       : prev)
     setActiveNoteId((active) => {
-      if (!active?.startsWith('shared-') || validIds.has(active)) return active
+      if (!active?.startsWith('shared-') || fresh.has(active)) return active
       return notesRef.current.find((n) => !n.sharedToken)?.id ?? null
     })
   }

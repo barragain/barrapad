@@ -27,13 +27,19 @@ export async function PATCH(
     return NextResponse.json({ error: 'Invalid permission' }, { status: 400 })
   }
 
-  const collab = await prisma.noteCollaborator.update({
-    where: { noteId_userId: { noteId: params.id, userId: params.userId } },
+  const { count } = await prisma.noteCollaborator.updateMany({
+    where: { noteId: params.id, userId: params.userId },
+    data: { permission },
+  })
+  if (!count) return NextResponse.json({ error: 'Not a collaborator' }, { status: 404 })
+  // The collaborator's "Shared with me" entry carries the permission too.
+  await prisma.sharedAccess.updateMany({
+    where: { noteId: params.id, userId: params.userId, token: `collab-${params.id}` },
     data: { permission },
   })
   await kickRoom(params.id)
 
-  return NextResponse.json(collab)
+  return NextResponse.json({ success: true, permission })
 }
 
 // DELETE /api/notes/:id/collaborators/:userId — remove a collaborator (owner only)
@@ -50,6 +56,9 @@ export async function DELETE(
 
   await prisma.noteCollaborator.deleteMany({
     where: { noteId: params.id, userId: params.userId },
+  })
+  await prisma.sharedAccess.deleteMany({
+    where: { noteId: params.id, userId: params.userId, token: `collab-${params.id}` },
   })
   await kickRoom(params.id)
 

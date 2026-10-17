@@ -39,7 +39,7 @@ export async function GET(_request: NextRequest, props: { params: Promise<{ id: 
   const note = await prisma.note.findUnique({ where: { id: params.id } })
   if (!note || note.userId !== userId) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  return NextResponse.json({ id: note.id }, {
+  return NextResponse.json({ id: note.id, userId: note.userId }, {
     headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' },
   })
 }

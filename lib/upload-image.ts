@@ -4,6 +4,10 @@
  * guest without an account, etc.).
  */
 export async function uploadFile(file: Blob, name = (file as File).name ?? 'file'): Promise<string> {
+  // Same limits as /api/upload, checked here too so guests and offline
+  // users (who take the data URL path) get them as well.
+  if (/html|svg|xml|javascript/i.test(file.type)) refuse(`${name} can't be added: this file type isn't allowed.`)
+  if (file.size > 10 * 1024 * 1024) refuse(`${name} can't be added: files must be 10 MB or smaller.`)
   try {
     const form = new FormData()
     form.append('file', file, name)
@@ -12,7 +16,13 @@ export async function uploadFile(file: Blob, name = (file as File).name ?? 'file
       const { url } = (await res.json()) as { url: string }
       return url
     }
-  } catch {
+    // Refused by the server: don't sneak it in as a data URL.
+    if (res.status === 413 || res.status === 415) {
+      const { error } = (await res.json().catch(() => ({}))) as { error?: string }
+      refuse(`${name} can't be added: ${error ?? 'the server refused it'}.`)
+    }
+  } catch (e) {
+    if (e instanceof UploadRefused) throw e
     // Network error — fall back to data URL
   }
   // Fallback: convert to data URL so the image still works (just larger).
@@ -20,7 +30,15 @@ export async function uploadFile(file: Blob, name = (file as File).name ?? 'file
   return toDataURL(await shrinkImage(file))
 }
 
-const toDataURL = (file: Blob) => new Promise<string>((resolve) => {
+class UploadRefused extends Error {}
+
+/** Tell the user and stop: callers only chain .then, so nothing gets inserted. */
+function refuse(message: string): never {
+  window.alert(message)
+  throw new UploadRefused(message)
+}
+
+const toDataURL =(file: Blob) => new Promise<string>((resolve) => {
   const reader = new FileReader()
   reader.onload = () => resolve(reader.result as string)
   reader.readAsDataURL(file)

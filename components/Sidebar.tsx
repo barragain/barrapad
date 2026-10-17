@@ -486,17 +486,15 @@ export default function Sidebar({
             x={sharedContextMenu.x}
             y={sharedContextMenu.y}
             items={[
-              {
-                type: 'item',
+              ...(record?.permission === 'EDIT' ? [{
+                type: 'item' as const,
                 label: 'Rename',
                 onClick: () => {
                   setRenameSharedValue(record?.noteTitle || 'Untitled')
                   setRenamingSharedToken(sharedContextMenu.token)
                   setSharedContextMenu(null)
                 },
-              },
-              { type: 'separator' },
-              ...(record?.permission === 'EDIT' ? [{
+              }, { type: 'separator' as const }, {
                 type: 'item' as const,
                 label: 'Delete note for everyone',
                 danger: true,
