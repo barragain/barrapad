@@ -235,6 +235,13 @@ export default function NoteEditorCore({
   const [activeCommentThreadId, setActiveCommentThreadId] = useState<string | null>(null)
   const [pendingCommentMarkId, setPendingCommentMarkId] = useState<string | null>(null)
   const [selectionBar, setSelectionBar] = useState<{ x: number; y: number } | null>(null)
+  // Show/hide the selection formatting bar.
+  // On mobile, skip — the native selection popup (Copy/Paste/Share)
+  // covers the same area. Users have the toolbar instead.
+  const showSelectionBar = (ed: Editor) => {
+    const { from, to } = ed.state.selection
+    setSelectionBar(from !== to && editable && !isTouchRef.current ? selectionBarSpot(ed) : null)
+  }
   const [ctxIsRecording, setCtxIsRecording] = useState(false)
   const ctxMediaRecorderRef = useRef<MediaRecorder | null>(null)
   const ctxChunksRef = useRef<BlobPart[]>([])
@@ -503,14 +510,9 @@ export default function NoteEditorCore({
       onUpdateRef.current?.(html, text, title, !!transaction.getMeta(ySyncPluginKey)?.isChangeOrigin)
     },
     onBlur: () => { onBlurRef.current?.(); setSelectionBar(null) },
-    onSelectionUpdate: ({ editor: ed }) => {
-      const { from, to } = ed.state.selection
-
-      // Show/hide the selection formatting bar.
-      // On mobile, skip — the native selection popup (Copy/Paste/Share)
-      // covers the same area. Users have the toolbar instead.
-      setSelectionBar(from !== to && editable && !isTouchRef.current ? selectionBarSpot(ed) : null)
-    },
+    // Focus coming back (e.g. the link box's X) keeps the old selection, so show the bar again.
+    onFocus: ({ editor: ed }) => showSelectionBar(ed),
+    onSelectionUpdate: ({ editor: ed }) => showSelectionBar(ed),
     onTransaction: ({ editor: ed, transaction }) => {
       // A block (poll, image) can move without the selection changing, e.g. when aligned.
       // Wait a frame so its node view has re-rendered before measuring.

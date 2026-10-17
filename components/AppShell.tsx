@@ -404,6 +404,7 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
             className="md:hidden p-1.5 rounded-lg hover:bg-black/5 transition-colors flex-shrink-0"
             style={{ color: 'var(--ink)' }}
             onClick={() => setSidebarOpen(true)}
+            aria-label="Open notes"
           >
             <Menu size={18} />
           </button>
