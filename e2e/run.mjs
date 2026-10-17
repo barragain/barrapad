@@ -6,7 +6,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
-const tests = readdirSync(HERE).filter((f) => f.endsWith('.mjs') && f !== 'run.mjs')
+const tests = readdirSync(HERE).filter((f) => f.endsWith('.mjs') && f !== 'run.mjs' && f !== 'visual-audit.mjs')
 
 let failed = 0
 for (const t of tests) {

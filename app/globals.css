@@ -191,7 +191,8 @@ body {
 /* ── Vertical rhythm (docs/design-audit.md) ─────────────────────────────
    Three gaps, smallest to largest: wrapped lines (line-height), list items
    (0.3em), blocks (0.6em; 0.8em around containers such as quotes, code,
-   tables and node views). Spacing is margin-top on the later sibling only,
+   tables and node views; :where keeps that rule below the heading and divider
+   rules). Spacing is margin-top on the later sibling only,
    so gaps never double up. Headings sit closer to the text they introduce. */
 .ProseMirror { line-height: 1.65; }
 [data-font="sans"] .ProseMirror,
@@ -202,8 +203,8 @@ body {
 .ProseMirror blockquote > * + *,
 .ProseMirror li > * + * { margin-top: 0.6em; }
 
-.ProseMirror > :is(blockquote, pre, .tableWrapper, table, .react-renderer, [data-node-view-wrapper]) + *,
-.ProseMirror > * + :is(blockquote, pre, .tableWrapper, table, .react-renderer, [data-node-view-wrapper]) { margin-top: 0.8em; }
+.ProseMirror > :where(blockquote, pre, .tableWrapper, table, .react-renderer, [data-node-view-wrapper]) + *,
+.ProseMirror > * + :where(blockquote, pre, .tableWrapper, table, .react-renderer, [data-node-view-wrapper]) { margin-top: 0.8em; }
 
 .ProseMirror > hr + *,
 .ProseMirror > * + hr { margin-top: 1.2em; }
@@ -257,7 +258,8 @@ body {
   accent-color: var(--accent);
   cursor: pointer;
 }
-.ProseMirror ul[data-type="taskList"] > li > div { flex: 1; min-width: 0; }
+.ProseMirror ul[data-type="taskList"] > li > div { flex: 1; min-width: 0; margin-top: 0; }
+.ProseMirror ul[data-type="taskList"] > li > div > * + * { margin-top: 0.3em; }
 .ProseMirror ul[data-type="taskList"] > li[data-checked="true"] > div > p {
   text-decoration: line-through;
   color: var(--muted);
