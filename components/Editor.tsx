@@ -274,7 +274,9 @@ export default function EditorComponent({
     // this save was queued. Otherwise we'd save the OLD note's content under
     // the NEW note's ID (cross-note contamination — the data-loss bug).
     if (noteId !== liveNoteIdRef.current) return
-    onAutoSaveRef.current(noteId, title, html)
+    // Read the title now, not when the save was queued: the ref follows note
+    // state one render behind, so the queued title misses the last keystroke.
+    onAutoSaveRef.current(noteId, noteTitleRef.current || title, html)
   }, [])
 
   // ── NoteEditorCore callbacks ──────────────────────────────────────────────
