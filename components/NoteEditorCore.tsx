@@ -78,6 +78,11 @@ import { preloadSpelling, suggestSpelling } from '@/lib/spelling'
 
 const lowlight = createLowlight(common)
 
+// Set once the first editor has mounted. Only that one can meet server HTML
+// during hydration; editors mounted later (note switches, the live editor
+// replacing the preview) render right away, or the note blanks for a frame.
+let hydrated = false
+
 // Move cursor out of a NodeSelection so the next insert appends rather than replaces.
 function deselect(ed: Editor | null) {
   if (!ed) return
@@ -174,6 +179,7 @@ export default function NoteEditorCore({
   // note's onUpdate/onBlur, causing cross-note contamination during autosave.
   const onUpdateRef = useRef(onUpdate)
   const onBlurRef = useRef(onBlur)
+  useEffect(() => { hydrated = true }, [])
   useEffect(() => { onUpdateRef.current = onUpdate }, [onUpdate])
   useEffect(() => { onBlurRef.current = onBlur }, [onBlur])
 
@@ -320,8 +326,9 @@ export default function NoteEditorCore({
 
   // ── Tiptap editor ────────────────────────────────────────────────────────
   const editor = useEditor({
-    // The shell is server-rendered; create the editor after hydration (dev throws otherwise).
-    immediatelyRender: false,
+    // The shell is server-rendered: the first editor waits for hydration (dev
+    // throws otherwise), later ones render at once (see `hydrated`).
+    immediatelyRender: hydrated,
     extensions: [
       StarterKit.configure({ codeBlock: false, underline: false, link: false, dropcursor: { color: '#D4550A', width: 4 }, ...(collab ? { undoRedo: false } : {}) }),
       ...(collab ? [

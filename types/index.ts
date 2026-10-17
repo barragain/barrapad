@@ -79,4 +79,6 @@ export interface AppearanceSettings {
   font: 'mono' | 'sans' | 'serif'
   zoom: number
   theme: 'default' | 'calm' | 'synthwave' | 'earth' | 'barrapad' | 'midnight'
+  /** Open the app in focus mode on every visit. */
+  startFocus?: boolean
 }

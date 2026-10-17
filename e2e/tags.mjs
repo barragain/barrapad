@@ -92,6 +92,23 @@ check(createdId && (await editor().textContent()).includes(marker), 'switching a
   const spread = tops ? Math.max(...tops) - Math.min(...tops) : -1
   check(tops && spread <= 2, `the sheet does not jump when switching notes (tops ${tops ? [...new Set(tops)].join(',') : 'no rows'})`)
 }
+// Switching notes never leaves a frame without an editor (the live editor
+// used to mount one frame after the preview went away: a blank blink).
+{
+  const gaps = await page.evaluate(async () => {
+    const target = document.querySelector('.sidebar').querySelector('.note-item:not(.active)')
+    if (!target) return null
+    target.click()
+    let missing = 0
+    const t0 = performance.now()
+    while (performance.now() - t0 < 2500) {
+      await new Promise((r) => requestAnimationFrame(r))
+      if (!document.querySelector('.ProseMirror')) missing++
+    }
+    return missing
+  })
+  check(gaps === 0, `no blank frame when switching notes (frames without an editor: ${gaps})`)
+}
 
 if (createdId) await page.evaluate((id) => fetch(`/api/notes/${id}`, { method: 'DELETE' }), createdId)
 

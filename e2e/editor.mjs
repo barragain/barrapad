@@ -270,6 +270,16 @@ try {
     dark: document.documentElement.classList.contains('dark'),
   }))
   check(fonts.join() === 'AgMono,AgSans,AgSerif' && midnight.inert && !midnight.dark, `Appearance: Mono first, no Comic, own-color themes turn off the mode row (${fonts.join()} ${JSON.stringify(midnight)})`)
+  // "Start every visit in focus mode": on after a reload, off again once unticked.
+  await dark.locator('.appearance-sheet [role="switch"]').click()
+  await dark.reload({ waitUntil: 'domcontentloaded' })
+  await dark.waitForTimeout(4_000)
+  const focusOn = await dark.evaluate(() => document.querySelector('[data-focus-mode]') !== null)
+  await dark.evaluate(() => { const s = JSON.parse(localStorage.getItem('barrapad_appearance')); s.startFocus = false; localStorage.setItem('barrapad_appearance', JSON.stringify(s)) })
+  await dark.reload({ waitUntil: 'domcontentloaded' })
+  await dark.waitForTimeout(4_000)
+  const focusOff = await dark.evaluate(() => document.querySelector('[data-focus-mode]') === null)
+  check(focusOn && focusOff, `start in focus mode switch opens the next visit in focus mode (on ${focusOn}, off after untick ${focusOff})`)
   await dark.context().close()
 
   // Button hints: "Click here" labels on the first 3 visits (one browser tab

@@ -8,6 +8,8 @@ interface AppearanceModalProps {
   settings: AppearanceSettings
   onChange: (settings: AppearanceSettings) => void
   onClose: () => void
+  /** The app shows the "start in focus mode" switch; the share page has no focus mode. */
+  showStartFocus?: boolean
 }
 
 const ZOOM_OPTIONS = [12, 14, 16, 18, 20, 24]
@@ -33,7 +35,7 @@ const FONTS: Array<{ id: AppearanceSettings['font']; label: string; preview: str
   { id: 'serif', label: 'Serif', preview: 'Ag', style: 'Georgia, serif' },
 ]
 
-export default function AppearanceModal({ settings, onChange, onClose }: AppearanceModalProps) {
+export default function AppearanceModal({ settings, onChange, onClose, showStartFocus }: AppearanceModalProps) {
   const update = (partial: Partial<AppearanceSettings>) => onChange({ ...settings, ...partial })
 
   return (
@@ -140,6 +142,30 @@ export default function AppearanceModal({ settings, onChange, onClose }: Appeara
               </button>
             </div>
           </div>
+
+          {/* Focus mode */}
+          {showStartFocus && (
+            <div>
+              <label className="text-xs font-medium text-[var(--muted)] uppercase tracking-wider mb-2 block">Focus mode</label>
+              <button
+                role="switch"
+                aria-checked={!!settings.startFocus}
+                onClick={() => update({ startFocus: !settings.startFocus })}
+                className="w-full flex items-center justify-between gap-3 py-2 px-3 rounded-lg border border-[var(--border)] hover:bg-[var(--hover)] transition-colors text-sm text-[var(--ink)]"
+              >
+                <span>Start every visit in focus mode</span>
+                <span
+                  className="relative inline-block w-8 h-[18px] rounded-full transition-colors shrink-0"
+                  style={{ background: settings.startFocus ? '#D4550A' : 'var(--border)' }}
+                >
+                  <span
+                    className="absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white transition-all"
+                    style={{ left: settings.startFocus ? 16 : 2 }}
+                  />
+                </span>
+              </button>
+            </div>
+          )}
 
           {/* Themes */}
           <div>

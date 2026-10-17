@@ -119,6 +119,7 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
     const settings = loadAppearance()
     setAppearance(settings)
     applyAppearance(settings)
+    if (settings.startFocus) setFocusMode(true)
   }, [])
 
   // Update document title whenever the active note changes
@@ -814,6 +815,7 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
           settings={appearance}
           onChange={handleAppearanceChange}
           onClose={() => setShowAppearance(false)}
+          showStartFocus
         />
       )}
     </div>
