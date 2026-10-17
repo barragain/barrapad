@@ -276,6 +276,9 @@ async function load(): Promise<Spell> {
     'rly', 'rlly', 'tbd', 'tbc', 'tba', 'tho', 'thru', 'til',
     'wyd', 'hbu', 'wbu', 'hru', 'idek', 'idky', 'idgi',
     'hmu', 'imu', 'fml', 'gg', 'ggs', 'ez', 'gl', 'glhf',
+
+    // ── The app's own name ──
+    'barrapad', 'bpad',
   ]
   for (const w of modernWords) spell.add(w)
 
