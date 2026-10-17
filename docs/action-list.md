@@ -1,4 +1,4 @@
-# barraPAD action list
+# bpad action list
 
 Ordered by what to do first. Each item says why and what "done" looks like. The first two groups are housekeeping and can be one commit each; the rest are real work.
 

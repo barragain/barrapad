@@ -249,7 +249,7 @@ export default function ShareModal({ note, onClose, onIsSharedChange }: ShareMod
     if (!qrDataUrl) return
     const a = document.createElement('a')
     a.href = qrDataUrl
-    a.download = `barrapad-${note.id}.png`
+    a.download = `bpad-${note.id}.png`
     a.click()
   }
 

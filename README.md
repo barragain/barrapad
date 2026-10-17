@@ -1,4 +1,4 @@
-# barraPAD
+# bpad
 
 A notepad that syncs between your devices and lets you share a note with someone else, who can read or edit it live. Live site: https://www.bpad.cc
 

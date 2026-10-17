@@ -28,14 +28,14 @@ export const isLocalId = (id: string | null | undefined) => !!id && id.startsWit
 // ponytail: module-level flag, fine while AppShell is mounted once per page
 let guestMode = false
 
-// A guest's very first visit opens this note instead of a blank one. It is not
-// moved into the account on sign-in unless the guest changed it.
+// A guest's very first visit opens a blank note with this one under it. Neither
+// is moved into the account on sign-in unless the guest changed it.
 const WELCOMED_KEY = 'bpad_welcomed'
-const WELCOME_HTML = '<h1>Welcome to barraPAD</h1>'
+const WELCOME_HTML = '<h1>Welcome to bpad</h1>'
   + '<p>This note lives in your browser. Edit it, delete it, or start a new one from the sidebar.</p>'
   + '<h2>Things to try</h2>'
   + '<ul data-type="taskList">'
-  + '<li data-type="taskItem" data-checked="true"><p>Open barraPAD</p></li>'
+  + '<li data-type="taskItem" data-checked="true"><p>Open bpad</p></li>'
   + '<li data-type="taskItem" data-checked="false"><p>Type / on an empty line for headings, lists, tables, polls and more</p></li>'
   + '<li data-type="taskItem" data-checked="false"><p>Select some text to make it bold, give it a color or add a link</p></li>'
   + '<li data-type="taskItem" data-checked="false"><p>Start a line with # and a space to make a heading</p></li>'
@@ -144,8 +144,9 @@ export function useNotes({ initialNotes, guest, isGuest, isSignedIn }: {
     importingRef.current = true
     const run = async () => {
       for (const n of loadGuestNotes()) {
-        const untouchedWelcome = n.content === WELCOME_HTML
-        const res = untouchedWelcome ? { ok: true } : await fetch('/api/notes', {
+        // The welcome note shipped briefly under the old product name.
+        const untouched = !n.content || n.content === WELCOME_HTML || n.content === WELCOME_HTML.replaceAll('bpad', 'barraPAD')
+        const res = untouched ? { ok: true } : await fetch('/api/notes', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ title: n.title, content: n.content, tags: n.tags, guestId: n.id }),
@@ -164,16 +165,15 @@ export function useNotes({ initialNotes, guest, isGuest, isSignedIn }: {
   /** Owned notes from the server (or the guest store). Shared notes are fetched by useSharedNotes. */
   const fetchNotes = async () => {
     if (!isSignedIn) {
-      // Guest: the browser is the only store. The first visit ever opens the
-      // welcome note, later empty stores a blank one.
+      // Guest: the browser is the only store. An empty store gets a blank note;
+      // on the first visit ever the welcome note sits under it.
       const local = loadGuestNotes()
       if (!local.length) {
         const now = new Date().toISOString()
         let welcome = false
         try { welcome = !localStorage.getItem(WELCOMED_KEY); localStorage.setItem(WELCOMED_KEY, '1') } catch {}
-        local.push(welcome
-          ? { id: `local-${Date.now()}`, userId: '', title: 'Welcome to barraPAD', content: WELCOME_HTML, tags: [], createdAt: now, updatedAt: now }
-          : { id: `local-${Date.now()}`, userId: '', title: 'Untitled', content: '', tags: [], createdAt: now, updatedAt: now })
+        local.push({ id: `local-${Date.now()}`, userId: '', title: 'Untitled', content: '', tags: [], createdAt: now, updatedAt: now })
+        if (welcome) local.push({ id: `local-${Date.now() + 1}`, userId: '', title: 'Welcome to bpad', content: WELCOME_HTML, tags: [], createdAt: now, updatedAt: now })
         try { localStorage.setItem(GUEST_KEY, JSON.stringify(local)) } catch {}
       }
       setNotes(prev => [...local, ...prev.filter(n => n.sharedToken)])

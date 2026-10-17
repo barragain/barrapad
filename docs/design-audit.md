@@ -1,6 +1,6 @@
 # Editor design audit (2026-10-17)
 
-This audit came from seven research passes run on 2026-10-17. Four were web research: list spacing, how other editors style each format, calm interface design, and new UI/UX ideas from other writing apps. One was a text display study. Two looked at barraPAD itself: a code audit of every format, and a visual audit that measured the live site at desktop and phone sizes in light and dark mode. Nothing here has been built yet. Each finding gives its source, and the plan at the end is the proposed order of work.
+This audit came from seven research passes run on 2026-10-17. Four were web research: list spacing, how other editors style each format, calm interface design, and new UI/UX ideas from other writing apps. One was a text display study. Two looked at bpad itself: a code audit of every format, and a visual audit that measured the live site at desktop and phone sizes in light and dark mode. Nothing here has been built yet. Each finding gives its source, and the plan at the end is the proposed order of work.
 
 ## What is wrong today
 

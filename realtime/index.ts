@@ -1,4 +1,4 @@
-// barraPAD realtime server on Cloudflare Workers + Durable Objects (PartyServer).
+// bpad realtime server on Cloudflare Workers + Durable Objects (PartyServer).
 // Two kinds of room: NoteYParty (/parties/note-y/<noteId>) carries a note's
 // content as a Yjs doc plus its tags, title, delete and comment signals;
 // NoteParty (/parties/main/notif-<userId>) carries a user's notifications.

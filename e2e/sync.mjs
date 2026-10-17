@@ -1,4 +1,4 @@
-// Production smoke test for cross-device sync on barraPAD (www.bpad.cc).
+// Production smoke test for cross-device sync on bpad (www.bpad.cc).
 // Simulates two computers with the same account: two browser contexts that
 // share nothing but the login. Usage: node e2e/sync.mjs
 import { chromium } from 'playwright'

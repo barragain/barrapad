@@ -40,8 +40,9 @@ const marker = `guest-${Date.now().toString(36)}`
   check(await page.getByText('Local', { exact: true }).isVisible(), 'quiet "Local" label in the top bar')
   const share = page.locator('a[href="/sign-up"]', { hasText: 'Share' })
   check(await share.count() === 1, 'Share links to sign-up')
-  check((await page.locator('.ProseMirror').first().innerText()).startsWith('Welcome to barraPAD'), 'first visit opens the welcome note')
-  const welcome = await page.evaluate(() => JSON.parse(localStorage.getItem('bpad_guest_notes') ?? '[]')[0])
+  const firstNotes = await page.evaluate(() => JSON.parse(localStorage.getItem('bpad_guest_notes') ?? '[]'))
+  check((await page.locator('.ProseMirror').first().innerText()).trim() === '' && firstNotes[1]?.title === 'Welcome to bpad', 'first visit opens a blank note with the welcome note under it')
+  const welcome = firstNotes[1]
 
   await page.locator('.ProseMirror').first().click()
   await page.keyboard.type(`${marker} first line`)

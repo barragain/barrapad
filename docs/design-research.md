@@ -163,7 +163,7 @@ Principles:
 - Motion between 100 and 500 ms, kept under 300 ms unless there is a reason.
 - The claim that red primes avoidance did not replicate, so the case for less orange is about competing for attention, not color psychology.
 
-Recommendations for barraPAD, by impact:
+Recommendations for bpad, by impact:
 1. The red "9+" badge becomes a quiet dot, with no count.
 2. Hide most of the 25-icon toolbar. Use a bar on selection and a `/` menu, with at most about five icons at rest.
 3. The guest "Saved on this device only / Sign up to sync" bar becomes a small gray "Local" label by the save status. Show the sign-up prompt once, after the first real edit or on Share. The bar also has a stray second close button at the far right.
@@ -196,7 +196,7 @@ The cheapest wins with the most effect are 1, 3, 4 and 5.
 | 10 | Block drag handle | M | `@tiptap/extension-drag-handle-react` (MIT). The ready-made menu is a paid Tiptap plan. |
 | 11 | Replace the spell checker | M | Asked for by the user on 2026-10-17. The current nspell check (`utils/spellcheck`, `extensions/spell-check.ts`) is not accurate: it flags real words and its suggestions are poor. Replace it fully, but keep the look and flow of the custom right-click menu, where suggestions sit at the top when you right-click a misspelled word. Options to research: a better Hunspell dictionary set (en_US plus en_GB, a larger word list), a WASM Hunspell or SymSpell build for suggestions, LanguageTool (self-hosted or API, which also checks grammar), or letting the browser decide which words are wrong and only drawing our own menu. A user dictionary ("Add to dictionary") belongs with it. |
 
-Skipped on purpose: Bear-style syntax shown at the cursor (barraPAD is rich text), and AI writing features (no AI in the app). The research could not confirm a Notion 2026 page redesign beyond a third-party post.
+Skipped on purpose: Bear-style syntax shown at the cursor (bpad is rich text), and AI writing features (no AI in the app). The research could not confirm a Notion 2026 page redesign beyond a third-party post.
 
 Suggested order inside step 4: selection bar first (user request), then the quiet save status, the slash menu, the first note for guests, focus mode, the mobile keyboard toolbar, presence avatars, the command palette, collapsible headings, the drag handle, and the spell checker replacement.
 
