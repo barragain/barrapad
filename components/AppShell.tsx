@@ -135,6 +135,20 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (guest) fetchNotes() }, [])
 
+  // Offline support (public/sw.js). A signed-in page opened without network is
+  // the worker's saved copy, so its notes may be stale: stay read-only and
+  // reload once the network is back. Guests keep everything in this browser
+  // and work offline as usual.
+  useEffect(() => {
+    if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('/sw.js').catch(() => {})
+    if (guest || navigator.onLine) return
+    setNotesLoaded(false)
+    const back = () => location.reload()
+    window.addEventListener('online', back)
+    return () => window.removeEventListener('online', back)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // Re-fetch whenever the tab comes back: visibility (tab switch), window focus
   // (switching between windows does NOT fire visibilitychange) and reconnect.
   // After a long absence lock editing again until the fetch lands, so edits

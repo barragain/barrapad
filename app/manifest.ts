@@ -1,7 +1,7 @@
 import type { MetadataRoute } from 'next'
 
-// Lets phones install bpad to the home screen. No service worker: the app
-// needs the network for sign-in and sync anyway (see docs/known-gaps.md).
+// Lets phones install bpad to the home screen. public/sw.js makes the
+// installed app open offline.
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: 'bpad',
