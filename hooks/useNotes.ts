@@ -335,7 +335,8 @@ export function useNotes({ initialNotes, guest, isGuest, isSignedIn }: {
         const merged = { ...note, title: temp?.title ?? note.title, content: temp?.content ?? note.content }
         return prev.map((n) => (n.id === tempId ? merged : n))
       })
-      setActiveNoteId(note.id)
+      // Only follow the promotion if the user is still on the temp note.
+      setActiveNoteId((prev) => (prev === tempId ? note.id : prev))
       // Transfer the dirty flag from temp → real so fetchNotes won't overwrite
       // local content with the server's empty content before auto-save fires.
       const tempDirty = dirtyVersionsRef.current.get(tempId)

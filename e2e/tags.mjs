@@ -10,6 +10,7 @@ const BASE = process.env.BASE ?? 'https://www.bpad.cc'
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 let failed = false
 const check = (ok, msg) => { console.log(`${ok ? 'PASS' : 'FAIL'} ${msg}`); if (!ok) failed = true }
+const editor = () => page.locator('.ProseMirror').first()
 
 const browser = await chromium.launch({ headless: true })
 const c = await browser.newContext({ storageState: path.join(AUTH, 'state-demo1.json'), viewport: { width: 1400, height: 900 } })
@@ -54,6 +55,24 @@ await page.getByText('Delete tag everywhere').click()
 await sleep(2_500)
 s = await serverTags()
 check(s.id && s.labels.length === 0, `tag deleted everywhere (${s.labels})`)
+
+// Promotion race: start a new note, switch back before its POST returns.
+// The app must stay on the note the user picked, not jump to the new one.
+let createdId
+await page.route('**/api/notes', async (route) => {
+  if (route.request().method() !== 'POST') return route.continue()
+  await sleep(3_000)
+  const res = await route.fetch()
+  createdId = (await res.json().catch(() => ({}))).id
+  await route.fulfill({ response: res })
+})
+await page.locator('button[title*="New note" i]').first().click()
+await sleep(500)
+await page.getByText(marker).first().click()
+await sleep(5_000)
+await page.unroute('**/api/notes')
+check(createdId && (await editor().textContent()).includes(marker), 'switching away during note creation stays on the picked note')
+if (createdId) await page.evaluate((id) => fetch(`/api/notes/${id}`, { method: 'DELETE' }), createdId)
 
 if (s.id) await page.evaluate((id) => fetch(`/api/notes/${id}`, { method: 'DELETE' }), s.id)
 await browser.close()
