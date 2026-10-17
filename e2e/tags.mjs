@@ -76,5 +76,15 @@ check(createdId && (await editor().textContent()).includes(marker), 'switching a
 if (createdId) await page.evaluate((id) => fetch(`/api/notes/${id}`, { method: 'DELETE' }), createdId)
 
 if (s.id) await page.evaluate((id) => fetch(`/api/notes/${id}`, { method: 'DELETE' }), s.id)
+
+// Import while signed in: the new note and its formatting reach the database.
+const imp = `imp-${Date.now().toString(36)}`
+await page.setInputFiles('[data-import-input]', {
+  name: `${imp}.md`, mimeType: 'text/markdown', buffer: Buffer.from(['Some **bold** text.', '', '- one', '- two'].join(String.fromCharCode(10))),
+})
+await sleep(6_000)
+const imported = (await page.evaluate(() => fetch('/api/notes', { cache: 'no-store' }).then((r) => r.json()))).find((n) => n.content?.includes(`<h1>${imp}</h1>`))
+check(imported?.title === imp && imported.content.includes('<strong>bold</strong>') && imported.content.includes('<li>'), `an imported file is saved as a new note (${imported?.title}: ${imported?.content?.slice(0, 120)})`)
+if (imported) await page.evaluate((id) => fetch(`/api/notes/${id}`, { method: 'DELETE' }), imported.id)
 await browser.close()
 process.exit(failed ? 1 : 0)

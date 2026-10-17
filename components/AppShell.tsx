@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Info, Focus, Share2, X, Cloud, CloudCheck, RefreshCw, HardDrive, Download, ChevronDown, Menu, CloudOff, Plus, Palette, MessageSquare, Save } from 'lucide-react'
+import { Info, Focus, Share2, X, Cloud, CloudCheck, RefreshCw, HardDrive, Download, ChevronDown, Menu, CloudOff, Plus, Palette, MessageSquare, Save, Upload } from 'lucide-react'
 import Link from 'next/link'
 import { useAuth, useUser } from '@clerk/nextjs'
 import { AnimatePresence, MotionConfig, motion } from 'framer-motion'
@@ -15,6 +15,7 @@ import NotificationBell from './NotificationBell'
 import AccessDeniedView from './AccessDeniedView'
 import CommandPalette, { type PaletteAction } from './CommandPalette'
 import ButtonHints from './ButtonHints'
+import { fileToHtml, setPendingImport, IMPORT_ACCEPT } from '@/lib/import-file'
 import type { Note, AppearanceSettings, SharedAccessRecord, CollabNotification } from '@/types'
 
 import { useNotifications, loadKnownShared } from '@/hooks/useNotifications'
@@ -132,6 +133,15 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
   const [showNotifs, setShowNotifs] = useState(false)
   const [accessDeniedNoteId, setAccessDeniedNoteId] = useState<string | null>(null)
   const exportRef = useRef<HTMLDivElement>(null)
+  const importRef = useRef<HTMLInputElement>(null)
+  const handleImport = async (file: File) => {
+    try {
+      const html = await fileToHtml(file)
+      handleNewNote((id) => setPendingImport(id, html))
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : `${file.name} can't be imported.`)
+    }
+  }
 
   const activeNote = notes.find((n) => n.id === activeNoteId) ?? null
 
@@ -361,7 +371,8 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
 
   const canShare = !!activeNote && !isGuest && (!activeNote.sharedToken || activeNote.sharedPermission === 'EDIT')
   const paletteActions: PaletteAction[] = [
-    { label: 'New note', keywords: 'create add', icon: <Plus size={14} />, run: handleNewNote },
+    { label: 'New note', keywords: 'create add', icon: <Plus size={14} />, run: () => { handleNewNote() } },
+    { label: 'Import a file', keywords: 'upload open markdown docx word txt html', icon: <Upload size={14} />, run: () => importRef.current?.click() },
     { label: 'Appearance', keywords: 'settings theme dark light font zoom', icon: <Palette size={14} />, run: () => setShowAppearance(true) },
     ...(activeNote ? [
       { label: 'Focus mode', keywords: 'zen distraction', hint: 'Ctrl+Shift+F', icon: <Focus size={14} />, run: () => setFocusMode(true) },
@@ -402,7 +413,7 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
           sharedNotes={sharedNotes}
           activeNoteId={activeNoteId}
           onSelectNote={setActiveNoteId}
-          onNewNote={handleNewNote}
+          onNewNote={() => { handleNewNote() }}
           onDeleteNote={handleDeleteNote}
           onOpenSettings={() => setShowAppearance(true)}
           onRenameNote={handleRenameNote}
@@ -571,6 +582,31 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
             />
           )}
 
+          {notesLoaded && (
+            <button
+              onClick={() => importRef.current?.click()}
+              data-hint="import"
+              className="p-1.5 rounded-lg transition-colors hover:bg-[var(--hover)]"
+              style={{ color: 'var(--ink-soft)' }}
+              title="Import a file as a new note (.md, .txt, .docx, .html)"
+              aria-label="Import a file"
+            >
+              <Upload size={15} />
+            </button>
+          )}
+          <input
+            ref={importRef}
+            type="file"
+            accept={IMPORT_ACCEPT}
+            className="hidden"
+            data-import-input
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              e.target.value = ''
+              if (file) handleImport(file)
+            }}
+          />
+
           {activeNote && (
             <button
               // Keep the caret in the editor so dimming starts at once.
@@ -716,7 +752,7 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
               <div className="text-center">
                 <p className="text-sm mb-3" style={{ color: 'var(--muted)' }}>No note selected</p>
                 <button
-                  onClick={handleNewNote}
+                  onClick={() => { handleNewNote() }}
                   className="px-4 py-2 bg-[#D4550A] text-white rounded-lg text-sm hover:bg-[#c04009] transition-colors"
                 >
                   Create a note

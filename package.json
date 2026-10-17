@@ -48,6 +48,8 @@
     "jspdf": "^4.2.1",
     "lowlight": "^3.3.0",
     "lucide-react": "^1.7.0",
+    "mammoth": "^1.13.0",
+    "marked": "^18.1.1",
     "next": "^15.5.28",
     "nspell": "^2.1.5",
     "partyserver": "^0.5.10",

@@ -248,13 +248,45 @@ try {
     await p.waitForTimeout(5_000)
     seen.push((await p.locator('[data-button-hint]').evaluateAll((es) => es.map((e) => e.dataset.buttonHint))).join('+') || 'none')
     if (v === 1) {
-      await p.click('[data-hint="focus"]')
+      await p.click('[data-hint="settings"]')
       await p.keyboard.press('Escape')
     }
     await p.close()
   }
-  check(seen[0] === 'new-note+focus+settings' && seen[1] === 'new-note+settings' && seen[2] === seen[1] && seen[3] === 'none', `button hints show 3 visits, drop once clicked (${seen.join(' | ')})`)
+  // Top bar labels take turns (import, then focus) so they never overlap.
+  check(seen[0] === 'new-note+settings+import' && seen[1] === 'new-note+focus' && seen[2] === 'new-note+import' && seen[3] === 'none', `button hints show 3 visits, drop once clicked (${seen.join(' | ')})`)
   await hc.close()
+
+  // Import: a Markdown file becomes a new note with its formatting.
+  {
+    const ip = await open()
+    await ip.setInputFiles('[data-import-input]', {
+      name: 'trip-plan.md', mimeType: 'text/markdown',
+      buffer: Buffer.from(['Intro with **bold** and *italic*.', '', '## Packing', '', '- tent', '- stove', '', '1. book', '2. go', '', '> quoted', '', '| a | b |', '|---|---|', '| 1 | 2 |', '', '```', 'code here', '```', ''].join(String.fromCharCode(10))),
+    })
+    await ip.waitForTimeout(2_500)
+    const got = await ip.evaluate(() => {
+      const pm = document.querySelector('.ProseMirror')
+      return {
+        h1: pm.querySelector('h1')?.textContent, h2: pm.querySelector('h2')?.textContent,
+        bold: pm.querySelector('strong')?.textContent, em: pm.querySelector('em')?.textContent,
+        ul: pm.querySelectorAll('ul > li').length, ol: pm.querySelectorAll('ol > li').length,
+        quote: !!pm.querySelector('blockquote'), cells: pm.querySelectorAll('td, th').length, code: pm.querySelector('pre')?.textContent?.trim(),
+      }
+    })
+    const listed = await ip.locator('.sidebar').first().getByText('trip-plan', { exact: true }).count()
+    check(got.h1 === 'trip-plan' && got.h2 === 'Packing' && got.bold === 'bold' && got.em === 'italic' && got.ul === 2 && got.ol === 2 && got.quote && got.cells === 4 && got.code === 'code here' && listed === 1,
+      `importing a .md file makes a new note with its formatting (${JSON.stringify(got)}, listed ${listed})`)
+    // Guests keep it in the browser: it is still there after a reload.
+    await ip.waitForTimeout(1_500)
+    await ip.reload({ waitUntil: 'domcontentloaded' })
+    await ip.waitForTimeout(4_000)
+    await ip.locator('.sidebar').first().getByText('trip-plan', { exact: true }).click()
+    await ip.waitForTimeout(800)
+    const kept = await ip.evaluate(() => document.querySelector('.ProseMirror h2')?.textContent)
+    check(kept === 'Packing', `an imported note survives a reload as a guest (h2 ${kept})`)
+    await ip.context().close()
+  }
 } finally {
   await browser.close()
 }

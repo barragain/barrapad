@@ -76,6 +76,7 @@ import { NoteMention } from '@/extensions/note-mention'
 import { SlashCommand } from '@/extensions/slash-command'
 import MentionProfilePopover from './MentionProfilePopover'
 import { uploadImage, uploadFile } from '@/lib/upload-image'
+import { takePendingImport } from '@/lib/import-file'
 
 const lowlight = createLowlight(common)
 
@@ -624,7 +625,12 @@ export default function NoteEditorCore({
   useEffect(() => {
     if (!editor) return
     editor.setEditable(editable, false)
-  }, [editor, editable])
+    // A file imported as a new note lands here once its editor can be edited.
+    // Next frame: the parent's note-switch effect runs after this one and
+    // resets a reused editor to the note's (empty) saved content.
+    const imported = editable && noteId ? takePendingImport(noteId) : null
+    if (imported) requestAnimationFrame(() => { if (!editor.isDestroyed) editor.chain().setContent(imported).focus('start').run() })
+  }, [editor, editable, noteId])
 
   // ── Context menu ─────────────────────────────────────────────────────────
   const handleContextMenu = useCallback((e: React.MouseEvent) => {

@@ -327,10 +327,12 @@ export function useNotes({ initialNotes, guest, isGuest, isSignedIn }: {
   const handleManualSaveContent = useCallback((noteId: string, title: string, content: string) =>
     saveNote(noteId, title, content, setManualSaving, false), [saveNote])
 
-  const handleNewNote = async () => {
+  // onId hears the new note's id right away (local- or temp-), before the API answers.
+  const handleNewNote = async (onId?: (id: string) => void) => {
     if (isGuest) {
       const now = new Date().toISOString()
       const note: Note = { id: `local-${Date.now()}`, userId: '', title: 'Untitled', content: '', tags: [], createdAt: now, updatedAt: now }
+      onId?.(note.id)
       updateNotes((prev) => [note, ...prev])
       setActiveNoteId(note.id)
       return
@@ -345,6 +347,7 @@ export function useNotes({ initialNotes, guest, isGuest, isSignedIn }: {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     }
+    onId?.(tempId)
     setNotes((prev) => [tempNote, ...prev])
     setActiveNoteId(tempId)
 

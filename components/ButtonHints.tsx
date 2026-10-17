@@ -12,6 +12,7 @@ type Hint = { name: string; text: string; touchText?: string; side: 'right' | 'b
 const HINTS: Hint[] = [
   { name: 'new-note', text: 'Click here to start a new note', side: 'right' },
   { name: 'menu', text: 'Click here for your notes', touchText: 'Tap here for your notes', side: 'right' },
+  { name: 'import', text: 'Click here to import a file', touchText: 'Tap here to import a file', side: 'below' },
   { name: 'focus', text: 'Click here to focus on writing', touchText: 'Tap here to focus on writing', side: 'below' },
   { name: 'settings', text: 'Click here for dark mode and themes', side: 'right' },
 ]
@@ -54,9 +55,10 @@ export default function ButtonHints() {
         const rect = visible(h.name)
         return rect ? [{ ...h, rect }] : []
       })
-      // Phones have one short top bar, so labels would overlap there: show one
-      // per visit, taking turns.
-      setPlaced(window.innerWidth < 640 && shown.length ? [shown[(visits - 1) % shown.length]] : shown)
+      // Labels in the top bar sit close together and would overlap, so show one
+      // of them per visit, taking turns. Phones only have the top bar.
+      const turn = <T,>(list: T[]) => (list.length ? [list[(visits - 1) % list.length]] : [])
+      setPlaced(window.innerWidth < 640 ? turn(shown) : [...shown.filter((h) => h.side !== 'below'), ...turn(shown.filter((h) => h.side === 'below'))])
     }
     // Wait for the top bar and sidebar to lay out.
     const start = setTimeout(place, 600)
