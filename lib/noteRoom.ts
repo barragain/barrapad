@@ -22,7 +22,9 @@ export function onRoomMessage(provider: YProvider, handler: (msg: RoomMessage) =
 }
 
 export function sendRoomMessage(provider: YProvider | null | undefined, msg: Record<string, unknown>) {
-  provider?.sendMessage(JSON.stringify(msg))
+  // A send on a socket that is still connecting throws (an offline editor
+  // mounts before its room answers); the seed claim repeats its ask anyway.
+  if (provider?.wsconnected) provider.sendMessage(JSON.stringify(msg))
 }
 
 /**
