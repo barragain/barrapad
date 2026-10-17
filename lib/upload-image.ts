@@ -7,7 +7,10 @@ export async function uploadFile(file: Blob, name = (file as File).name ?? 'file
   // Same limits as /api/upload, checked here too so guests and offline
   // users (who take the data URL path) get them as well.
   if (/html|svg|xml|javascript/i.test(file.type)) refuse(`${name} can't be added: this file type isn't allowed.`)
-  if (file.size > 10 * 1024 * 1024) refuse(`${name} can't be added: files must be 10 MB or smaller.`)
+  // Vercel refuses request bodies over 4.5 MB before our route runs, so the
+  // real limit is 4 MB. Big photos are shrunk to fit instead of refused.
+  if (file.size > MAX_BYTES) file = await shrinkImage(file)
+  if (file.size > MAX_BYTES) refuse(`${name} can't be added: files must be 4 MB or smaller.`)
   try {
     const form = new FormData()
     form.append('file', file, name)
@@ -29,6 +32,8 @@ export async function uploadFile(file: Blob, name = (file as File).name ?? 'file
   // Images are shrunk first because the data URL lands in localStorage for guests.
   return toDataURL(await shrinkImage(file))
 }
+
+const MAX_BYTES = 4 * 1024 * 1024
 
 class UploadRefused extends Error {}
 

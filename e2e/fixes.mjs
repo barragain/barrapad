@@ -68,10 +68,13 @@ try {
     .waitFor({ timeout: 25_000 }).then(() => true).catch(() => false)
   check(locked, 'downgraded collaborator turns read-only without a reload')
 
+  // The context menu reads the "Shared with me" list, which polls every 10 s.
+  await B.waitForTimeout(11_000)
   await item.click({ button: 'right' })
   await B.waitForTimeout(500)
+  const menuOpen = await B.getByText('Remove from my list', { exact: true }).count()
   const rename = await B.getByText('Rename', { exact: true }).count()
-  check(rename === 0, 'view-only shared note has no Rename')
+  check(menuOpen > 0 && rename === 0, `view-only shared note's menu has no Rename (menu open ${menuOpen}, rename ${rename})`)
   await B.keyboard.press('Escape')
 
   // Owner side: refused upload and Ctrl+K.
