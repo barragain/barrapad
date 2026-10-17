@@ -83,8 +83,8 @@ export default function LinkPopover({ editor, onClose, pos }: LinkPopoverProps) 
       style={{
         ...positionStyle,
         zIndex: 9999,
-        background: '#fff',
-        border: '1px solid #E5E0D8',
+        background: 'var(--editor-bg)',
+        border: '1px solid var(--border)',
         borderRadius: 12,
         boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
         padding: 12,
@@ -94,7 +94,7 @@ export default function LinkPopover({ editor, onClose, pos }: LinkPopoverProps) 
         width: 280,
       }}
     >
-      <div style={{ fontSize: 11, fontWeight: 600, color: '#C4BFB6', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+      <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
         {hasLink ? 'Edit link' : 'Add link'}
       </div>
 
@@ -109,11 +109,11 @@ export default function LinkPopover({ editor, onClose, pos }: LinkPopoverProps) 
           width: '100%',
           padding: '7px 10px',
           fontSize: 13,
-          border: '1px solid #E5E0D8',
+          border: '1px solid var(--border)',
           borderRadius: 8,
           outline: 'none',
-          color: '#1A1A1A',
-          background: '#F9F7F4',
+          color: 'var(--ink)',
+          background: 'var(--sidebar-bg)',
           boxSizing: 'border-box',
         }}
       />
@@ -124,7 +124,7 @@ export default function LinkPopover({ editor, onClose, pos }: LinkPopoverProps) 
           alignItems: 'center',
           gap: 8,
           fontSize: 12,
-          color: '#6b6b6b',
+          color: 'var(--ink-soft)',
           cursor: 'pointer',
           userSelect: 'none',
         }}
@@ -133,7 +133,7 @@ export default function LinkPopover({ editor, onClose, pos }: LinkPopoverProps) 
           type="checkbox"
           checked={openNewTab}
           onChange={(e) => setOpenNewTab(e.target.checked)}
-          style={{ width: 14, height: 14, cursor: 'pointer', accentColor: '#D4550A' }}
+          style={{ width: 14, height: 14, cursor: 'pointer', accentColor: 'var(--accent)' }}
         />
         Open in new tab
       </label>
@@ -146,14 +146,14 @@ export default function LinkPopover({ editor, onClose, pos }: LinkPopoverProps) 
             padding: '6px 0',
             fontSize: 12,
             fontWeight: 600,
-            background: '#D4550A',
+            background: 'var(--accent)',
             color: '#fff',
             border: 'none',
             borderRadius: 8,
             cursor: 'pointer',
           }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = '#B84208' }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = '#D4550A' }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--accent-ink)' }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--accent)' }}
         >
           Apply
         </button>
@@ -165,14 +165,14 @@ export default function LinkPopover({ editor, onClose, pos }: LinkPopoverProps) 
               padding: '6px 0',
               fontSize: 12,
               fontWeight: 600,
-              background: '#F5F0E8',
-              color: '#6b6b6b',
-              border: '1px solid #E5E0D8',
+              background: 'var(--sidebar-bg)',
+              color: 'var(--ink-soft)',
+              border: '1px solid var(--border)',
               borderRadius: 8,
               cursor: 'pointer',
             }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = '#EDE8DF' }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = '#F5F0E8' }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--hover)' }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--sidebar-bg)' }}
           >
             Remove
           </button>

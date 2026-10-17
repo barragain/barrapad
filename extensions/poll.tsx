@@ -57,11 +57,11 @@ function PollView({ node, editor, updateAttributes, selected }: NodeViewProps) {
     ghost.textContent = q ? `Poll: ${q.slice(0, 24)}${q.length > 24 ? '…' : ''}` : 'Poll'
     ghost.style.cssText = [
       'position:fixed', 'top:0', 'left:-9999px',
-      'background:#D4550A', 'color:white',
+      'background:var(--accent)', 'color:white',
       'font:600 12px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
       'padding:5px 10px', 'border-radius:99px',
       'white-space:nowrap', 'pointer-events:none',
-      'box-shadow:0 2px 8px rgba(212,85,10,0.35)',
+      'box-shadow:0 2px 8px color-mix(in srgb, var(--accent) 35%, transparent)',
     ].join(';')
     document.body.appendChild(ghost)
     e.dataTransfer.setDragImage(ghost, 0, Math.max(ghost.offsetHeight / 2, 8))

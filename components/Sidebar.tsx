@@ -162,7 +162,7 @@ export default function Sidebar({
     return (
       <>
         {prefix}{plain.slice(start, idx)}
-        <mark style={{ background: 'rgba(212, 85, 10, 0.2)', color: 'inherit', borderRadius: 2, padding: '0 1px' }}>
+        <mark style={{ background: 'var(--accent-tint)', color: 'inherit', borderRadius: 2, padding: '0 1px' }}>
           {plain.slice(idx, idx + q.length)}
         </mark>
         {plain.slice(idx + q.length, end)}{suffix}
@@ -177,7 +177,7 @@ export default function Sidebar({
         <img src="/logo.svg" alt="bpad" className="h-9 w-auto" />
         <button
           onClick={onNewNote}
-          className="p-1.5 rounded hover:bg-black/5 transition-colors text-[#8A8178]"
+          className="p-1.5 rounded hover:bg-black/5 transition-colors text-[var(--ink-soft)]"
           title="New note"
         >
           <PenSquare size={16} />
@@ -186,16 +186,16 @@ export default function Sidebar({
 
       {/* Search */}
       <div className="px-3 pb-2">
-        <div className="flex items-center gap-1.5 bg-white/60 border border-[#E5E0D8] rounded-lg px-2 py-1.5">
-          <Search size={12} className="text-[#8A8178] flex-shrink-0" />
+        <div className="flex items-center gap-1.5 bg-[var(--hover)] border border-[var(--border)] rounded-lg px-2 py-1.5">
+          <Search size={12} className="text-[var(--ink-soft)] flex-shrink-0" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search..."
-            className="flex-1 text-xs bg-transparent outline-none text-[#1A1A1A] placeholder-[#C4BFB6] min-w-0"
+            className="flex-1 text-xs bg-transparent outline-none text-[var(--ink)] placeholder-[var(--muted)] min-w-0"
           />
-          <Filter size={12} className="text-[#8A8178] flex-shrink-0" />
+          <Filter size={12} className="text-[var(--ink-soft)] flex-shrink-0" />
         </div>
       </div>
 
@@ -271,7 +271,7 @@ export default function Sidebar({
             {activeTagLabels.length > 0 && (
               <button
                 onClick={() => setActiveTagLabels([])}
-                style={{ fontSize: 10, color: '#8A8178', cursor: 'pointer', background: 'none', border: 'none', padding: '2px 4px' }}
+                style={{ fontSize: 10, color: 'var(--ink-soft)', cursor: 'pointer', background: 'none', border: 'none', padding: '2px 4px' }}
               >
                 Clear
               </button>
@@ -328,13 +328,13 @@ export default function Sidebar({
 
       {/* Notes section label */}
       <div className="px-3 py-1">
-        <span className="text-[10px] font-semibold text-[#8A8178] uppercase tracking-widest">My Notes</span>
+        <span className="text-[10px] font-semibold text-[var(--ink-soft)] uppercase tracking-widest">My Notes</span>
       </div>
 
       {/* Notes list */}
       <div className="flex-1 overflow-y-auto px-2 pb-2 space-y-0.5">
         {filtered.length === 0 && (
-          <p className="text-xs text-[#8A8178] text-center mt-4 px-2">
+          <p className="text-xs text-[var(--ink-soft)] text-center mt-4 px-2">
             {search ? 'No results' : 'No notes yet'}
           </p>
         )}
@@ -384,14 +384,14 @@ export default function Sidebar({
               ) : (
                 <div className="flex items-center gap-1 min-w-0">
                   {note.isShared && (
-                    <Link2 size={9} className="flex-shrink-0" style={{ color: '#D4550A' }} />
+                    <Link2 size={9} className="flex-shrink-0" style={{ color: 'var(--accent)' }} />
                   )}
-                  <p className="text-xs font-medium text-[#1A1A1A] truncate leading-tight">
+                  <p className="text-xs font-medium text-[var(--ink)] truncate leading-tight">
                     {note.title || 'Untitled'}
                   </p>
                 </div>
               )}
-              <p className="text-[10px] text-[#8A8178] leading-tight mt-0.5 line-clamp-2">
+              <p className="text-[10px] text-[var(--ink-soft)] leading-tight mt-0.5 line-clamp-2">
                 {getContentPreview(note)}
               </p>
             </div>
@@ -400,7 +400,7 @@ export default function Sidebar({
                 e.stopPropagation()
                 onDeleteNote(note.id)
               }}
-              className="flex-shrink-0 p-1 rounded hover:bg-red-100 text-[#C4BFB6] hover:text-red-500 transition-colors"
+              className="flex-shrink-0 p-1 rounded hover:bg-red-100 text-[var(--muted)] hover:text-red-500 transition-colors"
               title="Delete note"
             >
               <Trash2 size={12} />
@@ -412,8 +412,8 @@ export default function Sidebar({
       {/* Shared with me section */}
       <div className="mx-2 mb-2 rounded-xl overflow-hidden" style={{ background: '#D4550A0D', border: '1px solid #D4550A22' }}>
         <div className="flex items-center gap-1.5 px-3 pt-2.5 pb-1.5">
-          <Users size={10} style={{ color: '#D4550A' }} />
-          <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#D4550A' }}>Shared with me</span>
+          <Users size={10} style={{ color: 'var(--accent)' }} />
+          <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--accent)' }}>Shared with me</span>
         </div>
         <div className="px-1 pb-1.5 space-y-0.5">
           {sharedNotes.length === 0 ? (
@@ -431,10 +431,10 @@ export default function Sidebar({
                   }}
                   className="w-full text-left flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors"
                   style={{
-                    background: isActive ? '#D4550A1F' : 'transparent',
+                    background: isActive ? 'var(--accent-soft)' : 'transparent',
                     border: 'none', cursor: 'pointer',
                   }}
-                  onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = '#D4550A14' }}
+                  onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = 'var(--hover)' }}
                   onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
                 >
                   <div className="min-w-0 flex-1">
@@ -556,7 +556,7 @@ export default function Sidebar({
       )}
 
       {/* Bottom bar */}
-      <div className="border-t border-[#E5E0D8] px-3 py-3 flex items-center justify-between">
+      <div className="border-t border-[var(--border)] px-3 py-3 flex items-center justify-between">
         <div className="flex items-center gap-1">
           <button
             onClick={() => {
@@ -568,7 +568,7 @@ export default function Sidebar({
               aboutAudioRef.current = audio
               setShowAbout(true)
             }}
-            className="p-1.5 rounded hover:bg-black/5 transition-colors text-[#8A8178]"
+            className="p-1.5 rounded hover:bg-black/5 transition-colors text-[var(--ink-soft)]"
             title="About"
           >
             <HelpCircle size={16} />
@@ -585,7 +585,7 @@ export default function Sidebar({
           )}
           <button
             onClick={onOpenSettings}
-            className="p-1.5 rounded hover:bg-black/5 transition-colors text-[#8A8178]"
+            className="p-1.5 rounded hover:bg-black/5 transition-colors text-[var(--ink-soft)]"
             title="Settings"
           >
             <Settings size={16} />
@@ -601,14 +601,14 @@ export default function Sidebar({
                 },
               }}
             />
-            <span className="text-[10px] text-[#1A1A1A] truncate font-medium">
+            <span className="text-[10px] text-[var(--ink)] truncate font-medium">
               {user.fullName ?? user.username ?? 'User'}
             </span>
           </div>
         ) : (
           <Link
             href="/sign-in"
-            className="text-xs text-[#D4550A] font-medium hover:underline"
+            className="text-xs text-[var(--accent)] font-medium hover:underline"
           >
             Sign In
           </Link>

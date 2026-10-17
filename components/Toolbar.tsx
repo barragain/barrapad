@@ -29,7 +29,7 @@ import {
   MessageSquare,
 } from 'lucide-react'
 import TablePicker from './TablePicker'
-import ColorPicker from './ColorPicker'
+import ColorPicker, { HIGHLIGHT_SWATCHES } from './ColorPicker'
 import LinkPopover from './LinkPopover'
 import '@/extensions/resizable-image'
 import { uploadImage, uploadFile } from '@/lib/upload-image'
@@ -208,19 +208,19 @@ export default function Toolbar({ editor, commentsEnabled = true }: ToolbarProps
               setShowLink(false)
               setShowTable(false)
             }}
-            className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs text-[#6b6b6b] hover:bg-[#F5F2ED] hover:text-[#1A1A1A] transition-colors active:scale-95"
+            className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs text-[var(--ink-soft)] hover:bg-[var(--hover)] hover:text-[var(--ink)] transition-colors active:scale-95"
             style={{ transition: 'background 120ms ease, color 120ms ease' }}
           >
             <span className="min-w-[78px] text-left font-medium">{getCurrentStyle()}</span>
             <ChevronDown size={11} className={`transition-transform duration-200 ${showTextStyle ? 'rotate-180' : ''}`} />
           </button>
           {showTextStyle && !isMobile && (
-            <div className="absolute top-full left-0 mt-1 z-50 bg-white border border-[#E5E0D8] rounded-xl shadow-xl overflow-hidden min-w-[150px]">
+            <div className="absolute top-full left-0 mt-1 z-50 bg-[var(--editor-bg)] border border-[var(--border)] rounded-xl shadow-xl overflow-hidden min-w-[150px]">
               {TEXT_STYLES.map((s) => (
                 <button
                   key={s.label}
                   onClick={() => { setShowTextStyle(false); s.action(editor) }}
-                  className="w-full text-left px-3 py-2 text-sm hover:bg-[#F5F2ED] transition-colors text-[#1A1A1A] font-medium first:pt-2.5 last:pb-2.5"
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-[var(--hover)] transition-colors text-[var(--ink)] font-medium first:pt-2.5 last:pb-2.5"
                 >
                   {s.label}
                 </button>
@@ -256,7 +256,7 @@ export default function Toolbar({ editor, commentsEnabled = true }: ToolbarProps
             <Palette size={iconSize} />
           </TBtn>
           {showColor && !isMobile && (
-            <div className="absolute top-full left-0 mt-1 z-50 bg-white border border-[#E5E0D8] rounded-xl shadow-xl overflow-hidden">
+            <div className="absolute top-full left-0 mt-1 z-50 bg-[var(--editor-bg)] border border-[var(--border)] rounded-xl shadow-xl overflow-hidden">
               <div style={{ padding: '8px 8px 4px' }}>
                 <ColorPicker
                   value={editor.getAttributes('textStyle').color as string ?? '#000000'}
@@ -271,7 +271,7 @@ export default function Toolbar({ editor, commentsEnabled = true }: ToolbarProps
                   }}
                   mode="color"
                 />
-                <button onClick={() => { editor.chain().focus().unsetColor().unsetGradientText().run(); setShowColor(false) }} style={{ marginTop: 8, width: '100%', padding: '5px 0', fontSize: 11, color: '#9b9b9b', background: '#F5F0E8', border: '1px solid #E5E0D8', borderRadius: 6, cursor: 'pointer' }}>
+                <button onClick={() => { editor.chain().focus().unsetColor().unsetGradientText().run(); setShowColor(false) }} style={{ marginTop: 8, width: '100%', padding: '5px 0', fontSize: 11, color: 'var(--muted)', background: 'var(--sidebar-bg)', border: '1px solid #E5E0D8', borderRadius: 6, cursor: 'pointer' }}>
                   Unset color
                 </button>
               </div>
@@ -289,14 +289,15 @@ export default function Toolbar({ editor, commentsEnabled = true }: ToolbarProps
             <Highlighter size={iconSize} />
           </TBtn>
           {showHighlight && !isMobile && (
-            <div className="absolute top-full left-0 mt-1 z-50 bg-white border border-[#E5E0D8] rounded-xl shadow-xl overflow-hidden">
+            <div className="absolute top-full left-0 mt-1 z-50 bg-[var(--editor-bg)] border border-[var(--border)] rounded-xl shadow-xl overflow-hidden">
               <div style={{ padding: '8px 8px 4px' }}>
                 <ColorPicker
                   value={editor.getAttributes('highlight').color as string ?? '#fef08a'}
+                  swatches={HIGHLIGHT_SWATCHES}
                   onChange={(color) => editor.chain().focus().setHighlight({ color }).run()}
                   mode="color"
                 />
-                <button onClick={() => { editor.chain().focus().unsetHighlight().run(); setShowHighlight(false) }} style={{ marginTop: 8, width: '100%', padding: '5px 0', fontSize: 11, color: '#9b9b9b', background: '#F5F0E8', border: '1px solid #E5E0D8', borderRadius: 6, cursor: 'pointer' }}>
+                <button onClick={() => { editor.chain().focus().unsetHighlight().run(); setShowHighlight(false) }} style={{ marginTop: 8, width: '100%', padding: '5px 0', fontSize: 11, color: 'var(--muted)', background: 'var(--sidebar-bg)', border: '1px solid #E5E0D8', borderRadius: 6, cursor: 'pointer' }}>
                   Unset highlight
                 </button>
               </div>
@@ -350,7 +351,7 @@ export default function Toolbar({ editor, commentsEnabled = true }: ToolbarProps
             <Table size={iconSize} />
           </TBtn>
           {showTable && !isMobile && (
-            <div className="absolute top-full left-0 mt-1 z-50 bg-white border border-[#E5E0D8] rounded-xl shadow-xl">
+            <div className="absolute top-full left-0 mt-1 z-50 bg-[var(--editor-bg)] border border-[var(--border)] rounded-xl shadow-xl">
               <TablePicker
                 onSelect={(rows, cols) => { editor.chain().focus().insertTable({ rows, cols, withHeaderRow: true }).run(); setShowTable(false) }}
                 onClose={() => setShowTable(false)}
@@ -423,14 +424,14 @@ export default function Toolbar({ editor, commentsEnabled = true }: ToolbarProps
             padding: isMobile ? '6px 10px' : '4px 8px',
             fontSize: 11,
             fontWeight: 600,
-            color: '#D4550A',
-            background: 'rgba(212, 85, 10, 0.08)',
-            border: '1px solid rgba(212, 85, 10, 0.18)',
+            color: 'var(--accent)',
+            background: 'color-mix(in srgb, var(--accent) 8%, transparent)',
+            border: '1px solid color-mix(in srgb, var(--accent) 18%, transparent)',
             cursor: 'pointer',
             transition: 'background 120ms ease, transform 130ms cubic-bezier(0.34,1.56,0.64,1)',
           }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(212, 85, 10, 0.15)' }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(212, 85, 10, 0.08)' }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'color-mix(in srgb, var(--accent) 15%, transparent)' }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'color-mix(in srgb, var(--accent) 8%, transparent)' }}
           onMouseDown={(e) => { e.preventDefault(); (e.currentTarget as HTMLElement).style.transform = 'scale(0.95)' }}
           onMouseUp={(e) => { (e.currentTarget as HTMLElement).style.transform = 'scale(1)' }}
           title="Comments"
@@ -483,7 +484,7 @@ export default function Toolbar({ editor, commentsEnabled = true }: ToolbarProps
             }}
             mode="color"
           />
-          <button onClick={() => { editor.chain().unsetColor().unsetGradientText().run(); closeAll() }} style={{ marginTop: 12, width: '100%', padding: '10px 0', fontSize: 13, color: '#9b9b9b', background: 'var(--sidebar-bg)', border: '1px solid var(--border)', borderRadius: 8, cursor: 'pointer' }}>
+          <button onClick={() => { editor.chain().unsetColor().unsetGradientText().run(); closeAll() }} style={{ marginTop: 12, width: '100%', padding: '10px 0', fontSize: 13, color: 'var(--muted)', background: 'var(--sidebar-bg)', border: '1px solid var(--border)', borderRadius: 8, cursor: 'pointer' }}>
             Unset color
           </button>
         </MobileSheet>
@@ -493,10 +494,11 @@ export default function Toolbar({ editor, commentsEnabled = true }: ToolbarProps
         <MobileSheet onClose={closeAll} title="Highlight">
           <ColorPicker
             value={editor.getAttributes('highlight').color as string ?? '#fef08a'}
+                  swatches={HIGHLIGHT_SWATCHES}
             onChange={(color) => editor.chain().setHighlight({ color }).run()}
             mode="color"
           />
-          <button onClick={() => { editor.chain().unsetHighlight().run(); closeAll() }} style={{ marginTop: 12, width: '100%', padding: '10px 0', fontSize: 13, color: '#9b9b9b', background: 'var(--sidebar-bg)', border: '1px solid var(--border)', borderRadius: 8, cursor: 'pointer' }}>
+          <button onClick={() => { editor.chain().unsetHighlight().run(); closeAll() }} style={{ marginTop: 12, width: '100%', padding: '10px 0', fontSize: 13, color: 'var(--muted)', background: 'var(--sidebar-bg)', border: '1px solid var(--border)', borderRadius: 8, cursor: 'pointer' }}>
             Unset highlight
           </button>
         </MobileSheet>

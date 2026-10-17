@@ -75,7 +75,7 @@ export const LoremIpsum = Extension.create({
                 el.textContent = 'shift+tab · lorem ipsum'
                 el.setAttribute('aria-hidden', 'true')
                 el.style.cssText = [
-                  'color: #C0BAB2',
+                  'color: var(--muted)',
                   'font-style: italic',
                   'font-size: 0.9em',
                   'pointer-events: none',

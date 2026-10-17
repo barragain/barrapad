@@ -6,7 +6,9 @@
 .spell-error {
   text-decoration-line: underline;
   text-decoration-style: wavy;
-  text-decoration-color: #ef4444;
+  text-decoration-color: color-mix(in srgb, #ef4444 65%, transparent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
 }
 
 /* Comment highlight marks */
@@ -25,21 +27,22 @@
   border-bottom: none;
 }
 .comment-highlight.comment-active {
-  background: rgba(212, 85, 10, 0.25);
-  border-bottom-color: #D4550A;
+  background: color-mix(in srgb, var(--accent) 25%, transparent);
+  border-bottom-color: var(--accent);
   animation: comment-pulse 0.6s ease-out;
 }
 @keyframes comment-pulse {
-  0% { background: rgba(212, 85, 10, 0.55); }
-  100% { background: rgba(212, 85, 10, 0.25); }
+  0% { background: color-mix(in srgb, var(--accent) 55%, transparent); }
+  100% { background: color-mix(in srgb, var(--accent) 25%, transparent); }
 }
 
+/* Tailwind color utilities (text-muted, bg-sidebar, ...) follow the theme. */
 @theme {
-  --color-sidebar: #F5F2ED;
-  --color-accent: #D4550A;
-  --color-border: #E5E0D8;
-  --color-muted: #C4BFB6;
-  --color-ink: #1A1A1A;
+  --color-sidebar: var(--sidebar-bg);
+  --color-accent: var(--accent);
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+  --color-ink: var(--ink);
   --font-family-mono: 'DM Mono', monospace;
 }
 
@@ -47,29 +50,40 @@
   --sidebar-bg: #F5F2ED;
   --accent: #D4550A;
   --border: #E5E0D8;
-  --muted: #C4BFB6;
+  --muted: #736d66;
   --ink: #1A1A1A;
   --editor-bg: #ffffff;
   --editor-font: 'DM Mono', monospace;
   --editor-size: 16px;
+  /* Derived tokens: mixed from the theme colors above, so every theme and
+     dark mode get them without their own values. Use these instead of hex. */
+  --ink-soft: color-mix(in srgb, var(--ink) 68%, var(--editor-bg));
+  --hover: color-mix(in srgb, var(--ink) 6%, transparent);
+  --code-bg: color-mix(in srgb, var(--ink) 8%, transparent);
+  --accent-soft: color-mix(in srgb, var(--accent) 10%, transparent);
+  --accent-tint: color-mix(in srgb, var(--accent) 22%, transparent);
+  --accent-ink: color-mix(in srgb, var(--accent) 82%, var(--ink));
+  --decor: color-mix(in srgb, var(--ink) 30%, var(--editor-bg));
 }
 
 /* Dark mode */
 .dark {
-  --sidebar-bg: #1a1a2e;
-  --accent: #a855f7;
-  --border: #2d2d4e;
-  --muted: #6b6b8a;
-  --ink: #e2e2f0;
-  --editor-bg: #13131f;
+  /* Softer than pure white on black (halation), one desaturated orange accent. */
+  --sidebar-bg: #1d1d29;
+  --accent: #e2834f;
+  --border: #2e2e40;
+  --muted: #8f8fa6;
+  --ink: #d4d4dc;
+  --editor-bg: #16161f;
 }
+.dark body { -webkit-font-smoothing: antialiased; }
 
 /* Theme: Calm */
 [data-theme="calm"] {
   --sidebar-bg: #EDE8E0;
   --accent: #9B7D5E;
   --border: #D8D0C4;
-  --muted: #B0A898;
+  --muted: #756a5c;
   --editor-bg: #F5F0E8;
 }
 
@@ -78,7 +92,7 @@
   --sidebar-bg: #12122a;
   --accent: #a855f7;
   --border: #2d2d4e;
-  --muted: #6b6b8a;
+  --muted: #9494b4;
   --ink: #e2e2f0;
   --editor-bg: #1a1a2e;
 }
@@ -88,7 +102,7 @@
   --sidebar-bg: #8b9e7e;
   --accent: #7a6450;
   --border: #7a8f6e;
-  --muted: #a0a890;
+  --muted: #4a5242;
   --ink: #2d2820;
   --editor-bg: #c8d4c0;
 }
@@ -98,7 +112,7 @@
   --sidebar-bg: #0d1b2e;
   --accent: #a0aec0;
   --border: #1e3050;
-  --muted: #4a6080;
+  --muted: #8295b0;
   --ink: #cbd5e0;
   --editor-bg: #0a1628;
 }
@@ -118,10 +132,7 @@ body {
   background: var(--editor-bg);
 }
 
-/* Drop cursor — keep the indicator above dragged node views */
-.ProseMirror-dropcursor {
-  z-index: 100;
-}
+
 
 /* ── Drag & drop animations for node views ─────────────────────────────── */
 
@@ -166,6 +177,7 @@ body {
   50%      { opacity: 1; }
 }
 .ProseMirror-dropcursor {
+  z-index: 100;
   height: 3px !important;
   background: var(--accent) !important;
   border-radius: 2px;
@@ -231,7 +243,8 @@ body {
 .ProseMirror ol ol ol { list-style: lower-roman; }
 .ProseMirror li + li { margin-top: 0.3em; }
 .ProseMirror li > :is(ul, ol) { margin-top: 0.3em; }
-.ProseMirror li::marker { color: var(--muted); }
+.ProseMirror ul > li::marker { color: var(--decor); }
+.ProseMirror ol > li::marker { color: var(--muted); }
 .ProseMirror ol > li::marker { font-variant-numeric: tabular-nums; }
 
 /* Checklist. Child selectors only: a bullet list nested in a task item keeps
@@ -266,9 +279,9 @@ body {
 }
 
 .ProseMirror code {
-  background: rgba(0,0,0,0.06);
+  background: var(--code-bg);
   border-radius: 4px;
-  padding: 0.1em 0.3em;
+  padding: 0.12em 0.35em;
   font-family: 'DM Mono', monospace;
   font-size: 0.9em;
 }
@@ -291,19 +304,17 @@ body {
 .ProseMirror blockquote {
   border-left: 4px solid var(--accent);
   padding: 0.75em 1em 0.75em 1.25em;
-  background: rgba(212, 85, 10, 0.04);
+  background: color-mix(in srgb, var(--accent) 4%, transparent);
   border-radius: 0 8px 8px 0;
-  color: var(--ink);
-  font-style: italic;
-  position: relative;
+  /* Notes quote people; upright, softer text reads calmer than italic. */
+  color: var(--ink-soft);
 }
 
 .ProseMirror hr {
   border: none;
   height: 2px;
   border-radius: 1px;
-  background: linear-gradient(to right, transparent, var(--accent) 20%, var(--accent) 80%, transparent);
-  opacity: 0.4;
+  background: linear-gradient(to right, transparent, var(--decor) 15%, var(--decor) 85%, transparent);
 }
 
 /* ── Footnote ── */
@@ -313,7 +324,7 @@ body {
   color: var(--accent);
   font-weight: 700;
   font-size: 0.72em;
-  background: rgba(212, 85, 10, 0.1);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
   border-radius: 4px;
   padding: 1px 4px;
   cursor: pointer;
@@ -322,7 +333,7 @@ body {
   line-height: 0;
   transition: background 150ms ease;
 }
-.barrapad-fn-marker:hover { background: rgba(212, 85, 10, 0.22); }
+.barrapad-fn-marker:hover { background: color-mix(in srgb, var(--accent) 22%, transparent); }
 
 .barrapad-fn-popover {
   position: absolute;
@@ -391,7 +402,7 @@ body {
 }
 .barrapad-poll.is-selected {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(212, 85, 10, 0.1);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 .barrapad-poll-head {
@@ -420,7 +431,7 @@ body {
   align-items: center;
   transition: color 150ms ease, background 150ms ease;
 }
-.barrapad-poll-editbtn:hover { color: var(--accent); background: rgba(212, 85, 10, 0.08); }
+.barrapad-poll-editbtn:hover { color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
 
 .barrapad-poll-editor { display: flex; flex-direction: column; gap: 10px; }
 
@@ -547,7 +558,7 @@ body {
   overflow: hidden;
   transition: border-color 200ms ease, background 200ms ease;
 }
-.barrapad-poll-opt:hover:not(:disabled) { border-color: var(--accent); background: rgba(212, 85, 10, 0.03); }
+.barrapad-poll-opt:hover:not(:disabled) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 3%, transparent); }
 .barrapad-poll-opt.is-voted { border-color: var(--accent); }
 .barrapad-poll-opt.is-revealed:not(.is-voted) { opacity: 0.7; }
 .barrapad-poll-opt:disabled { cursor: default; }
@@ -563,7 +574,7 @@ body {
 .barrapad-poll-opt.is-voted .barrapad-poll-opt-marker {
   border-color: var(--accent);
   background: var(--accent);
-  box-shadow: 0 0 0 3px rgba(212, 85, 10, 0.15);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
 }
 
 .barrapad-poll-opt-label { flex: 1; z-index: 1; position: relative; }
@@ -581,7 +592,7 @@ body {
   left: 0;
   top: 0;
   height: 100%;
-  background: rgba(212, 85, 10, 0.07);
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
   border-radius: 6px;
   transition: width 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
   pointer-events: none;
@@ -652,7 +663,7 @@ body {
 
 /* Cell selection overlay */
 .ProseMirror .selectedCell::after {
-  background: rgba(212, 85, 10, 0.08);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 
 .ProseMirror table {
@@ -671,6 +682,7 @@ body {
 .ProseMirror table th {
   background: var(--sidebar-bg);
   font-weight: 600;
+  text-align: left;
 }
 
 .ProseMirror img {
@@ -712,7 +724,7 @@ body {
 }
 
 .tbtn-tooltip-key {
-  color: #D4550A;
+  color: var(--accent);
   font-weight: 700;
 }
 
@@ -722,19 +734,6 @@ body {
   transition: opacity 0.1s ease 0.5s, transform 0.12s ease 0.5s;
 }
 
-/* Toolbar button active */
-.toolbar-btn {
-  padding: 6px;
-  border-radius: 6px;
-  transition: background-color 0.15s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--ink);
-}
-.toolbar-btn:hover { background: rgba(0,0,0,0.05); }
-.toolbar-btn.active { background: rgba(0,0,0,0.1); color: var(--accent); }
-
 /* Note item */
 .note-item {
   padding: 6px 10px;
@@ -742,8 +741,8 @@ body {
   cursor: pointer;
   transition: background-color 0.15s;
 }
-.note-item:hover { background: rgba(0,0,0,0.05); }
-.note-item.active { background: rgba(212, 85, 10, 0.1); }
+.note-item:hover { background: var(--hover); }
+.note-item.active { background: color-mix(in srgb, var(--accent) 10%, transparent); }
 
 /* Modal backdrop */
 .modal-backdrop {
@@ -884,7 +883,7 @@ body {
   cursor: pointer;
   transition: border-color 0.15s, color 0.15s;
 }
-.barrapad-tag-add:hover { border-color: #D4550A; color: #D4550A; }
+.barrapad-tag-add:hover { border-color: var(--accent); color: var(--accent); }
 
 .barrapad-tag-popover {
   position: absolute;
@@ -912,7 +911,7 @@ body {
   outline: none;
   margin-bottom: 8px;
 }
-.barrapad-tag-input:focus { border-color: #D4550A; }
+.barrapad-tag-input:focus { border-color: var(--accent); }
 .barrapad-tag-input::placeholder { color: var(--muted); }
 
 .barrapad-tag-colors {
@@ -965,20 +964,20 @@ body {
   border: none;
   border-top: 1px solid var(--border);
   background: transparent;
-  color: #D4550A;
+  color: var(--accent);
   font-size: 12px;
   font-family: inherit;
   cursor: pointer;
   margin-top: 4px;
   transition: background 0.1s;
 }
-.barrapad-tag-create:hover { background: rgba(212,85,10,0.07); }
+.barrapad-tag-create:hover { background: color-mix(in srgb, var(--accent) 7%, transparent); }
 [data-font="comic"] .ProseMirror { font-family: 'Comic Sans MS', 'Chalkboard SE', cursive; }
 
 /* ── Mention chips ─────────────────────────────────────────────────────── */
 .user-mention {
-  background: rgba(212, 85, 10, 0.1);
-  color: #D4550A;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
   border-radius: 4px;
   padding: 1px 4px;
   font-weight: 600;
@@ -987,11 +986,11 @@ body {
   transition: background 0.15s;
   text-decoration: none;
 }
-.user-mention:hover { background: rgba(212, 85, 10, 0.2); }
+.user-mention:hover { background: color-mix(in srgb, var(--accent) 20%, transparent); }
 
 .note-mention {
-  background: rgba(59, 130, 246, 0.1);
-  color: #3b82f6;
+  background: color-mix(in srgb, #3b82f6 12%, transparent);
+  color: color-mix(in srgb, #2563eb 75%, var(--ink));
   border-radius: 4px;
   padding: 1px 4px;
   font-weight: 600;
@@ -1000,12 +999,8 @@ body {
   transition: background 0.15s;
   text-decoration: none;
 }
-.note-mention:hover { background: rgba(59, 130, 246, 0.2); }
+.note-mention:hover { background: color-mix(in srgb, #3b82f6 22%, transparent); }
 
-.dark .user-mention { background: rgba(212, 85, 10, 0.2); color: #f59e0b; }
-.dark .user-mention:hover { background: rgba(212, 85, 10, 0.3); }
-.dark .note-mention { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
-.dark .note-mention:hover { background: rgba(59, 130, 246, 0.3); }
 
 /* ── Mention suggestion dropdown ───────────────────────────────────────── */
 .tippy-box[data-theme~='mention'] {
@@ -1066,7 +1061,7 @@ body {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: #D4550A;
+  background: var(--accent);
   color: #fff;
   display: flex;
   align-items: center;
@@ -1130,3 +1125,30 @@ body {
   .barrapad-card { --pad: 1rem; }
   .barrapad-card .barrapad-editor-content { padding-top: 1.25rem; }
 }
+
+/* ── Editor colors that follow the theme (docs/design-audit.md step 2) ── */
+/* Highlights are pastel swatches, so their text stays dark in every theme
+   (the mark's inline style says color: inherit, hence !important). */
+.ProseMirror mark {
+  color: #1f1f1f !important;
+  border-radius: 3px;
+  padding: 0.05em 0.1em;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+.ProseMirror a { color: var(--accent-ink); text-underline-offset: 0.18em; text-decoration-thickness: 1px; }
+.ProseMirror a:hover { text-decoration-thickness: 2px; }
+.ProseMirror ::selection { background: var(--accent-tint); }
+.ProseMirror { caret-color: var(--accent); }
+.ProseMirror-selectednode { outline: 2px solid var(--accent-tint); outline-offset: 2px; border-radius: 4px; }
+
+/* Code block syntax colors (lowlight emits highlight.js classes). Each hue is
+   mixed with --ink, so it darkens on light themes and lightens on dark ones. */
+.ProseMirror pre .hljs-comment, .ProseMirror pre .hljs-quote { color: var(--muted); font-style: italic; }
+.ProseMirror pre :is(.hljs-keyword, .hljs-selector-tag, .hljs-literal, .hljs-built_in, .hljs-type) { color: color-mix(in srgb, #b4237a 70%, var(--ink)); }
+.ProseMirror pre :is(.hljs-string, .hljs-regexp, .hljs-addition, .hljs-attribute) { color: color-mix(in srgb, #1f8a4c 72%, var(--ink)); }
+.ProseMirror pre :is(.hljs-number, .hljs-symbol, .hljs-bullet, .hljs-variable, .hljs-template-variable) { color: color-mix(in srgb, #b45309 75%, var(--ink)); }
+.ProseMirror pre :is(.hljs-title, .hljs-section, .hljs-name, .hljs-selector-id, .hljs-selector-class) { color: color-mix(in srgb, #2563eb 72%, var(--ink)); }
+.ProseMirror pre :is(.hljs-meta, .hljs-tag, .hljs-attr, .hljs-params) { color: color-mix(in srgb, #7c3aed 65%, var(--ink)); }
+.ProseMirror pre .hljs-deletion { color: color-mix(in srgb, #dc2626 75%, var(--ink)); }
+.ProseMirror pre { font-size: 0.9em; line-height: 1.55; }

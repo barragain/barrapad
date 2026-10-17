@@ -8,11 +8,20 @@ interface ColorPickerProps {
   onChange: (value: string) => void
   mode?: 'color' | 'gradient'
   onModeChange?: (mode: 'color' | 'gradient') => void
+  /** Preset rows; highlights pass HIGHLIGHT_SWATCHES. */
+  swatches?: string[][]
 }
 
 const PRESET_SWATCHES = [
   ['#000000', '#ffffff', '#D4550A', '#3b82f6', '#16a34a', '#dc2626', '#9333ea', '#f59e0b'],
   ['#1a1a2e', '#F5F0E8', '#84cc16', '#06b6d4', '#ec4899', '#6366f1', '#14b8a6', '#f97316'],
+]
+
+/** Pastels only: highlighted text is always drawn dark, so it stays readable
+ *  in every theme. */
+export const HIGHLIGHT_SWATCHES = [
+  ['#fef08a', '#fde68a', '#fed7aa', '#fecaca', '#fbcfe8', '#e9d5ff', '#c7d2fe', '#bfdbfe'],
+  ['#a5f3fc', '#99f6e4', '#bbf7d0', '#d9f99d', '#fef3c7', '#fecdd3', '#e5e7eb', '#f5f5f4'],
 ]
 
 // A compact color board (no tabs, just the picker core)
@@ -264,7 +273,7 @@ function ColorBoard({ color, onChange }: ColorBoardProps) {
             height: 24,
             borderRadius: 6,
             background: hsvToHex(hue, sat, val),
-            border: '1px solid #E5E0D8',
+            border: '1px solid var(--border)',
             flexShrink: 0,
           }}
         />
@@ -272,7 +281,7 @@ function ColorBoard({ color, onChange }: ColorBoardProps) {
           style={{
             display: 'flex',
             alignItems: 'center',
-            border: '1px solid #E5E0D8',
+            border: '1px solid var(--border)',
             borderRadius: 6,
             overflow: 'hidden',
             flex: 1,
@@ -284,7 +293,7 @@ function ColorBoard({ color, onChange }: ColorBoardProps) {
               fontSize: 12,
               color: '#9b9b9b',
               background: '#F9F7F4',
-              borderRight: '1px solid #E5E0D8',
+              borderRight: '1px solid var(--border)',
               userSelect: 'none',
             }}
           >
@@ -359,7 +368,7 @@ function AnglePicker({ angle, onChange }: AnglePickerProps) {
         width: 32,
         height: 32,
         borderRadius: '50%',
-        border: '1px solid #E5E0D8',
+        border: '1px solid var(--border)',
         background: '#F9F7F4',
         position: 'relative',
         cursor: 'pointer',
@@ -383,7 +392,7 @@ function AnglePicker({ angle, onChange }: AnglePickerProps) {
   )
 }
 
-export default function ColorPicker({ value, onChange, mode = 'color', onModeChange }: ColorPickerProps) {
+export default function ColorPicker({ value, onChange, mode = 'color', onModeChange, swatches = PRESET_SWATCHES }: ColorPickerProps) {
   const [activeTab, setActiveTab] = useState<'color' | 'gradient'>(mode)
 
   // Gradient state
@@ -453,7 +462,7 @@ export default function ColorPicker({ value, onChange, mode = 'color', onModeCha
         style={{
           display: 'flex',
           gap: 2,
-          background: '#F5F0E8',
+          background: 'var(--sidebar-bg)',
           borderRadius: 8,
           padding: 3,
         }}
@@ -488,7 +497,7 @@ export default function ColorPicker({ value, onChange, mode = 'color', onModeCha
 
           {/* Presets */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {PRESET_SWATCHES.map((row, ri) => (
+            {swatches.map((row, ri) => (
               <div key={ri} style={{ display: 'flex', gap: 4 }}>
                 {row.map((c) => (
                   <button
@@ -504,7 +513,7 @@ export default function ColorPicker({ value, onChange, mode = 'color', onModeCha
                       height: 24,
                       borderRadius: '50%',
                       background: c,
-                      border: c === '#ffffff' ? '1px solid #E5E0D8' : '2px solid #fff',
+                      border: c === '#ffffff' ? '1px solid var(--border)' : '2px solid #fff',
                       boxShadow: '0 0 0 1px rgba(0,0,0,0.08)',
                       cursor: 'pointer',
                       transition: 'transform 150ms ease',
@@ -524,7 +533,7 @@ export default function ColorPicker({ value, onChange, mode = 'color', onModeCha
       {activeTab === 'gradient' && (
         <>
           {/* Preview strip */}
-          <div style={{ position: 'relative', height: 32, borderRadius: 8, background: gradient, border: '1px solid #E5E0D8' }} />
+          <div style={{ position: 'relative', height: 32, borderRadius: 8, background: gradient, border: '1px solid var(--border)' }} />
 
           {/* Stop selector */}
           <div style={{ display: 'flex', gap: 8 }}>
@@ -542,7 +551,7 @@ export default function ColorPicker({ value, onChange, mode = 'color', onModeCha
                     gap: 8,
                     padding: '8px 10px',
                     borderRadius: 8,
-                    border: isActive ? '2px solid #D4550A' : '1px solid #E5E0D8',
+                    border: isActive ? '2px solid var(--accent)' : '1px solid var(--border)',
                     background: isActive ? '#FFF7F3' : '#F9F7F4',
                     cursor: 'pointer',
                   }}
@@ -573,7 +582,7 @@ export default function ColorPicker({ value, onChange, mode = 'color', onModeCha
           {/* Gradient type toggle */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 12, color: '#6b6b6b', width: 60, flexShrink: 0 }}>Type</span>
-            <div style={{ display: 'flex', gap: 2, background: '#F5F0E8', borderRadius: 6, padding: 2 }}>
+            <div style={{ display: 'flex', gap: 2, background: 'var(--sidebar-bg)', borderRadius: 6, padding: 2 }}>
               {(['linear', 'radial'] as const).map((t) => (
                 <button
                   key={t}
@@ -617,7 +626,7 @@ export default function ColorPicker({ value, onChange, mode = 'color', onModeCha
                   width: 56,
                   padding: '3px 6px',
                   fontSize: 12,
-                  border: '1px solid #E5E0D8',
+                  border: '1px solid var(--border)',
                   borderRadius: 6,
                   outline: 'none',
                   textAlign: 'center',

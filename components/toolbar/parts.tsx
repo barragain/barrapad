@@ -124,8 +124,8 @@ export function TBtn({
           relative flex items-center justify-center p-2 md:p-1.5 rounded-lg
           disabled:opacity-25 disabled:cursor-not-allowed
           ${active
-            ? 'bg-[#D4550A]/10 text-[#D4550A] shadow-inner'
-            : 'text-[#6b6b6b] hover:bg-[#F5F2ED] hover:text-[#1A1A1A]'
+            ? 'bg-[var(--accent)]/10 text-[var(--accent)] shadow-inner'
+            : 'text-[var(--ink-soft)] hover:bg-[var(--hover)] hover:text-[var(--ink)]'
           }
           ${className}
         `}
@@ -137,7 +137,7 @@ export function TBtn({
       >
         {children}
         {active && (
-          <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-[#D4550A]" />
+          <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-[var(--accent)]" />
         )}
       </button>
 

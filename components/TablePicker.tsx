@@ -15,7 +15,7 @@ export default function TablePicker({ onSelect, onClose }: TablePickerProps) {
 
   return (
     <div className="p-3 select-none">
-      <p className="text-[10px] text-[#C4BFB6] mb-2 font-medium text-center">
+      <p className="text-[10px] text-[var(--muted)] mb-2 font-medium text-center">
         {hovered.rows > 0 && hovered.cols > 0
           ? `${hovered.cols} × ${hovered.rows} table`
           : 'Hover to select size'}
@@ -48,8 +48,8 @@ export default function TablePicker({ onSelect, onClose }: TablePickerProps) {
                 width: 18,
                 height: 18,
                 borderRadius: 3,
-                border: `1px solid ${isActive ? '#D4550A' : '#E5E0D8'}`,
-                background: isActive ? 'rgba(212, 85, 10, 0.18)' : 'transparent',
+                border: `1px solid ${isActive ? 'var(--accent)' : 'var(--border)'}`,
+                background: isActive ? 'color-mix(in srgb, var(--accent) 18%, transparent)' : 'transparent',
                 cursor: 'pointer',
                 transition: 'background 60ms ease, border-color 60ms ease',
                 transform: isActive ? 'scale(1.1)' : 'scale(1)',

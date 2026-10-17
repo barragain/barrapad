@@ -11,11 +11,11 @@ function makeDragGhost(label: string): HTMLElement {
   el.style.cssText = [
     // Must be in viewport for offsetHeight to compute and setDragImage to work
     'position:fixed', 'top:0', 'left:-9999px',
-    'background:#D4550A', 'color:white',
+    'background:var(--accent)', 'color:white',
     'font:600 12px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
     'padding:5px 10px', 'border-radius:99px',
     'white-space:nowrap', 'pointer-events:none',
-    'box-shadow:0 2px 8px rgba(212,85,10,0.35)',
+    'box-shadow:0 2px 8px color-mix(in srgb, var(--accent) 35%, transparent)',
   ].join(';')
   document.body.appendChild(el)
   return el
@@ -37,7 +37,7 @@ function formatTime(s: number): string {
 
 function getIcon(mimeType: string) {
   if (mimeType === 'application/pdf' || mimeType.includes('pdf')) {
-    return <FileText size={20} className="text-[#D4550A] flex-shrink-0" />
+    return <FileText size={20} className="text-[var(--accent)] flex-shrink-0" />
   }
   if (
     mimeType.includes('zip') ||
@@ -47,9 +47,9 @@ function getIcon(mimeType: string) {
     mimeType.includes('rar') ||
     mimeType.includes('7z')
   ) {
-    return <Archive size={20} className="text-[#6b6b6b] flex-shrink-0" />
+    return <Archive size={20} className="text-[var(--ink-soft)] flex-shrink-0" />
   }
-  return <File size={20} className="text-[#6b6b6b] flex-shrink-0" />
+  return <File size={20} className="text-[var(--ink-soft)] flex-shrink-0" />
 }
 
 function InlineNameEditor({ name, onRename }: { name: string; onRename: (n: string) => void }) {
@@ -78,7 +78,7 @@ function InlineNameEditor({ name, onRename }: { name: string; onRename: (n: stri
         autoFocus
         style={{
           fontSize: 13, fontWeight: 500, color: 'var(--ink)',
-          border: '1px solid #D4550A', borderRadius: 4,
+          border: '1px solid var(--accent)', borderRadius: 4,
           padding: '1px 4px', outline: 'none', width: '100%',
           background: 'var(--editor-bg)',
         }}
@@ -141,9 +141,9 @@ function AudioPlayer({ name, size, dataUrl, onRename, selected }: { name: string
         gap: 10,
         padding: '12px 14px',
         background: 'var(--editor-bg)',
-        border: selected ? '1px solid #D4550A' : '1px solid var(--border)',
+        border: selected ? '1px solid var(--accent)' : '1px solid var(--border)',
         borderRadius: 14,
-        boxShadow: selected ? '0 0 0 3px rgba(212,85,10,0.15)' : '0 1px 3px rgba(0,0,0,0.06)',
+        boxShadow: selected ? '0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent)' : '0 1px 3px rgba(0,0,0,0.06)',
         width: 'min(340px, 100%)',
         boxSizing: 'border-box',
         transition: 'border-color 0.15s, box-shadow 0.15s',
@@ -164,11 +164,11 @@ function AudioPlayer({ name, size, dataUrl, onRename, selected }: { name: string
         <span
           style={{
             width: 30, height: 30, borderRadius: '50%', flexShrink: 0,
-            background: '#FFF0EB', border: '1px solid #F5D5C8',
+            background: 'var(--accent-soft)', border: '1px solid var(--accent-tint)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}
         >
-          <Mic size={14} style={{ color: '#D4550A' }} />
+          <Mic size={14} style={{ color: 'var(--accent)' }} />
         </span>
         <span style={{ flex: 1, minWidth: 0 }}>
           <InlineNameEditor name={name} onRename={onRename} />
@@ -184,7 +184,7 @@ function AudioPlayer({ name, size, dataUrl, onRename, selected }: { name: string
             background: 'transparent', cursor: 'pointer', color: 'var(--muted)',
             display: 'flex', alignItems: 'center',
           }}
-          onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.color = '#D4550A')}
+          onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.color = 'var(--accent)')}
           onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.color = 'var(--muted)')}
         >
           <Download size={13} />
@@ -197,12 +197,12 @@ function AudioPlayer({ name, size, dataUrl, onRename, selected }: { name: string
           onClick={togglePlay}
           style={{
             width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
-            background: '#D4550A', border: 'none', cursor: 'pointer',
+            background: 'var(--accent)', border: 'none', cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             transition: 'background 150ms ease',
           }}
-          onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.background = '#c04009')}
-          onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.background = '#D4550A')}
+          onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.background = 'var(--accent-ink)')}
+          onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.background = 'var(--accent)')}
         >
           {playing
             ? <Pause size={13} style={{ color: 'white' }} />
@@ -220,7 +220,7 @@ function AudioPlayer({ name, size, dataUrl, onRename, selected }: { name: string
             setCurrentTime(t)
             if (audioRef.current) audioRef.current.currentTime = t
           }}
-          style={{ flex: 1, accentColor: '#D4550A', height: 3, cursor: 'pointer' }}
+          style={{ flex: 1, accentColor: 'var(--accent)', height: 3, cursor: 'pointer' }}
         />
         <span style={{ fontSize: 11, color: 'var(--muted)', flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>
           {formatTime(currentTime)} / {formatTime(duration)}
@@ -318,9 +318,9 @@ export default function FileAttachmentView({ node, updateAttributes, selected }:
             gap: '12px',
             padding: '10px 14px',
             background: 'var(--editor-bg)',
-            border: selected ? '1px solid #D4550A' : '1px solid var(--border)',
+            border: selected ? '1px solid var(--accent)' : '1px solid var(--border)',
             borderRadius: '12px',
-            boxShadow: selected ? '0 0 0 3px rgba(212,85,10,0.15)' : '0 1px 3px rgba(0,0,0,0.06)',
+            boxShadow: selected ? '0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent)' : '0 1px 3px rgba(0,0,0,0.06)',
             maxWidth: '320px',
             transition: 'border-color 0.15s, box-shadow 0.15s',
           }}
@@ -328,7 +328,7 @@ export default function FileAttachmentView({ node, updateAttributes, selected }:
           {getIcon(mimeType)}
           <span style={{ flex: 1, minWidth: 0 }}>
             <InlineNameEditor name={name} onRename={handleRename} />
-            <span style={{ display: 'block', fontSize: '11px', color: '#9b9b9b', marginTop: '1px' }}>
+            <span style={{ display: 'block', fontSize: '11px', color: 'var(--muted)', marginTop: '1px' }}>
               {formatSize(size)}
             </span>
           </span>
@@ -337,9 +337,9 @@ export default function FileAttachmentView({ node, updateAttributes, selected }:
             style={{
               fontSize: '11px',
               fontWeight: 500,
-              color: '#D4550A',
-              background: '#FFF6F2',
-              border: '1px solid #F5D5C8',
+              color: 'var(--accent)',
+              background: 'var(--accent-soft)',
+              border: '1px solid var(--accent-tint)',
               borderRadius: '6px',
               padding: '3px 8px',
               cursor: 'pointer',
@@ -347,10 +347,10 @@ export default function FileAttachmentView({ node, updateAttributes, selected }:
               transition: 'background 150ms ease',
             }}
             onMouseEnter={(e) => {
-              ;(e.currentTarget as HTMLButtonElement).style.background = '#FFE8DF'
+              ;(e.currentTarget as HTMLButtonElement).style.background = 'var(--accent-tint)'
             }}
             onMouseLeave={(e) => {
-              ;(e.currentTarget as HTMLButtonElement).style.background = '#FFF6F2'
+              ;(e.currentTarget as HTMLButtonElement).style.background = 'var(--accent-soft)'
             }}
           >
             Download

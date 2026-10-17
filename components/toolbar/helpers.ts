@@ -32,7 +32,11 @@ export function setNodeAlign(editor: Editor, align: 'left' | 'center' | 'right')
 }
 
 export const TEXT_STYLES = [
-  { label: 'Normal Text', action: (e: Editor) => e.chain().focus().setParagraph().run() },
+  // Also leaves a quote, which setParagraph alone keeps.
+  { label: 'Normal Text', action: (e: Editor) => {
+    const c = e.chain().focus().setParagraph()
+    ;(e.isActive('blockquote') ? c.lift('blockquote') : c).run()
+  } },
   { label: 'Heading 1', action: (e: Editor) => e.chain().focus().toggleHeading({ level: 1 }).run() },
   { label: 'Heading 2', action: (e: Editor) => e.chain().focus().toggleHeading({ level: 2 }).run() },
   { label: 'Heading 3', action: (e: Editor) => e.chain().focus().toggleHeading({ level: 3 }).run() },
