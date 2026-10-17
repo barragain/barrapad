@@ -1144,6 +1144,15 @@ body {
 .ProseMirror pre .hljs-deletion { color: color-mix(in srgb, #dc2626 75%, var(--ink)); }
 .ProseMirror pre { font-size: 0.9em; line-height: 1.55; }
 
+/* Focus mode (AppShell): chrome hidden, every block but the caret's dimmed.
+   Containers (lists, quotes, tables) stay lit so only their inner text dims. */
+[data-focus-mode] [data-chrome] { display: none !important; }
+.ProseMirror > *, .ProseMirror :is(li, td, th, blockquote) > p { transition: opacity 0.2s ease; }
+[data-focus-mode] .ProseMirror-focused > :not(ul, ol, blockquote, table, .tableWrapper, .has-focus),
+[data-focus-mode] .ProseMirror-focused :is(li, td, th, blockquote) > p:not(.has-focus) { opacity: 0.3; }
+[data-focus-mode] .focus-exit { opacity: 0.4; transition: opacity 0.2s ease; }
+[data-focus-mode] .focus-exit:hover, [data-focus-mode] .focus-exit:focus-visible { opacity: 1; }
+
 /* Calm UI (docs/design-audit.md step 3): honor the system's reduced motion setting. */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

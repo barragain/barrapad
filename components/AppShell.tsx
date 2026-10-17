@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Info, Share2, X, Cloud, CloudCheck, RefreshCw, HardDrive, Download, ChevronDown, Menu } from 'lucide-react'
+import { Info, Focus, Share2, X, Cloud, CloudCheck, RefreshCw, HardDrive, Download, ChevronDown, Menu } from 'lucide-react'
 import Link from 'next/link'
 import { useAuth, useUser } from '@clerk/nextjs'
 import { AnimatePresence, MotionConfig, motion } from 'framer-motion'
@@ -68,6 +68,9 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
   const [showAppearance, setShowAppearance] = useState(false)
   const [showExport, setShowExport] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  // Focus mode hides everything marked data-chrome and dims all but the
+  // current block (globals.css). Ctrl/Cmd+Shift+F toggles it, Esc leaves it.
+  const [focusMode, setFocusMode] = useState(false)
   const [appearance, setAppearance] = useState<AppearanceSettings>(DEFAULT_APPEARANCE)
   const [guestStorageFull, setGuestStorageFull] = useState(false)
   // The guest sign-up pill waits for the first real edit, and stays away once
@@ -88,6 +91,12 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
         e.preventDefault()
         window.dispatchEvent(new Event('barrapad:save'))
       }
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'f') {
+        e.preventDefault()
+        setFocusMode((v) => !v)
+      }
+      // Menus inside the editor (slash menu, link box) take Esc first.
+      if (e.key === 'Escape' && !e.defaultPrevented) setFocusMode(false)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -325,7 +334,7 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
 
   return (
     <MotionConfig reducedMotion="user">
-    <div className="flex h-screen overflow-hidden" style={{ background: 'var(--editor-bg)' }}>
+    <div className="flex h-screen overflow-hidden" data-focus-mode={focusMode || undefined} style={{ background: 'var(--editor-bg)' }}>
 
       {/* Mobile backdrop */}
       <AnimatePresence>
@@ -344,7 +353,7 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
       </AnimatePresence>
 
       {/* Sidebar — fixed overlay on mobile, normal flex child on desktop */}
-      <div className="hidden md:flex md:flex-shrink-0">
+      <div className="hidden md:flex md:flex-shrink-0" data-chrome>
         <Sidebar
           notes={notes}
           sharedNotes={sharedNotes}
@@ -398,7 +407,7 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
       {/* Main area */}
       <div className="relative flex flex-col flex-1 min-w-0 overflow-hidden">
         {/* Top action bar */}
-        <div className="flex items-center gap-2 px-4 py-2 border-b" style={{ background: 'var(--editor-bg)', borderColor: 'var(--border)' }}>
+        <div data-chrome className="flex items-center gap-2 px-4 py-2 border-b" style={{ background: 'var(--editor-bg)', borderColor: 'var(--border)' }}>
           {/* Hamburger — mobile only */}
           <button
             className="md:hidden p-1.5 rounded-lg hover:bg-black/5 transition-colors flex-shrink-0"
@@ -507,6 +516,20 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
 
           {activeNote && (
             <button
+              // Keep the caret in the editor so dimming starts at once.
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => setFocusMode(true)}
+              className="p-1.5 rounded-lg transition-colors hover:bg-[var(--hover)]"
+              style={{ color: 'var(--muted)' }}
+              title="Focus mode (Ctrl+Shift+F)"
+              aria-label="Focus mode"
+            >
+              <Focus size={15} />
+            </button>
+          )}
+
+          {activeNote && (
+            <button
               data-info-toggle
               onClick={() => window.dispatchEvent(new Event('barrapad:toggle-info'))}
               className="p-1.5 rounded-lg transition-colors hover:bg-[var(--hover)]"
@@ -591,6 +614,18 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
             </button>
           )}
         </div>
+
+        {focusMode && (
+          <button
+            onClick={() => setFocusMode(false)}
+            className="focus-exit absolute top-2 right-3 z-[55] flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-lg hover:bg-[var(--hover)]"
+            style={{ color: 'var(--muted)' }}
+            title="Leave focus mode (Esc)"
+          >
+            <X size={13} />
+            Exit focus
+          </button>
+        )}
 
         {/* Editor */}
         <div className="flex-1 overflow-hidden">

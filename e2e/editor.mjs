@@ -156,6 +156,23 @@ try {
   await page.keyboard.press('Escape')
   await page.waitForTimeout(300)
   check(afterSpace === 1 && await page.locator('[data-slash-menu]').isVisible().catch(() => false) === false, 'slash menu opens after a space and Esc closes it')
+
+  // Focus mode: chrome hidden, other blocks dimmed, the caret's block lit, Esc leaves.
+  await page.keyboard.press('Control+a'); await page.keyboard.press('Delete')
+  await paste(page, '<p>First</p><ul><li><p>Item</p></li></ul><p>Last</p>')
+  await page.waitForTimeout(300)
+  await page.click('button[aria-label="Focus mode"]')
+  await page.click('.ProseMirror p >> text=Last')
+  await page.waitForTimeout(400)
+  const focus = await page.evaluate(() => {
+    const ps = [...document.querySelectorAll('.ProseMirror p')]
+    const op = (t) => getComputedStyle(ps.find((p) => p.textContent === t)).opacity
+    return { first: op('First'), item: op('Item'), last: op('Last'), sidebar: !![...document.querySelectorAll('[data-chrome]')].some((e) => e.offsetParent) }
+  })
+  check(focus.first === '0.3' && focus.item === '0.3' && focus.last === '1' && !focus.sidebar, `focus mode dims other blocks and hides chrome (${JSON.stringify(focus)})`)
+  await page.keyboard.press('Escape')
+  await page.waitForTimeout(300)
+  check(await page.locator('button[aria-label="Focus mode"]').isVisible(), 'Esc leaves focus mode')
   await page.context().close()
 
   // Dark mode: inline code has a visible chip, highlights keep dark text.

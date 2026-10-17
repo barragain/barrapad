@@ -181,7 +181,7 @@ const marker = `guest-${Date.now().toString(36)}`
   check(await sp.locator('button[title="Comments"]').count() === 1, 'signed-in user still has Comments')
 
   // ── 3. Sync indicator ────────────────────────────────────────────────────
-  const target = imported[0]
+  const target = imported.find((n) => n.title.includes(marker)) ?? imported[0]
   if (target) {
     await sp.getByText(target.title).first().click().catch(() => {})
     await sleep(800)

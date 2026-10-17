@@ -17,6 +17,7 @@ import TaskList from '@tiptap/extension-task-list'
 import TaskItem from '@tiptap/extension-task-item'
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
 import Placeholder from '@tiptap/extension-placeholder'
+import { Focus } from '@tiptap/extensions'
 import { common, createLowlight } from 'lowlight'
 import { GradientText } from '@/extensions/gradient-text'
 import { LoremIpsum } from '@/extensions/lorem-ipsum'
@@ -344,6 +345,8 @@ export default function NoteEditorCore({
       TaskItem.configure({ nested: true }),
       CodeBlockLowlight.configure({ lowlight }),
       // Empty note: the full hint. An empty line the caret is on: a shorter one.
+      // Marks the block holding the caret; focus mode dims every other one.
+      Focus.configure({ mode: 'deepest' }),
       Placeholder.configure({
         placeholder: ({ editor: ed }) => ed.isEmpty
           ? 'Start writing, or type / for headings, lists, tables and more'
@@ -877,6 +880,7 @@ export default function NoteEditorCore({
       {editor && editable && (
         <div
           ref={toolbarRef}
+          data-chrome
           style={
             isMobileView
               ? { display: isEditorFocused ? 'block' : 'none' }
