@@ -67,11 +67,14 @@ async function warm(c) {
   const typeAtEnd = async (text) => {
     await page.locator('.ProseMirror').first().click()
     await page.keyboard.press('Control+End')
+    // A new line, so the title (the first line) stays findable in the sidebar.
+    await page.keyboard.press('Enter')
     await page.keyboard.type(text)
   }
   const dbHas = async (id, text) => {
     for (let i = 0; i < 20; i++) {
-      if ((await api('GET', `/api/notes/${id}`))?.content?.includes(text)) return true
+      const list = await api('GET', '/api/notes').catch(() => null)
+      if (list?.find?.((n) => n.id === id)?.content?.includes(text)) return true
       await sleep(1_500)
     }
     return false
@@ -93,7 +96,7 @@ async function warm(c) {
   check(offlineOpen, 'signed in: a note opened here before is editable offline')
   check(await page.getByText('Offline', { exact: true }).isVisible(), 'signed in: top bar says Offline')
   if (offlineOpen) {
-    await typeAtEnd(' typed-offline-1')
+    await typeAtEnd('typed-offline-1')
     await sleep(1_500)
   }
   await c.setOffline(false)
@@ -114,11 +117,11 @@ async function warm(c) {
   await c.setOffline(true)
   await sleep(500)
   await open(t2)
-  await typeAtEnd(' typed-offline-2')
+  await typeAtEnd('typed-offline-2')
   await sleep(1_500)
   const switched = await open(t3).then(() => true).catch(() => false)
   check(switched, 'signed in: switching notes offline keeps them editable')
-  await typeAtEnd(' typed-offline-3')
+  await typeAtEnd('typed-offline-3')
   await sleep(1_500)
   const dirty = await page.evaluate(() => JSON.parse(localStorage.getItem('bpad_offline_dirty') ?? '[]'))
   check(dirty.includes(n2.id) && dirty.includes(n3.id), `signed in: both notes wait for a save (${dirty.length})`)

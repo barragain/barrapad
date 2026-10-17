@@ -523,6 +523,13 @@ export default function EditorComponent({
   // room is reachable, save this note from the editor and merge the others
   // in the background, then save them too.
   const offlineSyncingRef = useRef(false)
+  // A socket that never dropped syncs nothing on reconnect, so the network
+  // coming back is a reason to look too.
+  useEffect(() => {
+    const onOnline = () => setTimeout(() => setSyncTick((t) => t + 1), 1_000)
+    window.addEventListener('online', onOnline)
+    return () => window.removeEventListener('online', onOnline)
+  }, [])
   useEffect(() => {
     if (!yEditor || !ySynced || !navigator.onLine || offlineSyncingRef.current) return
     const ids = loadOfflineDirty()
