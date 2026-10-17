@@ -122,7 +122,7 @@ export function useNotes({ initialNotes, guest, isGuest, isSignedIn }: {
   // leaves guest storage only after the server has it, so a failure retries
   // on the next fetch instead of losing text. The Web Lock keeps two tabs from
   // importing the same notes; the second one finds the store already empty.
-  // ponytail: a reload mid-POST can still duplicate one note; needs a client id on POST to dedupe.
+  // The guest id goes along, so a reload mid-POST retries into the same row.
   const importingRef = useRef(false)
   const importGuestNotes = async () => {
     if (importingRef.current) return
@@ -132,7 +132,7 @@ export function useNotes({ initialNotes, guest, isGuest, isSignedIn }: {
         const res = await fetch('/api/notes', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title: n.title, content: n.content, tags: n.tags }),
+          body: JSON.stringify({ title: n.title, content: n.content, tags: n.tags, guestId: n.id }),
         })
         if (!res.ok) return
         try { localStorage.setItem(GUEST_KEY, JSON.stringify(loadGuestNotes().filter(g => g.id !== n.id))) } catch {}

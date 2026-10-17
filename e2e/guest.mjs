@@ -157,6 +157,14 @@ const marker = `guest-${Date.now().toString(36)}`
   const owned = await sp.evaluate(() => fetch('/api/notes').then((r) => r.json()))
   const imported = owned.filter((n) => n.content.includes(marker))
   check(imported.length === 2, `both guest notes now in the account (got ${imported.length})`)
+  // A reload mid-import leaves notes in the guest store that the server already
+  // has. Importing them again must not make copies.
+  await sp.evaluate((notes) => localStorage.setItem('bpad_guest_notes', JSON.stringify(notes)), guestNotes)
+  await sp.reload({ waitUntil: 'domcontentloaded' })
+  await sp.waitForFunction(editableEditor, null, { timeout: 30_000 })
+  await sleep(4_000)
+  const again = (await sp.evaluate(() => fetch('/api/notes').then((r) => r.json()))).filter((n) => n.content.includes(marker))
+  check(again.length === 2, `re-import after a reload makes no copies (got ${again.length})`)
   check(await sp.locator('button[title="Comments"]').count() === 1, 'signed-in user still has Comments')
 
   // ── 3. Sync indicator ────────────────────────────────────────────────────
@@ -175,7 +183,7 @@ const marker = `guest-${Date.now().toString(36)}`
   }
 
   // Clean up the test notes.
-  for (const n of imported) await sp.evaluate((id) => fetch(`/api/notes/${id}`, { method: 'DELETE' }), n.id)
+  for (const n of again) await sp.evaluate((id) => fetch(`/api/notes/${id}`, { method: 'DELETE' }), n.id)
   await s.close()
   await c.close()
 }
