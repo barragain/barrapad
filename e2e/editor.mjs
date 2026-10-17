@@ -2,7 +2,7 @@
 // and 2), run as a guest: spacing between list items and blocks, checklist
 // nesting, rich and plain paste, "# " headings, Normal Text leaving a quote,
 // dark mode colors for inline code and highlights, the selection bar and the
-// slash menu.
+// slash menu, focus mode and the command palette.
 // Usage: node e2e/editor.mjs
 import { chromium } from 'playwright'
 
@@ -178,6 +178,26 @@ try {
   await page.keyboard.press('Escape')
   await page.waitForTimeout(300)
   check(stayed && await page.locator('button[aria-label="Focus mode"]').isVisible(), `Esc closes the slash menu first, then leaves focus mode (stayed ${stayed})`)
+
+  // Command palette: Ctrl+/ opens it from the editor, the query finds a note
+  // by its text, Enter opens it, and actions run from it.
+  await page.click('.ProseMirror')
+  await page.keyboard.press('Control+/')
+  const opened = await page.locator('[data-command-palette]').isVisible()
+  await page.keyboard.type('welcome bpad')
+  await page.keyboard.press('Enter')
+  await page.waitForTimeout(800)
+  const welcome = await page.evaluate(() => document.querySelector('.ProseMirror h1')?.textContent)
+  check(opened && welcome === 'Welcome to bpad' && !(await page.locator('[data-command-palette]').count()), `Ctrl+/ palette finds and opens a note (open ${opened}, h1 ${welcome})`)
+  await page.keyboard.press('Control+/')
+  await page.keyboard.type('focus')
+  await page.keyboard.press('Enter')
+  await page.waitForTimeout(300)
+  check(!(await page.locator('button[aria-label="Focus mode"]').isVisible()), 'palette action turns on focus mode')
+  await page.keyboard.press('Escape')
+  await page.keyboard.press('Control+/')
+  await page.keyboard.press('Escape')
+  check(!(await page.locator('[data-command-palette]').count()), 'Esc closes the palette')
   await page.context().close()
 
   // Dark mode: inline code has a visible chip, highlights keep dark text.

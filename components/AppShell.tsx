@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Info, Focus, Share2, X, Cloud, CloudCheck, RefreshCw, HardDrive, Download, ChevronDown, Menu } from 'lucide-react'
+import { Info, Focus, Share2, X, Cloud, CloudCheck, RefreshCw, HardDrive, Download, ChevronDown, Menu, Plus, Palette, MessageSquare, Save } from 'lucide-react'
 import Link from 'next/link'
 import { useAuth, useUser } from '@clerk/nextjs'
 import { AnimatePresence, MotionConfig, motion } from 'framer-motion'
@@ -13,6 +13,7 @@ import AppearanceModal from './AppearanceModal'
 import OnboardingModal from './OnboardingModal'
 import NotificationBell from './NotificationBell'
 import AccessDeniedView from './AccessDeniedView'
+import CommandPalette, { type PaletteAction } from './CommandPalette'
 import type { Note, AppearanceSettings, SharedAccessRecord, CollabNotification } from '@/types'
 
 import { useNotifications, loadKnownShared } from '@/hooks/useNotifications'
@@ -71,6 +72,7 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
   // Focus mode hides everything marked data-chrome and dims all but the
   // current block (globals.css). Ctrl/Cmd+Shift+F toggles it, Esc leaves it.
   const [focusMode, setFocusMode] = useState(false)
+  const [showPalette, setShowPalette] = useState(false)
   const [appearance, setAppearance] = useState<AppearanceSettings>(DEFAULT_APPEARANCE)
   const [guestStorageFull, setGuestStorageFull] = useState(false)
   // The guest sign-up pill waits for the first real edit, and stays away once
@@ -94,6 +96,11 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'f') {
         e.preventDefault()
         setFocusMode((v) => !v)
+      }
+      // Ctrl/Cmd+/ opens the command palette. e.code covers layouts where / needs Shift.
+      if ((e.ctrlKey || e.metaKey) && (e.key === '/' || e.code === 'Slash')) {
+        e.preventDefault()
+        setShowPalette((v) => !v)
       }
     }
     // Esc leaves focus mode, unless it is closing an open editor menu (slash
@@ -340,6 +347,22 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
       }
     } catch {}
   }, [])
+
+  const canShare = !!activeNote && !isGuest && (!activeNote.sharedToken || activeNote.sharedPermission === 'EDIT')
+  const paletteActions: PaletteAction[] = [
+    { label: 'New note', keywords: 'create add', icon: <Plus size={14} />, run: handleNewNote },
+    { label: 'Appearance', keywords: 'settings theme dark light font zoom', icon: <Palette size={14} />, run: () => setShowAppearance(true) },
+    ...(activeNote ? [
+      { label: 'Focus mode', keywords: 'zen distraction', hint: 'Ctrl+Shift+F', icon: <Focus size={14} />, run: () => setFocusMode(true) },
+      { label: 'Note info', keywords: 'words characters stats', icon: <Info size={14} />, run: () => window.dispatchEvent(new Event('barrapad:toggle-info')) },
+      ...(!activeNote.id.startsWith('local-') ? [{ label: 'Comments', keywords: 'discussion threads', icon: <MessageSquare size={14} />, run: () => window.dispatchEvent(new Event('barrapad:toggle-comments')) }] : []),
+      ...(!isGuest ? [{ label: 'Save now', keywords: 'sync', hint: 'Ctrl+S', icon: <Save size={14} />, run: () => window.dispatchEvent(new Event('barrapad:save')) }] : []),
+      ...(canShare ? [{ label: 'Share', keywords: 'link collaborator invite', icon: <Share2 size={14} />, run: () => setShowShare(true) }] : []),
+      ...(['pdf', 'md', 'txt', 'docx'] as const).map((fmt) => ({
+        label: `Export as .${fmt}`, keywords: 'download', icon: <Download size={14} />, run: () => { handleExport(fmt) },
+      })),
+    ] : []),
+  ]
 
   return (
     <MotionConfig reducedMotion="user">
@@ -744,6 +767,16 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
           onIsSharedChange={(hasLinks) =>
             updateNotes(prev => prev.map(n => n.id === activeNote.id ? { ...n, isShared: hasLinks } : n))
           }
+        />
+      )}
+      {showPalette && (
+        <CommandPalette
+          notes={notes}
+          sharedNotes={sharedNotes}
+          actions={paletteActions}
+          onSelectNote={(id) => { setActiveNoteId(id); setAccessDeniedNoteId(null) }}
+          onOpenShared={openSharedNote}
+          onClose={() => setShowPalette(false)}
         />
       )}
       {showAppearance && (
