@@ -129,8 +129,9 @@ async function warm(c) {
   await page.evaluate(() => window.dispatchEvent(new Event('online'))).catch(() => {})
   check(await dbHas(n3.id, 'typed-offline-3'), 'signed in: the open note saves on reconnect')
   check(await dbHas(n2.id, 'typed-offline-2'), 'signed in: the other note saves in the background on reconnect')
-  const left = await page.evaluate(() => JSON.parse(localStorage.getItem('bpad_offline_dirty') ?? '[]'))
-  check(!left.includes(n2.id) && !left.includes(n3.id), 'signed in: nothing left to save')
+  // The database can have the copy a moment before the save's answer clears the list.
+  const cleared = await page.waitForFunction((ids) => !ids.some((id) => (localStorage.getItem('bpad_offline_dirty') ?? '').includes(id)), [n2.id, n3.id], { timeout: 10_000 }).then(() => true).catch(() => false)
+  check(cleared, 'signed in: nothing left to save')
 
   for (const n of [n1, n2, n3]) await api('DELETE', `/api/notes/${n.id}`)
   await c.close()
