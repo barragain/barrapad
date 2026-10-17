@@ -10,7 +10,7 @@ let loading: Promise<void> | null = null
 export function preloadSpelling() {
   loading ??= fetch('/dict/words-en.txt')
     .then((r) => r.text())
-    .then((t) => { rank = new Map(t.split('\n').map((w, i) => [w, i])) })
+    .then((t) => { rank = new Map(t.split('\n').map((w, i) => [w.trim(), i])) })
     .catch(() => { loading = null })
   return loading
 }
