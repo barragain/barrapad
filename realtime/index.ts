@@ -107,7 +107,7 @@ export class NoteYParty extends YServer<Env> {
     if (msg.dbUpdatedAt > roomDb) await this.ctx.storage.put('dbUpdatedAt', msg.dbUpdatedAt)
   }
 
-  // HTTP POST from the Next.js API routes: renames and deletes.
+  // HTTP POST from the Next.js API routes: renames, deletes and kicks.
   async onRequest(request: Request) {
     if (request.method !== 'POST') return new Response('ok')
     if (!allowedPush(request, this.env)) return new Response('Forbidden', { status: 403 })
@@ -117,6 +117,12 @@ export class NoteYParty extends YServer<Env> {
       if (msg.type === 'delete') {
         await this.ctx.storage.put('deleted', true)
         this.broadcastCustomMessage(JSON.stringify({ type: 'delete' }))
+      }
+      // Access revoked or lowered: drop everyone. Clients reconnect with a
+      // fresh ticket, so whoever lost access gets 403 and stays out, and a
+      // downgraded editor comes back read-only.
+      if (msg.type === 'kick') {
+        for (const conn of this.getConnections()) conn.close(4001, 'access changed')
       }
     } catch {}
     return new Response('ok')

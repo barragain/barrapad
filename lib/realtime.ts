@@ -23,6 +23,16 @@ export function roomQuery(room: string, share?: string) {
   }
 }
 
+/** Closes every live connection to a note room after access was revoked or
+ *  lowered. Clients reconnect with a fresh ticket, which re-checks access. */
+export async function kickRoom(noteId: string) {
+  await fetch(roomUrl(noteId), {
+    method: 'POST',
+    headers: roomPushHeaders(),
+    body: JSON.stringify({ type: 'kick' }),
+  }).catch(() => {})
+}
+
 /** Headers for server-side pushes. The Worker rejects pushes without the shared
  *  secret when REALTIME_SECRET is configured on both sides. */
 export function roomPushHeaders(): Record<string, string> {

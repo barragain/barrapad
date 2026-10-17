@@ -124,6 +124,16 @@ await sleep(3_000)
 const afterShare = await A.page.evaluate((id) => fetch('/api/notes').then((r) => r.json()).then((l) => (Array.isArray(l) ? l : l.notes ?? []).find((n) => n.id === id)), noteId)
 check(JSON.stringify(afterShare).includes('from-share'), 'share editor edit reaches the database')
 
+// Revoking the edit link drops the open share editor at once: its next
+// keystrokes never reach the owner.
+const revoked = await A.page.evaluate((t) => fetch(`/api/share/${t}`, { method: 'DELETE' }).then((r) => r.status), editLink.token)
+await sleep(1_500)
+await editor(E).click()
+await E.keyboard.press('Control+End')
+await E.keyboard.type(' after-revoke')
+const leaked = await A.page.waitForFunction(() => document.querySelector('.ProseMirror')?.textContent?.includes('after-revoke'), null, { timeout: 8_000 }).then(() => true).catch(() => false)
+check(revoked === 200 && !leaked, `revoked share editor is cut off live (revoke ${revoked})`)
+
 // Cleanup: delete the test note (cascades the share link).
 await A.page.evaluate((id) => fetch(`/api/notes/${id}`, { method: 'DELETE' }), noteId)
 console.log('test note deleted')

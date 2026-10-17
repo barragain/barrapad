@@ -1,6 +1,7 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { kickRoom } from '@/lib/realtime'
 
 async function verifyOwner(noteId: string, ownerId: string) {
   const note = await prisma.note.findUnique({ where: { id: noteId } })
@@ -30,6 +31,7 @@ export async function PATCH(
     where: { noteId_userId: { noteId: params.id, userId: params.userId } },
     data: { permission },
   })
+  await kickRoom(params.id)
 
   return NextResponse.json(collab)
 }
@@ -49,6 +51,7 @@ export async function DELETE(
   await prisma.noteCollaborator.deleteMany({
     where: { noteId: params.id, userId: params.userId },
   })
+  await kickRoom(params.id)
 
   return NextResponse.json({ success: true })
 }

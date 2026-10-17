@@ -2,7 +2,7 @@ import { auth } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import type { Tag } from '@/types'
-import { roomUrl, roomPushHeaders } from '@/lib/realtime'
+import { roomUrl, roomPushHeaders, kickRoom } from '@/lib/realtime'
 
 function parseTags(raw: string): Tag[] {
   try { return JSON.parse(raw || '[]') } catch { return [] }
@@ -158,6 +158,7 @@ export async function DELETE(_request: NextRequest, props: { params: Promise<{ t
     where: { token: params.token },
     data: { revokedAt: new Date() },
   })
+  await kickRoom(link.noteId)
 
   return NextResponse.json({ success: true })
 }

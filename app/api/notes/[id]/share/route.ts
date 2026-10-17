@@ -1,6 +1,7 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { kickRoom } from '@/lib/realtime'
 import { randomBytes } from 'crypto'
 
 async function verifyOwnership(noteId: string, userId: string) {
@@ -42,10 +43,11 @@ export async function POST(request: NextRequest, props: { params: Promise<{ id: 
   const permission = body.permission === 'EDIT' ? 'EDIT' : 'READ'
 
   // Revoke any existing link of same permission before creating new one
-  await prisma.shareLink.updateMany({
+  const revoked = await prisma.shareLink.updateMany({
     where: { noteId: params.id, permission, revokedAt: null },
     data: { revokedAt: new Date() },
   })
+  if (revoked.count) await kickRoom(params.id)
 
   const token = randomBytes(24).toString('hex') // 48-char hex, cryptographically random
 
