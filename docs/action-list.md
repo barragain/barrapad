@@ -135,3 +135,11 @@ Also open: Google sign-in needs a Google Cloud OAuth client from you (see the gu
 Yjs live merging is built and on trial. Open bpad.cc with `?crdt=1` in a browser to turn it on there, and `?crdt=0` to turn it off. With it on, two people typing in the same paragraph keep both edits, and carets come from Yjs. Note content goes through a second room on the Worker (`NoteYParty`), while titles, tags, deletes and comments stay on the old one. The suite now has `e2e/crdt.mjs`, and `E2E_CRDT=1 npm run e2e` runs every test with the switch on; both runs pass. Getting there found and fixed three bugs that only hit switch-on browsers: an empty first render saved over the note, a tab that lost the seed saved the half-loaded doc as "Untitled", and a new note remounted its editor mid-typing. The last one is now solved by giving a new note its doc at once.
 
 Next: try it on bpad.cc with two devices. When it holds, the rest of the plan is to put the public share page on Yjs too, make it the default, remove the old content path and merge the two sockets.
+
+Update, later on 2026-10-17: the trial was skipped. Yjs is now the only path for signed-in notes, on one socket per note, and the `?crdt` switch and the old content path are gone (see `docs/architecture.md`).
+
+## Round 6 (2026-10-17, evening)
+
+Revoking a share link or a collaborator now cuts off their open tab at once instead of at the next reconnect. Switching to another note while a new one is still being created no longer jumps back to the new note, and a reload in the middle of a guest import no longer makes a second copy of a note. Poll votes now belong to the account, so a vote follows the user to every device; guests still vote once per browser. bpad also opens offline through a service worker: guests can keep writing, and signed-in users can read their notes until the network is back. The suite gained `e2e/opened.mjs` (the "opened your note" notification) and `e2e/offline.mjs`, plus new checks in `realtime`, `tags`, `guest` and `poll`. `docs/spec.md` now describes everything the site does.
+
+Still open: Google sign-in needs a Google Cloud OAuth client from you, and offline editing for signed-in users (see `docs/known-gaps.md`).

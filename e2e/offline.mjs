@@ -63,7 +63,8 @@ async function warm(c) {
   await sleep(3_000)
   check(!(await page.evaluate(editable)), 'signed in: offline copy is read-only')
   await c.setOffline(false)
-  await page.evaluate(() => window.dispatchEvent(new Event('online')))
+  // The page reloads on 'online', which ends this evaluate.
+  await page.evaluate(() => window.dispatchEvent(new Event('online'))).catch(() => {})
   const back = await page.waitForFunction(editable, null, { timeout: 30_000 }).then(() => true).catch(() => false)
   check(back, 'signed in: editing comes back with the network')
   await page.evaluate((id) => fetch(`/api/notes/${id}`, { method: 'DELETE' }), note.id)
