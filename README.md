@@ -23,4 +23,6 @@ Vercel builds from `main`. The Worker deploys with `npm run deploy:realtime`. `R
 
 `docs/spec.md` is the full product and behavior spec: every feature, the permission matrix, data model, API reference, realtime protocol and test coverage.
 
+`docs/design-audit.md` is the 2026-10-17 audit of the editor's formatting, spacing and UI, with the research behind it and the proposed order of work.
+
 `docs/architecture.md` explains saving, sync and who can join a realtime room. `docs/known-gaps.md` lists what is still missing, and `docs/action-list.md` is the cleanup plan with its progress notes.
