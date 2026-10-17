@@ -40,6 +40,8 @@ const marker = `guest-${Date.now().toString(36)}`
   check(await page.getByText('Local', { exact: true }).isVisible(), 'quiet "Local" label in the top bar')
   const share = page.locator('a[href="/sign-up"]', { hasText: 'Share' })
   check(await share.count() === 1, 'Share links to sign-up')
+  check((await page.locator('.ProseMirror').first().innerText()).startsWith('Welcome to barraPAD'), 'first visit opens the welcome note')
+  const welcome = await page.evaluate(() => JSON.parse(localStorage.getItem('bpad_guest_notes') ?? '[]')[0])
 
   await page.locator('.ProseMirror').first().click()
   await page.keyboard.type(`${marker} first line`)
@@ -155,7 +157,8 @@ const marker = `guest-${Date.now().toString(36)}`
   // Seed guest storage from a page without the app, then open two tabs at once:
   // both see the guest notes, the Web Lock lets only one import them.
   await sp.goto(BASE + '/manifest.webmanifest', { waitUntil: 'domcontentloaded' })
-  await sp.evaluate((notes) => localStorage.setItem('bpad_guest_notes', JSON.stringify(notes)), guestNotes)
+  // An untouched welcome note rides along and must not reach the account.
+  await sp.evaluate((notes) => localStorage.setItem('bpad_guest_notes', JSON.stringify(notes)), [...guestNotes, { ...welcome, id: 'local-welcome-' + marker }])
   const sp2 = await s.newPage()
   await Promise.all([sp, sp2].map((p) => p.goto(BASE + '/', { waitUntil: 'domcontentloaded' })))
   await sp.waitForFunction(editableEditor, null, { timeout: 30_000 })
@@ -166,6 +169,7 @@ const marker = `guest-${Date.now().toString(36)}`
   const owned = await sp.evaluate(() => fetch('/api/notes').then((r) => r.json()))
   const imported = owned.filter((n) => n.content.includes(marker))
   check(imported.length === 2, `both guest notes now in the account (got ${imported.length})`)
+  check(!owned.some((n) => n.content === welcome.content), 'untouched welcome note not imported')
   // A reload mid-import leaves notes in the guest store that the server already
   // has. Importing them again must not make copies.
   await sp.evaluate((notes) => localStorage.setItem('bpad_guest_notes', JSON.stringify(notes)), guestNotes)

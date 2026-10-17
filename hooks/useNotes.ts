@@ -28,6 +28,21 @@ export const isLocalId = (id: string | null | undefined) => !!id && id.startsWit
 // ponytail: module-level flag, fine while AppShell is mounted once per page
 let guestMode = false
 
+// A guest's very first visit opens this note instead of a blank one. It is not
+// moved into the account on sign-in unless the guest changed it.
+const WELCOMED_KEY = 'bpad_welcomed'
+const WELCOME_HTML = '<h1>Welcome to barraPAD</h1>'
+  + '<p>This note lives in your browser. Edit it, delete it, or start a new one from the sidebar.</p>'
+  + '<h2>Things to try</h2>'
+  + '<ul data-type="taskList">'
+  + '<li data-type="taskItem" data-checked="true"><p>Open barraPAD</p></li>'
+  + '<li data-type="taskItem" data-checked="false"><p>Type / on an empty line for headings, lists, tables, polls and more</p></li>'
+  + '<li data-type="taskItem" data-checked="false"><p>Select some text to make it bold, give it a color or add a link</p></li>'
+  + '<li data-type="taskItem" data-checked="false"><p>Start a line with # and a space to make a heading</p></li>'
+  + '</ul>'
+  + '<blockquote><p>Your notes save as you type.</p></blockquote>'
+  + '<p>Sign up when you want your notes on other devices or want to share one. Everything you wrote here comes with you.</p>'
+
 function loadGuestNotes(): Note[] {
   if (typeof window === 'undefined') return []
   try {
@@ -129,7 +144,8 @@ export function useNotes({ initialNotes, guest, isGuest, isSignedIn }: {
     importingRef.current = true
     const run = async () => {
       for (const n of loadGuestNotes()) {
-        const res = await fetch('/api/notes', {
+        const untouchedWelcome = n.content === WELCOME_HTML
+        const res = untouchedWelcome ? { ok: true } : await fetch('/api/notes', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ title: n.title, content: n.content, tags: n.tags, guestId: n.id }),
@@ -148,11 +164,16 @@ export function useNotes({ initialNotes, guest, isGuest, isSignedIn }: {
   /** Owned notes from the server (or the guest store). Shared notes are fetched by useSharedNotes. */
   const fetchNotes = async () => {
     if (!isSignedIn) {
-      // Guest: the browser is the only store. First visit opens a blank note.
+      // Guest: the browser is the only store. The first visit ever opens the
+      // welcome note, later empty stores a blank one.
       const local = loadGuestNotes()
       if (!local.length) {
         const now = new Date().toISOString()
-        local.push({ id: `local-${Date.now()}`, userId: '', title: 'Untitled', content: '', tags: [], createdAt: now, updatedAt: now })
+        let welcome = false
+        try { welcome = !localStorage.getItem(WELCOMED_KEY); localStorage.setItem(WELCOMED_KEY, '1') } catch {}
+        local.push(welcome
+          ? { id: `local-${Date.now()}`, userId: '', title: 'Welcome to barraPAD', content: WELCOME_HTML, tags: [], createdAt: now, updatedAt: now }
+          : { id: `local-${Date.now()}`, userId: '', title: 'Untitled', content: '', tags: [], createdAt: now, updatedAt: now })
         try { localStorage.setItem(GUEST_KEY, JSON.stringify(local)) } catch {}
       }
       setNotes(prev => [...local, ...prev.filter(n => n.sharedToken)])
