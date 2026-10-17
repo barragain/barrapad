@@ -227,12 +227,12 @@ try {
     await dp.context().close()
   }
 
-  // Spell check is the browser's: right-clicking a word leaves the browser's
-  // menu (its suggestions live there), empty space still opens the bpad menu.
+  // Spelling: the browser underlines, the bpad menu suggests. Right-clicking
+  // "wrold" puts "world" on top of the bpad menu and clicking it fixes the word.
   {
     const sp = await open()
     await sp.keyboard.type('Hello wrold')
-    await sp.keyboard.press('Enter'); await sp.keyboard.press('Enter'); await sp.keyboard.press('Enter')
+    await sp.waitForTimeout(3_000) // the word list loads 2 s after the editor is ready
     const word = await sp.evaluate(() => {
       const p = document.querySelector('.ProseMirror p'); const r = document.createRange()
       r.setStart(p.firstChild, 7); r.setEnd(p.firstChild, 10); const b = r.getBoundingClientRect()
@@ -241,14 +241,13 @@ try {
     await sp.mouse.click(word.x, word.y)
     await sp.mouse.click(word.x, word.y, { button: 'right' })
     await sp.waitForTimeout(300)
-    const onWord = await sp.locator('[data-context-menu]').count()
-    await sp.keyboard.press('Escape')
-    const last = await sp.locator('.ProseMirror p').last().boundingBox()
-    await sp.mouse.click(last.x + last.width - 40, last.y + last.height / 2, { button: 'right' })
+    const menu = sp.locator('[data-context-menu]')
+    const first = (await menu.innerText().catch(() => '')).split(String.fromCharCode(10)).map((l) => l.trim()).filter(Boolean)[0]
+    await menu.getByText('world', { exact: true }).click()
     await sp.waitForTimeout(300)
-    const onEmpty = await sp.locator('[data-context-menu]').count()
+    const text = await sp.evaluate(() => document.querySelector('.ProseMirror p').textContent)
     const native = await sp.evaluate(() => document.querySelector('.ProseMirror').getAttribute('spellcheck'))
-    check(onWord === 0 && onEmpty === 1 && native === 'true', `right-click on a word gives the browser menu, empty space the bpad menu (word ${onWord}, empty ${onEmpty}, spellcheck ${native})`)
+    check(first === 'world' && text === 'Hello world' && native === 'true', `bpad menu suggests and fixes a misspelled word (first ${first}, text ${text}, browser underlines ${native})`)
     await sp.context().close()
   }
 
@@ -261,6 +260,16 @@ try {
   })
   const lum = light.match(/\d+/g).slice(0, 3).reduce((a, v) => a + Number(v), 0) / 3
   check(lum > 150, `dark mode Appearance buttons are readable (${light})`)
+  // Fonts: Mono first, no Comic. A theme with its own colors (Midnight) turns
+  // off the mode row and drops the dark class.
+  const fonts = await dark.evaluate(() => [...document.querySelectorAll('.appearance-sheet button')].map((b) => b.textContent.trim()).filter((t) => /^Ag/.test(t)))
+  await dark.locator('.appearance-sheet button', { hasText: 'Midnight' }).click()
+  await dark.waitForTimeout(300)
+  const midnight = await dark.evaluate(() => ({
+    inert: [...document.querySelectorAll('.appearance-sheet button')].find((e) => e.textContent.trim() === 'light')?.closest('[inert]') !== null,
+    dark: document.documentElement.classList.contains('dark'),
+  }))
+  check(fonts.join() === 'AgMono,AgSans,AgSerif' && midnight.inert && !midnight.dark, `Appearance: Mono first, no Comic, own-color themes turn off the mode row (${fonts.join()} ${JSON.stringify(midnight)})`)
   await dark.context().close()
 
   // Button hints: "Click here" labels on the first 3 visits (one browser tab

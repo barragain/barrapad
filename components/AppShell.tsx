@@ -17,43 +17,13 @@ import CommandPalette, { type PaletteAction } from './CommandPalette'
 import ButtonHints from './ButtonHints'
 import { fileToHtml, setPendingImport, IMPORT_ACCEPT } from '@/lib/import-file'
 import type { Note, AppearanceSettings, SharedAccessRecord, CollabNotification } from '@/types'
+import { DEFAULT_APPEARANCE, loadAppearance, applyAppearance } from '@/lib/appearance'
 
 import { useNotifications, loadKnownShared } from '@/hooks/useNotifications'
 import { useTags } from '@/hooks/useTags'
 import { useNotes } from '@/hooks/useNotes'
 import { useSharedNotes } from '@/hooks/useSharedNotes'
 
-
-const DEFAULT_APPEARANCE: AppearanceSettings = {
-  mode: 'light',
-  font: 'mono',
-  zoom: 16,
-  theme: 'barrapad',
-}
-
-function loadAppearance(): AppearanceSettings {
-  if (typeof window === 'undefined') return DEFAULT_APPEARANCE
-  try {
-    const raw = localStorage.getItem('barrapad_appearance')
-    if (raw) return { ...DEFAULT_APPEARANCE, ...JSON.parse(raw) }
-  } catch {}
-  return DEFAULT_APPEARANCE
-}
-
-function applyAppearance(settings: AppearanceSettings) {
-  const root = document.documentElement
-  root.setAttribute('data-theme', settings.theme)
-  root.setAttribute('data-font', settings.font)
-  if (settings.mode === 'dark') {
-    root.classList.add('dark')
-  } else if (settings.mode === 'light') {
-    root.classList.remove('dark')
-  } else {
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-    root.classList.toggle('dark', prefersDark)
-  }
-  root.style.setProperty('--editor-size', `${settings.zoom}px`)
-}
 
 export default function AppShell({ initialNotes, guest = false }: { initialNotes?: Note[]; guest?: boolean } = {}) {
   const { isLoaded, isSignedIn } = useAuth()

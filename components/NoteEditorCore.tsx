@@ -67,6 +67,7 @@ import {
   Tag as TagIcon,
   MessageSquare,
   GripVertical,
+  Wand2,
 } from 'lucide-react'
 import { UserMention } from '@/extensions/user-mention'
 import { NoteMention } from '@/extensions/note-mention'
@@ -74,6 +75,7 @@ import { SlashCommand } from '@/extensions/slash-command'
 import MentionProfilePopover from './MentionProfilePopover'
 import { uploadImage, uploadFile } from '@/lib/upload-image'
 import { takePendingImport } from '@/lib/import-file'
+import { preloadSpelling, suggestSpelling } from '@/lib/spelling'
 
 const lowlight = createLowlight(common)
 
@@ -297,7 +299,7 @@ export default function NoteEditorCore({
     }
   }, [])
 
-  // ── Word under the pointer (right-click on a word opens the browser menu) ───────────────────────────────────────────────
+  // ── Word under the pointer (spelling suggestions in the right-click menu) ───────────────────────────────────────────────
   const getWordAtPos = useCallback((pos: number): { word: string; from: number; to: number } | null => {
     const ed = editorRef.current
     if (!ed) return null
@@ -309,8 +311,8 @@ export default function NoteEditorCore({
       const offset = $pos.parentOffset
       let start = offset
       let end = offset
-      while (start > 0 && /[\w'-]/.test(text[start - 1])) start--
-      while (end < text.length && /[\w'-]/.test(text[end])) end++
+      while (start > 0 && /[\p{L}\p{N}'’-]/u.test(text[start - 1])) start--
+      while (end < text.length && /[\p{L}\p{N}'’-]/u.test(text[end])) end++
       const word = text.slice(start, end)
       if (word.length < 2) return null
       return { word, from: $pos.start() + start, to: $pos.start() + end }
@@ -372,9 +374,9 @@ export default function NoteEditorCore({
     content: collab ? undefined : initialContent,
     editable,
     editorProps: {
-      // Spell check is the browser's own: it knows far more words and languages
-      // than a bundled dictionary. Its suggestions only live in the browser's
-      // context menu, so right-clicking a word opens that menu (see below).
+      // The browser's own spell checker draws the underlines: it knows far more
+      // words and languages than a bundled dictionary. Pages can't read its
+      // suggestions, so the bpad right-click menu gets its own (lib/spelling.ts).
       attributes: { spellcheck: 'true' },
       // Serialize task lists with checkbox characters for clipboard text, so
       // pasting into Notion/Google Docs shows ☐/☑ instead of plain bullets.
@@ -545,6 +547,13 @@ export default function NoteEditorCore({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor])
 
+  // Suggestions need the word list; fetch it once the editor is idle.
+  useEffect(() => {
+    if (!editor || !editable) return
+    const id = setTimeout(preloadSpelling, 2000)
+    return () => clearTimeout(id)
+  }, [editor, editable])
+
   // Sync noteId into editor storage for @mention collaborator lookups
   useEffect(() => {
     if (!editor || !noteId) return
@@ -630,17 +639,6 @@ export default function NoteEditorCore({
     const y = e.clientY
     const target = e.target as HTMLElement
     const coords = ed.view.posAtCoords({ left: x, top: y })
-
-    // Right-clicking a word (nothing selected) opens the browser's own menu,
-    // the only place its spelling suggestions and "Add to dictionary" live.
-    // Empty space, selections and special blocks keep the bpad menu.
-    if (ed.state.selection.empty && coords && !target.closest('blockquote, a, img, hr, .barrapad-fn-wrap, .barrapad-poll')) {
-      const w = getWordAtPos(coords.pos)
-      if (w) {
-        const a = ed.view.coordsAtPos(w.from), b = ed.view.coordsAtPos(w.to)
-        if (x >= a.left && x <= b.right && y >= Math.min(a.top, b.top) && y <= Math.max(a.bottom, b.bottom)) return
-      }
-    }
 
     e.preventDefault()
     contextClickRef.current = { x, y, editorPos: coords?.inside ?? coords?.pos }
@@ -772,7 +770,22 @@ export default function NoteEditorCore({
       return
     }
 
+    // Empty cursor on a misspelled word: suggestions on top. The browser draws
+    // the underline; lib/spelling.ts picks the suggestions.
+    const wordResult = coords?.pos !== undefined ? getWordAtPos(coords.pos) : null
+    const suggestions = wordResult ? suggestSpelling(wordResult.word) ?? [] : []
+    const spellItems: ContextMenuItem[] = suggestions.length ? [
+      ...suggestions.map((s): ContextMenuItem => ({
+        type: 'item', label: s, icon: <Wand2 size={13} />, onClick: () => {
+          ed.chain().focus().setTextSelection({ from: wordResult!.from, to: wordResult!.to }).insertContent(s).run()
+          setContextMenu(null)
+        },
+      })),
+      { type: 'separator' },
+    ] : []
+
     setContextMenu({ x, y, items: [
+      ...spellItems,
       { type: 'item', label: 'Paste', icon: <Clipboard size={13} />, onClick: () => {
         navigator.clipboard.readText().then(text => { if (text) ed.chain().focus().insertContent(text).run() }); setContextMenu(null)
       }},

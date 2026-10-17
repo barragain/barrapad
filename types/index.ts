@@ -76,7 +76,7 @@ export interface MentionableNote {
 
 export interface AppearanceSettings {
   mode: 'light' | 'dark' | 'system'
-  font: 'sans' | 'serif' | 'mono' | 'comic'
+  font: 'mono' | 'sans' | 'serif'
   zoom: number
   theme: 'default' | 'calm' | 'synthwave' | 'earth' | 'barrapad' | 'midnight'
 }

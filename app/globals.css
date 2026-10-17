@@ -211,7 +211,6 @@ body {
 .ProseMirror { line-height: 1.65; }
 [data-font="sans"] .ProseMirror,
 [data-font="serif"] .ProseMirror,
-[data-font="comic"] .ProseMirror { line-height: 1.55; }
 
 .ProseMirror > * + *,
 .ProseMirror blockquote > * + *,
@@ -954,7 +953,6 @@ body {
   transition: background 0.1s;
 }
 .barrapad-tag-create:hover { background: color-mix(in srgb, var(--accent) 7%, transparent); }
-[data-font="comic"] .ProseMirror { font-family: 'Comic Sans MS', 'Chalkboard SE', cursive; }
 
 /* ── Mention chips ─────────────────────────────────────────────────────── */
 .user-mention {

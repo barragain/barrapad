@@ -2,6 +2,7 @@
 
 import { X, Plus, Minus, RotateCcw } from 'lucide-react'
 import type { AppearanceSettings } from '@/types'
+import { themeHasModes } from '@/lib/appearance'
 
 interface AppearanceModalProps {
   settings: AppearanceSettings
@@ -18,19 +19,18 @@ const THEMES: Array<{
   editor: string
   accent: string
 }> = [
+  { id: 'barrapad', label: 'bpad', sidebar: '#F5F2ED', editor: '#ffffff', accent: '#D4550A' },
   { id: 'default', label: 'Default', sidebar: '#F5F2ED', editor: '#ffffff', accent: '#3b82f6' },
   { id: 'calm', label: 'Calm', sidebar: '#EDE8E0', editor: '#F5F0E8', accent: '#9B7D5E' },
-  { id: 'synthwave', label: 'Synthwave', sidebar: '#12122a', editor: '#1a1a2e', accent: '#a855f7' },
   { id: 'earth', label: 'Earth', sidebar: '#8b9e7e', editor: '#c8d4c0', accent: '#7a6450' },
-  { id: 'barrapad', label: 'bpad', sidebar: '#F5F2ED', editor: '#ffffff', accent: '#D4550A' },
+  { id: 'synthwave', label: 'Synthwave', sidebar: '#12122a', editor: '#1a1a2e', accent: '#a855f7' },
   { id: 'midnight', label: 'Midnight', sidebar: '#0d1b2e', editor: '#0a1628', accent: '#a0aec0' },
 ]
 
 const FONTS: Array<{ id: AppearanceSettings['font']; label: string; preview: string; style: string }> = [
+  { id: 'mono', label: 'Mono', preview: 'Ag', style: "'DM Mono', monospace" },
   { id: 'sans', label: 'Sans', preview: 'Ag', style: '-apple-system, BlinkMacSystemFont, sans-serif' },
   { id: 'serif', label: 'Serif', preview: 'Ag', style: 'Georgia, serif' },
-  { id: 'mono', label: 'Mono', preview: 'Ag', style: "'DM Mono', monospace" },
-  { id: 'comic', label: 'Comic', preview: 'Ag', style: "'Comic Sans MS', cursive" },
 ]
 
 export default function AppearanceModal({ settings, onChange, onClose }: AppearanceModalProps) {
@@ -54,7 +54,8 @@ export default function AppearanceModal({ settings, onChange, onClose }: Appeara
           {/* Mode */}
           <div>
             <label className="text-xs font-medium text-[var(--muted)] uppercase tracking-wider mb-2 block">Mode</label>
-            <div className="flex gap-2">
+            {/* Only bpad and Default have a dark version; the other themes keep their own colors. */}
+            <div className={`flex gap-2 ${themeHasModes(settings.theme) ? '' : 'opacity-40 pointer-events-none'}`} inert={!themeHasModes(settings.theme)}>
               {(['light', 'dark', 'system'] as const).map((m) => (
                 <button
                   key={m}
@@ -69,6 +70,11 @@ export default function AppearanceModal({ settings, onChange, onClose }: Appeara
                 </button>
               ))}
             </div>
+            {!themeHasModes(settings.theme) && (
+              <p className="text-xs mt-2 text-[var(--muted)]">
+                {THEMES.find((t) => t.id === settings.theme)?.label} has its own colors. Pick bpad or Default to switch between light and dark.
+              </p>
+            )}
           </div>
 
           {/* Font */}

@@ -9,6 +9,7 @@ import AboutModal from './AboutModal'
 import NoteEditorCore from './NoteEditorCore'
 import PresenceAvatars from './PresenceAvatars'
 import type { AppearanceSettings, Tag } from '@/types'
+import { DEFAULT_APPEARANCE, loadAppearance, applyAppearance } from '@/lib/appearance'
 import { pickColor } from '@/extensions/collab-cursor'
 
 import { REALTIME_HOST, roomQuery } from '@/lib/realtime'
@@ -16,27 +17,6 @@ import { onRoomMessage } from '@/lib/noteRoom'
 import * as Y from 'yjs'
 import { Awareness } from 'y-protocols/awareness'
 import YProvider from 'y-partyserver/provider'
-
-const DEFAULT_APPEARANCE: AppearanceSettings = { mode: 'light', font: 'mono', zoom: 16, theme: 'barrapad' }
-
-function loadAppearance(): AppearanceSettings {
-  if (typeof window === 'undefined') return DEFAULT_APPEARANCE
-  try {
-    const raw = localStorage.getItem('barrapad_appearance')
-    if (raw) return { ...DEFAULT_APPEARANCE, ...JSON.parse(raw) }
-  } catch {}
-  return DEFAULT_APPEARANCE
-}
-
-function applyAppearance(s: AppearanceSettings) {
-  const root = document.documentElement
-  root.setAttribute('data-theme', s.theme)
-  root.setAttribute('data-font', s.font)
-  if (s.mode === 'dark') root.classList.add('dark')
-  else if (s.mode === 'light') root.classList.remove('dark')
-  else root.classList.toggle('dark', window.matchMedia('(prefers-color-scheme: dark)').matches)
-  root.style.setProperty('--editor-size', `${s.zoom}px`)
-}
 
 interface Props {
   token: string
