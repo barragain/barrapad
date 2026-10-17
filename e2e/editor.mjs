@@ -144,6 +144,26 @@ try {
     const barGone = await np.locator('[data-selection-bar]').evaluate((e) => getComputedStyle(e).opacity === '0' || getComputedStyle(e).visibility === 'hidden').catch(() => true)
     check(pinned === 0 && sheet === 0 && green && toolbarShown && collapsed && barGone,
       `narrow desktop window keeps the desktop toolbar (pinned ${pinned}, sheet ${sheet}, green ${green}, toolbar after swatch ${toolbarShown}, deselected ${collapsed}, bar gone ${barGone})`)
+    // The wrapped toolbar's text style menu paints over the rows below it.
+    await np.click('.ProseMirror')
+    await np.locator('.toolbar button', { hasText: /Normal Text|Heading/ }).first().click()
+    await np.waitForTimeout(300)
+    const onTop = await np.evaluate(() => {
+      const menu = [...document.querySelectorAll('.toolbar div.absolute')].find((d) => d.textContent.includes('Heading 1'))
+      const r = menu?.querySelector('button')?.getBoundingClientRect()
+      return !!r && document.elementFromPoint(r.x + 20, r.y + r.height / 2)?.closest('button')?.textContent?.trim() === 'Normal Text'
+    })
+    await np.keyboard.press('Escape'); await np.mouse.click(350, 800); await np.waitForTimeout(300)
+    // Selection bar swatch, then a click in the empty area under the text: the selection goes.
+    await np.click('.ProseMirror p'); await np.keyboard.press('End'); await np.keyboard.press('Shift+Home'); await np.waitForTimeout(300)
+    await np.locator('[data-selection-bar] .tbtn-wrapper', { hasText: 'Text color' }).locator('button').click()
+    await np.locator('[data-selection-bar] button[aria-label="#3b82f6"]').click()
+    await np.waitForTimeout(300)
+    const pb = await np.locator('.ProseMirror p').first().boundingBox()
+    await np.mouse.click(pb.x + 200, pb.y + 400)
+    await np.waitForTimeout(400)
+    const dropped = await np.evaluate(() => window.getSelection().isCollapsed && !document.querySelector('[data-selection-bar]'))
+    check(onTop && dropped, `wrapped toolbar menu stays on top, and a click under the text drops a colored selection (menu on top ${onTop}, dropped ${dropped})`)
     await nc.close()
   }
   // Toolbar color dropdown: swatches only until "Custom color" opens the board and hex box.

@@ -987,8 +987,12 @@ export default function NoteEditorCore({
               // Only focus if clicking outside the editable area (e.g. padding).
               // Clicking inside ProseMirror's content already focuses it natively.
               // Forcing focus() here disrupts double-tap word selection on mobile.
-              if (!(e.target as HTMLElement).closest('.ProseMirror')) {
-                editor?.commands.focus()
+              // A click there also drops the selection, like clicking away in
+              // any editor: the caret goes to the nearest spot, or the end.
+              if (!(e.target as HTMLElement).closest('.ProseMirror') && editor) {
+                const at = editor.view.posAtCoords({ left: e.clientX, top: e.clientY })
+                if (at) editor.chain().focus().setTextSelection(at.pos).run()
+                else editor.commands.focus('end')
               }
             }}
             onContextMenu={handleContextMenu}

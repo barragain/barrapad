@@ -198,8 +198,9 @@ export default function Toolbar({ editor, commentsEnabled = true }: ToolbarProps
           <Redo2 size={iconSize} />
         </TBtn>
 
-        {/* Text style dropdown */}
-        <div className="relative z-50">
+        {/* Text style dropdown. The wrapper with the open menu sits one layer up,
+            or the next wrapped row's dropdown wrappers paint over the menu. */}
+        <div className={`relative ${showTextStyle ? 'z-[60]' : 'z-50'}`}>
           <button
             onClick={() => {
               setShowTextStyle((v) => !v)
@@ -248,7 +249,7 @@ export default function Toolbar({ editor, commentsEnabled = true }: ToolbarProps
         {/* ── ROW 2: Text color · Highlight · Gradient · Lists ── */}
 
         {/* Text color */}
-        <div className="relative z-50">
+        <div className={`relative ${showColor ? 'z-[60]' : 'z-50'}`}>
           <TBtn
             onClick={() => { setShowColor((v) => !v); setShowTextStyle(false); setShowHighlight(false); setShowLink(false); setShowTable(false) }}
             label="Text color"
@@ -280,7 +281,7 @@ export default function Toolbar({ editor, commentsEnabled = true }: ToolbarProps
         </div>
 
         {/* Highlight */}
-        <div className="relative z-50">
+        <div className={`relative ${showHighlight ? 'z-[60]' : 'z-50'}`}>
           <TBtn
             onClick={() => { setShowHighlight((v) => !v); setShowTextStyle(false); setShowColor(false); setShowLink(false); setShowTable(false) }}
             active={editorState.isHighlight}
@@ -343,7 +344,7 @@ export default function Toolbar({ editor, commentsEnabled = true }: ToolbarProps
         </TBtn>
 
         {/* Table */}
-        <div className="relative z-50">
+        <div className={`relative ${showTable ? 'z-[60]' : 'z-50'}`}>
           <TBtn
             onClick={() => { setShowTable((v) => !v); setShowTextStyle(false); setShowColor(false); setShowHighlight(false); setShowLink(false) }}
             label="Table"
