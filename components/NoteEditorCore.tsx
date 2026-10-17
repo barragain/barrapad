@@ -352,8 +352,9 @@ export default function NoteEditorCore({
       Placeholder.configure({
         placeholder: ({ editor: ed }) => ed.isEmpty
           ? 'Start writing, or type / for headings, lists, tables and more'
-          // Also names the Shift+Tab lorem shortcut (extensions/lorem-ipsum.ts).
-          : 'Type / for blocks · Shift+Tab for lorem ipsum',
+          // Also names the Shift+Tab lorem shortcut (extensions/lorem-ipsum.ts),
+          // except on touch screens, which have no Shift+Tab.
+          : window.matchMedia('(pointer: coarse)').matches ? 'Type / for blocks' : 'Type / for blocks · Shift+Tab for lorem ipsum',
       }),
       GradientText,
       FileAttachment,
