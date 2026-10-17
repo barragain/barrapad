@@ -12,7 +12,7 @@ interface ColorPickerProps {
   swatches?: string[][]
 }
 
-const PRESET_SWATCHES = [
+export const PRESET_SWATCHES = [
   ['#000000', '#ffffff', '#D4550A', '#3b82f6', '#16a34a', '#dc2626', '#9333ea', '#f59e0b'],
   ['#1a1a2e', '#F5F0E8', '#84cc16', '#06b6d4', '#ec4899', '#6366f1', '#14b8a6', '#f97316'],
 ]

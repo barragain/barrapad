@@ -59,9 +59,9 @@ await tbtn(page, 'Align right').click()
 await sleep(500)
 const box2 = await page.locator('.barrapad-poll').first().boundingBox()
 check(!!box2 && !!ed && Math.abs((box2.x + box2.width) - (ed.x + ed.width)) < 40, 'poll moves right')
-const bubble = await page.locator('button', { hasText: /^Comment$/ }).last().boundingBox().catch(() => null)
+const bubble = await page.locator('[data-selection-bar]').boundingBox().catch(() => null)
 check(!!bubble && !!box2 && Math.abs((bubble.x + bubble.width / 2) - (box2.x + box2.width / 2)) < 20,
-  `comment bubble follows the poll (bubble mid ${bubble && Math.round(bubble.x + bubble.width / 2)}, poll mid ${box2 && Math.round(box2.x + box2.width / 2)})`)
+  `selection bar follows the poll (bar mid ${bubble && Math.round(bubble.x + bubble.width / 2)}, poll mid ${box2 && Math.round(box2.x + box2.width / 2)})`)
 
 // Votes belong to the account: a second browser signed in as the same user
 // sees the vote and cannot vote again.

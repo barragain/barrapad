@@ -1,7 +1,7 @@
 // Production smoke test for editor formatting (docs/design-audit.md steps 1
 // and 2), run as a guest: spacing between list items and blocks, checklist
 // nesting, rich and plain paste, "# " headings, Normal Text leaving a quote,
-// and dark mode colors for inline code and highlights.
+// dark mode colors for inline code and highlights, and the selection bar.
 // Usage: node e2e/editor.mjs
 import { chromium } from 'playwright'
 
@@ -89,6 +89,26 @@ try {
   await page.waitForTimeout(300)
   const left = await page.locator('.ProseMirror blockquote').count()
   check(quoted === 1 && left === 0, `Normal Text leaves a quote (before ${quoted}, after ${left})`)
+
+  // Selection bar: appears over selected text, formats it, has no Comment for guests.
+  await page.keyboard.press('Control+a'); await page.keyboard.press('Delete')
+  await page.keyboard.type('pick this word')
+  await page.locator('.ProseMirror p').first().dblclick()
+  await page.waitForTimeout(300)
+  const bar = page.locator('[data-selection-bar]')
+  check(await bar.isVisible(), 'selection bar shows on a text selection')
+  const barBox = await bar.boundingBox(); const pBox = await page.locator('.ProseMirror p').first().boundingBox()
+  check(!!barBox && !!pBox && barBox.y + barBox.height <= pBox.y + 2, 'selection bar sits above the text')
+  await bar.locator('.tbtn-wrapper', { hasText: 'Bold' }).locator('button').click()
+  await bar.locator('.tbtn-wrapper', { hasText: 'Highlight' }).locator('button').click()
+  await bar.locator('button[aria-label="#fef08a"]').click()
+  await page.waitForTimeout(300)
+  const formatted = await page.evaluate(() => document.querySelector('.ProseMirror p').innerHTML)
+  check(formatted.includes('<strong>') && formatted.includes('<mark'), `bar applies bold and highlight (${formatted.slice(0, 120)})`)
+  check(await bar.locator('.tbtn-wrapper', { hasText: 'Comment' }).count() === 0, 'no Comment in the bar for guests')
+  await page.keyboard.press('End')
+  await page.waitForTimeout(300)
+  check(await bar.count() === 0, 'selection bar hides when the selection collapses')
   await page.context().close()
 
   // Dark mode: inline code has a visible chip, highlights keep dark text.

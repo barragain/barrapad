@@ -35,6 +35,7 @@ import Toolbar from './Toolbar'
 import CommentSidebar from './CommentSidebar'
 import type { CommentThread } from './CommentSidebar'
 import LinkPopover from './LinkPopover'
+import SelectionBar from './SelectionBar'
 import ContextMenu from './ContextMenu'
 import type { ContextMenuItem } from './ContextMenu'
 import {
@@ -80,17 +81,21 @@ function deselect(ed: Editor | null) {
   if ('node' in sel && sel.node) ed.commands.setTextSelection(sel.to)
 }
 
-// Comment bubble spot: above a selected block's visible box, or above the end of a text selection.
-function commentBubbleSpot(ed: Editor): { x: number; y: number } | null {
+// Selection bar spot: above a selected block's visible box, or centered above a text selection
+// (its first line). Kept 160 px from the window edges so the bar never runs off screen.
+function selectionBarSpot(ed: Editor): { x: number; y: number } | null {
   const sel = ed.state.selection
+  const clampX = (x: number) => Math.min(Math.max(x, 160), window.innerWidth - 160)
   try {
     if ('node' in sel && sel.node) {
       const dom = ed.view.nodeDOM(sel.from) as HTMLElement | null
       const box = (dom?.querySelector('[data-node-view-wrapper]') ?? dom)?.getBoundingClientRect()
-      if (box) return { x: box.left + box.width / 2, y: box.top - 36 }
+      if (box) return { x: clampX(box.left + box.width / 2), y: box.top - 44 }
     }
-    const coords = ed.view.coordsAtPos(sel.to)
-    return { x: coords.left, y: coords.top - 36 }
+    const start = ed.view.coordsAtPos(sel.from)
+    const end = ed.view.coordsAtPos(sel.to)
+    const x = end.top > start.bottom - 1 ? start.left : (start.left + end.left) / 2
+    return { x: clampX(x), y: start.top - 44 }
   } catch {
     return null
   }
@@ -229,7 +234,7 @@ export default function NoteEditorCore({
   const [commentSidebarOpen, setCommentSidebarOpen] = useState(false)
   const [activeCommentThreadId, setActiveCommentThreadId] = useState<string | null>(null)
   const [pendingCommentMarkId, setPendingCommentMarkId] = useState<string | null>(null)
-  const [commentBubble, setCommentBubble] = useState<{ x: number; y: number } | null>(null)
+  const [selectionBar, setSelectionBar] = useState<{ x: number; y: number } | null>(null)
   const [ctxIsRecording, setCtxIsRecording] = useState(false)
   const ctxMediaRecorderRef = useRef<MediaRecorder | null>(null)
   const ctxChunksRef = useRef<BlobPart[]>([])
@@ -489,21 +494,21 @@ export default function NoteEditorCore({
 
       onUpdateRef.current?.(html, text, title, !!transaction.getMeta(ySyncPluginKey)?.isChangeOrigin)
     },
-    onBlur: () => { onBlurRef.current?.(); setCommentBubble(null) },
+    onBlur: () => { onBlurRef.current?.(); setSelectionBar(null) },
     onSelectionUpdate: ({ editor: ed }) => {
       const { from, to } = ed.state.selection
 
-      // Show/hide floating comment bubble on text selection.
+      // Show/hide the selection formatting bar.
       // On mobile, skip — the native selection popup (Copy/Paste/Share)
-      // covers the same area. Users can use the toolbar Comment button instead.
-      setCommentBubble(from !== to && editable && !isTouchRef.current ? commentBubbleSpot(ed) : null)
+      // covers the same area. Users have the toolbar instead.
+      setSelectionBar(from !== to && editable && !isTouchRef.current ? selectionBarSpot(ed) : null)
     },
     onTransaction: ({ editor: ed, transaction }) => {
       // A block (poll, image) can move without the selection changing, e.g. when aligned.
       // Wait a frame so its node view has re-rendered before measuring.
       const sel = ed.state.selection
       if (transaction.docChanged && 'node' in sel && sel.node && editable && !isTouchRef.current) {
-        requestAnimationFrame(() => setCommentBubble(commentBubbleSpot(ed)))
+        requestAnimationFrame(() => setSelectionBar(selectionBarSpot(ed)))
       }
     },
   })
@@ -1009,48 +1014,22 @@ export default function NoteEditorCore({
             </div>
           )}
 
-          {/* Floating comment bubble on text selection */}
+          {/* Formatting bar on text selection */}
           <AnimatePresence>
-            {commentBubble && commentsEnabled && (
-              <motion.button
-                key="comment-bubble"
-                initial={{ opacity: 0, y: 6, scale: 0.9 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 4, scale: 0.95 }}
-                transition={{ type: 'spring', stiffness: 500, damping: 28, mass: 0.5 }}
-                onMouseDown={(e) => {
-                  e.preventDefault()  // keep editor selection
-                  const ed = editorRef.current
-                  if (!ed) return
+            {selectionBar && editor && (
+              <SelectionBar
+                key="selection-bar"
+                editor={editor}
+                pos={selectionBar}
+                commentsEnabled={commentsEnabled}
+                onLink={() => { setLinkPopover({ x: selectionBar.x - 120, y: selectionBar.y }); setSelectionBar(null) }}
+                onComment={() => {
                   const cid = `c-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
-                  ed.chain().focus().setCommentMark(cid).run()
+                  editor.chain().focus().setCommentMark(cid).run()
                   handleAddComment(cid)
-                  setCommentBubble(null)
+                  setSelectionBar(null)
                 }}
-                style={{
-                  position: 'fixed',
-                  left: commentBubble.x,
-                  top: commentBubble.y,
-                  x: '-50%',  // motion owns transform, so a raw translateX would be dropped
-                  zIndex: 40,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4,
-                  padding: '4px 10px',
-                  borderRadius: 8,
-                  border: '1px solid var(--border)',
-                  background: 'var(--editor-bg)',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
-                  color: '#D4550A',
-                  fontSize: 11,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                <MessageSquare size={13} />
-                Comment
-              </motion.button>
+              />
             )}
           </AnimatePresence>
 
