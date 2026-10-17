@@ -599,6 +599,7 @@ export default function EditorComponent({
       collab={yLive ? { doc: collab!.doc, awareness: collab!.awareness, user: { name: userNameRef.current, color: myColorRef.current, imageUrl: user?.imageUrl, clientId: collab!.doc.clientID } } : undefined}
       initialContent={note.content || ''}
       editable={yLive ? editable && seedDone : editable && !yPreview}
+      reserveToolbar
       onEditorReady={yLive ? handleYEditorReady : yPreview ? undefined : handleEditorReady}
       onUpdate={yPreview ? undefined : handleUpdate}
       onBlur={flushAutoSave}

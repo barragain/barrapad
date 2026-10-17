@@ -77,6 +77,26 @@ if (createdId) await page.evaluate((id) => fetch(`/api/notes/${id}`, { method: '
 
 if (s.id) await page.evaluate((id) => fetch(`/api/notes/${id}`, { method: 'DELETE' }), s.id)
 
+// Switching notes: the sheet stays put while the note loads (it used to sit
+// one toolbar row higher until the note turned editable, then jump down).
+{
+  const tops = await page.evaluate(async () => {
+    const rows = document.querySelector('.sidebar').querySelectorAll('.note-item:not(.active)')
+    const target = rows[0]
+    if (!target) return null
+    target.click()
+    const seen = []
+    for (let i = 0; i < 60; i++) {
+      const pm = document.querySelector('.ProseMirror')
+      if (pm) seen.push(Math.round(pm.getBoundingClientRect().top))
+      await new Promise((r) => setTimeout(r, 50))
+    }
+    return seen
+  })
+  const spread = tops ? Math.max(...tops) - Math.min(...tops) : -1
+  check(tops && spread <= 2, `the sheet does not jump when switching notes (tops ${tops ? [...new Set(tops)].join(',') : 'no rows'})`)
+}
+
 // Import while signed in: the new note and its formatting reach the database.
 const imp = `imp-${Date.now().toString(36)}`
 await page.setInputFiles('[data-import-input]', {

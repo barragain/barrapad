@@ -110,6 +110,8 @@ function selectionBarSpot(ed: Editor): { x: number; y: number } | null {
 export interface NoteEditorCoreProps {
   initialContent: string
   editable?: boolean
+  /** Keep the toolbar's row on desktop while read-only, so the sheet doesn't move when it turns editable. */
+  reserveToolbar?: boolean
 
   /** Called once when the Tiptap editor is ready. Parent stores it for imperative ops. */
   onEditorReady?: (editor: Editor) => void
@@ -149,6 +151,7 @@ export interface NoteEditorCoreProps {
 export default function NoteEditorCore({
   initialContent,
   editable = true,
+  reserveToolbar = false,
   onEditorReady,
   onUpdate,
   onBlur,
@@ -888,11 +891,14 @@ export default function NoteEditorCore({
     >
       {/* Toolbar — on desktop: fades in/out (stays in flow to prevent layout shift).
           On mobile: pinned in one scrolling row right above the keyboard while
-          the editor has focus, hidden otherwise. */}
-      {editor && editable && (
+          the editor has focus, hidden otherwise. A read-only editor (a note still
+          loading after a switch, or view-only) keeps the empty, inert row on
+          desktop, so the sheet does not jump down once the note turns editable. */}
+      {editor && (editable || (reserveToolbar && !isMobileView)) && (
         <div
           ref={toolbarRef}
           data-chrome
+          inert={!editable}
           className={isMobileView ? 'toolbar-pinned' : undefined}
           style={
             isMobileView
@@ -903,8 +909,8 @@ export default function NoteEditorCore({
                   background: 'var(--editor-bg)',
                 }
               : {
-                  opacity: isEditorFocused ? 1 : 0,
-                  pointerEvents: isEditorFocused ? 'auto' : 'none',
+                  opacity: editable && isEditorFocused ? 1 : 0,
+                  pointerEvents: editable && isEditorFocused ? 'auto' : 'none',
                   transition: 'opacity 0.15s ease',
                 }
           }
