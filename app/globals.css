@@ -188,29 +188,79 @@ body {
   height: 0;
 }
 
-.ProseMirror h1 { font-size: 2em; font-weight: 700; margin: 0.5em 0; }
-.ProseMirror h2 { font-size: 1.5em; font-weight: 600; margin: 0.5em 0; }
-.ProseMirror h3 { font-size: 1.25em; font-weight: 600; margin: 0.5em 0; }
+/* ── Vertical rhythm (docs/design-audit.md) ─────────────────────────────
+   Three gaps, smallest to largest: wrapped lines (line-height), list items
+   (0.3em), blocks (0.6em; 0.8em around containers such as quotes, code,
+   tables and node views). Spacing is margin-top on the later sibling only,
+   so gaps never double up. Headings sit closer to the text they introduce. */
+.ProseMirror { line-height: 1.65; }
+[data-font="sans"] .ProseMirror,
+[data-font="serif"] .ProseMirror,
+[data-font="comic"] .ProseMirror { line-height: 1.55; }
 
-.ProseMirror ul { list-style: disc; padding-left: 1.5em; }
-.ProseMirror ol { list-style: decimal; padding-left: 1.5em; }
+.ProseMirror > * + *,
+.ProseMirror blockquote > * + *,
+.ProseMirror li > * + * { margin-top: 0.6em; }
 
+.ProseMirror > :is(blockquote, pre, .tableWrapper, table, .react-renderer, [data-node-view-wrapper]) + *,
+.ProseMirror > * + :is(blockquote, pre, .tableWrapper, table, .react-renderer, [data-node-view-wrapper]) { margin-top: 0.8em; }
+
+.ProseMirror > hr + *,
+.ProseMirror > * + hr { margin-top: 1.2em; }
+
+.ProseMirror h1 { font-size: 2em; font-weight: 700; line-height: 1.25; }
+.ProseMirror h2 { font-size: 1.5em; font-weight: 600; line-height: 1.3; }
+.ProseMirror h3 { font-size: 1.25em; font-weight: 600; line-height: 1.4; }
+.ProseMirror :is(h4, h5, h6) { font-size: 1.1em; font-weight: 600; line-height: 1.4; }
+.ProseMirror :is(h1, h2, h3, h4, h5, h6) { text-wrap: balance; }
+.ProseMirror > * + h1 { margin-top: 1.2em; }
+.ProseMirror > * + h2 { margin-top: 1em; }
+.ProseMirror > * + :is(h3, h4, h5, h6) { margin-top: 0.9em; }
+.ProseMirror > h1 + * { margin-top: 0.4em; }
+.ProseMirror > h2 + * { margin-top: 0.35em; }
+.ProseMirror > :is(h3, h4, h5, h6) + * { margin-top: 0.3em; }
+.ProseMirror p { text-wrap: pretty; }
+
+/* Lists: items 0.3em apart, a wrapped line stays tight to its own item. */
+.ProseMirror ul { list-style: disc; padding-left: 1.6em; }
+.ProseMirror ol { list-style: decimal; padding-left: 1.9em; }
+.ProseMirror ul ul { list-style: circle; }
+.ProseMirror ul ul ul { list-style: square; }
+.ProseMirror ol ol { list-style: lower-alpha; }
+.ProseMirror ol ol ol { list-style: lower-roman; }
+.ProseMirror li + li { margin-top: 0.3em; }
+.ProseMirror li > :is(ul, ol) { margin-top: 0.3em; }
+.ProseMirror li::marker { color: var(--muted); }
+.ProseMirror ol > li::marker { font-variant-numeric: tabular-nums; }
+
+/* Checklist. Child selectors only: a bullet list nested in a task item keeps
+   its markers, and a checked item does not strike its unchecked children. */
 .ProseMirror ul[data-type="taskList"] {
   list-style: none;
-  padding-left: 0;
+  padding-left: 0.2em;
 }
-.ProseMirror ul[data-type="taskList"] li {
+.ProseMirror ul[data-type="taskList"] > li {
   display: flex;
   align-items: flex-start;
-  gap: 0.5em;
+  gap: 0.6em;
 }
-.ProseMirror ul[data-type="taskList"] li > label {
+.ProseMirror ul[data-type="taskList"] > li > label {
   flex: 0 0 auto;
-  margin-top: 0.1em;
+  display: flex;
+  align-items: center;
+  height: 1lh;
 }
-.ProseMirror ul[data-type="taskList"] li[data-checked="true"] > div {
+.ProseMirror ul[data-type="taskList"] > li > label input {
+  width: 1em;
+  height: 1em;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.ProseMirror ul[data-type="taskList"] > li > div { flex: 1; min-width: 0; }
+.ProseMirror ul[data-type="taskList"] > li[data-checked="true"] > div > p {
   text-decoration: line-through;
-  opacity: 0.5;
+  color: var(--muted);
 }
 
 .ProseMirror code {
@@ -228,7 +278,6 @@ body {
   border-radius: 8px;
   padding: 1em;
   overflow-x: auto;
-  margin: 0.5em 0;
 }
 
 .ProseMirror pre code {
@@ -240,7 +289,6 @@ body {
 .ProseMirror blockquote {
   border-left: 4px solid var(--accent);
   padding: 0.75em 1em 0.75em 1.25em;
-  margin: 0.75em 0;
   background: rgba(212, 85, 10, 0.04);
   border-radius: 0 8px 8px 0;
   color: var(--ink);
@@ -250,7 +298,6 @@ body {
 
 .ProseMirror hr {
   border: none;
-  margin: 1.5em 0;
   height: 2px;
   border-radius: 1px;
   background: linear-gradient(to right, transparent, var(--accent) 20%, var(--accent) 80%, transparent);
@@ -336,7 +383,7 @@ body {
   border: 1.5px solid var(--border);
   border-radius: 12px;
   padding: 16px;
-  margin: 12px 0;
+  margin: 0;
   background: var(--editor-bg);
   transition: border-color 200ms ease, box-shadow 200ms ease;
 }
@@ -608,7 +655,7 @@ body {
 
 .ProseMirror table {
   border-collapse: collapse;
-  margin: 0.5em 0;
+  margin: 0;
   width: 100%;
 }
 
@@ -1060,4 +1107,24 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* ── Editor column (docs/design-audit.md) ────────────────────────────────
+   About 68 characters a line in the editor font; side padding steps down
+   on tablets and phones so a phone line holds about 35 characters. */
+.barrapad-scroll { padding: 2rem 2rem 4rem; }
+.barrapad-card {
+  --pad: 3rem;
+  font-family: var(--editor-font);
+  font-size: var(--editor-size);
+  max-width: calc(68ch + 2 * var(--pad) + 3px);
+  margin: 0 auto;
+  position: relative;
+}
+.barrapad-card .barrapad-editor-content { padding: 2rem var(--pad); min-height: 70vh; }
+@media (max-width: 1024px) { .barrapad-card { --pad: 2rem; } }
+@media (max-width: 640px) {
+  .barrapad-scroll { padding: 1rem 0.5rem 4rem; }
+  .barrapad-card { --pad: 1rem; }
+  .barrapad-card .barrapad-editor-content { padding-top: 1.25rem; }
 }

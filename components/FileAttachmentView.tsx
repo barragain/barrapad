@@ -302,7 +302,7 @@ export default function FileAttachmentView({ node, updateAttributes, selected }:
       style={{
         display: 'flex',
         alignItems: 'center',
-        margin: '4px 0',
+        margin: 0,
         cursor: 'grab',
         width: 'fit-content',
         maxWidth: '100%',

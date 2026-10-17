@@ -870,15 +870,14 @@ export default function NoteEditorCore({
 
       {/* Scrollable editor area */}
       <div
-        className="flex-1 overflow-y-auto"
-        style={{ padding: '2rem 2rem 4rem', position: 'relative' }}
+        className="flex-1 overflow-y-auto barrapad-scroll"
+        style={{ position: 'relative' }}
         onDrop={handleOuterDrop}
         onDragOver={(e) => e.preventDefault()}
       >
         <div
           ref={editorContainerRef}
-          className="editor-anim-border"
-          style={{ maxWidth: 900, margin: '0 auto', position: 'relative' }}
+          className="editor-anim-border barrapad-card"
         >
           {/* ⓘ Info button — snapped to left border, popover opens right */}
           <div style={{ position: 'absolute', top: 10, left: -28, transform: 'translateX(-50%)', zIndex: 20 }}>
@@ -956,7 +955,7 @@ export default function NoteEditorCore({
             }}
             onContextMenu={handleContextMenu}
           >
-            <EditorContent editor={editor} style={{ padding: '2rem', minHeight: '70vh' }} />
+            <EditorContent editor={editor} className="barrapad-editor-content" />
 
             {/* Hidden file inputs for context-menu "Replace image" / "Upload file" */}
             <input
