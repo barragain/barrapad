@@ -63,6 +63,23 @@ const bubble = await page.locator('button', { hasText: /^Comment$/ }).last().bou
 check(!!bubble && !!box2 && Math.abs((bubble.x + bubble.width / 2) - (box2.x + box2.width / 2)) < 20,
   `comment bubble follows the poll (bubble mid ${bubble && Math.round(bubble.x + bubble.width / 2)}, poll mid ${box2 && Math.round(box2.x + box2.width / 2)})`)
 
+// Votes belong to the account: a second browser signed in as the same user
+// sees the vote and cannot vote again.
+await page.locator('.barrapad-poll-opt', { hasText: 'Pizza' }).first().click()
+await sleep(4_000)
+const c2 = await browser.newContext({ storageState: path.join(AUTH, 'state-demo1.json'), viewport: { width: 1400, height: 900 } })
+const p2 = await c2.newPage()
+await p2.addInitScript(() => { for (const k of Object.keys(localStorage)) if (k.startsWith('bpad_poll_vote_')) localStorage.removeItem(k) })
+await p2.goto(BASE + '/', { waitUntil: 'domcontentloaded' })
+await p2.waitForFunction(() => document.querySelector('button[title="New note"]'), null, { timeout: 30_000 })
+await sleep(3_000)
+await p2.getByText(marker, { exact: false }).first().click()
+await p2.locator('.barrapad-poll-opt.is-voted').first().waitFor({ timeout: 15_000 }).catch(() => {})
+const votedText = await p2.locator('.barrapad-poll-opt.is-voted').first().innerText().catch(() => '')
+const total = await p2.locator('.barrapad-poll-votes').first().innerText().catch(() => '')
+check(votedText.includes('Pizza') && total.startsWith('1 vote'), `vote follows the account to another browser (${votedText.replace(/\n/g, ' ')} / ${total})`)
+await c2.close()
+
 const notes = await page.evaluate(() => fetch('/api/notes').then((r) => r.json()))
 const note = (Array.isArray(notes) ? notes : notes.notes ?? []).find((n) => n.content?.includes(marker))
 if (note) await page.evaluate((id) => fetch(`/api/notes/${id}`, { method: 'DELETE' }), note.id)

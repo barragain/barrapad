@@ -5,6 +5,7 @@ import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react'
 import type { NodeViewProps } from '@tiptap/react'
 import { useState, useCallback, useEffect, useLayoutEffect, useRef } from 'react'
 import { BarChart2, Edit2, Minimize2, Maximize2, Square } from 'lucide-react'
+import { useUser } from '@clerk/nextjs'
 
 export type PollOption = { id: string; label: string; votes: number }
 
@@ -14,16 +15,23 @@ const genId = () => `p${Date.now().toString(36)}${(++_uid).toString(36)}`
 const POLL_SIZES = { compact: 280, medium: 400, full: undefined } as const
 type PollSize = keyof typeof POLL_SIZES
 
-function PollView({ node, updateAttributes, selected }: NodeViewProps) {
+function PollView({ node, editor, updateAttributes, selected }: NodeViewProps) {
   const q = node.attrs.question as string
   const opts: PollOption[] = JSON.parse((node.attrs.options as string) || '[]')
   const size = (node.attrs.size as PollSize) || 'medium'
 
-  // ponytail: one vote per browser (localStorage), a voter list in the attrs if it ever matters.
+  // Signed-in votes are kept per account in the `voters` attr (userId to
+  // option id), so they follow the user to every device. Guests have no
+  // account, so their vote is remembered in this browser only.
+  // ponytail: two people voting in the same instant can overwrite each other's
+  // attr write (last writer wins); a Y.Map per poll if that ever shows up.
+  const { user } = useUser()
+  const voters: Record<string, string> = JSON.parse((node.attrs.voters as string) || '{}')
   const voteKey = `bpad_poll_vote_${opts[0]?.id ?? ''}`
-  const [voted, setVoted] = useState<string | null>(() => {
+  const [localVote, setLocalVote] = useState<string | null>(() => {
     try { return localStorage.getItem(voteKey) } catch { return null }
   })
+  const voted = user ? voters[user.id] ?? null : localVote
   const [editing, setEditing] = useState(!q)
   const [dq, setDq] = useState(q || '')
   const [dopts, setDopts] = useState<PollOption[]>(() =>
@@ -78,14 +86,18 @@ function PollView({ node, updateAttributes, selected }: NodeViewProps) {
 
   const vote = useCallback(
     (id: string) => {
-      if (voted) return
-      setVoted(id)
-      try { localStorage.setItem(voteKey, id) } catch {}
+      // View-only readers can't change the note, so their vote would never save.
+      if (voted || !editor.isEditable) return
+      if (!user) {
+        setLocalVote(id)
+        try { localStorage.setItem(voteKey, id) } catch {}
+      }
       updateAttributes({
         options: JSON.stringify(opts.map(o => (o.id === id ? { ...o, votes: o.votes + 1 } : o))),
+        ...(user ? { voters: JSON.stringify({ ...voters, [user.id]: id }) } : {}),
       })
     },
-    [voted, opts, updateAttributes, voteKey]
+    [voted, editor, user, voters, opts, updateAttributes, voteKey]
   )
 
   const pollWidth = POLL_SIZES[size]
@@ -275,6 +287,7 @@ export const Poll = Node.create({
       },
       size: { default: 'medium' },
       align: { default: 'left', rendered: false },
+      voters: { default: '{}' },
     }
   },
 
