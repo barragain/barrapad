@@ -1,8 +1,8 @@
 # Editor design audit (2026-10-17)
 
-This audit came from seven research passes run on 2026-10-17. Four were web research: list spacing, how other editors style each format, calm interface design, and new UI/UX ideas from other writing apps. One was a text display study. Two looked at bpad itself: a code audit of every format, and a visual audit that measured the live site at desktop and phone sizes in light and dark mode. Nothing here has been built yet. Each finding gives its source, and the plan at the end is the proposed order of work.
+This audit came from seven research passes run on 2026-10-17. Four were web research: list spacing, how other editors style each format, calm interface design, and new UI/UX ideas from other writing apps. One was a text display study. Two looked at bpad itself: a code audit of every format, and a visual audit that measured the live site at desktop and phone sizes in light and dark mode. All four phases of the plan have since been built; [design-research.md](design-research.md) tracks what was done in each. The findings below describe the site before that work, and each gives its source.
 
-## What is wrong today
+## What was wrong before the redesign
 
 ### Spacing has no system
 
@@ -97,10 +97,10 @@ The paragraph gap changes how existing notes look. Notes where people pressed En
 | Focus mode: hide the chrome and dim every paragraph but the current one | S | iA Writer |
 | Quieter notifications: a dot instead of a red "9+" | S | Calm design research |
 | Mobile toolbar pinned above the keyboard | M | `visualViewport`; needs testing on a real iPhone |
-| Command palette on Ctrl+K | M | Ctrl+K is the link shortcut today, so this needs another key |
+| Command palette | M | Ctrl+K is the link shortcut, so it went on Ctrl+/ |
 | Presence avatars that jump to a collaborator's caret | S to M | The room already knows where each caret is |
-| Collapsible headings | S to M | Folding is kept per person, not shared |
-| Drag handle for blocks | M | Lowest value for a notepad |
+| Collapsible headings | S to M | Dropped by the user |
+| Drag handle for blocks | M | Lowest value for a notepad; built anyway, desktop only |
 
 ## Proposed order
 

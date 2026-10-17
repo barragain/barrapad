@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { ClerkProvider } from '@clerk/nextjs'
 import './globals.css'
 
@@ -22,6 +22,15 @@ export const metadata: Metadata = {
     description: 'A rich text notepad for whatever. Cloud sync, rich formatting, and more.',
     images: ['/og-image.png'],
   },
+}
+
+// Android Chrome: the keyboard shrinks the page itself, so the app (h-dvh)
+// and the pinned toolbar end above it. iOS ignores this and shrinks only the
+// visual viewport, which useKeyboardInset covers.
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  interactiveWidget: 'resizes-content',
 }
 
 export default function RootLayout({

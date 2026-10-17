@@ -70,14 +70,17 @@ export function key(isMac: boolean, mac: string, win: string) {
 }
 
 /** Pixels the on-screen keyboard covers at the bottom of the layout viewport.
- *  Fixed elements use it as `bottom` to sit right above the keyboard: iOS
- *  Safari and Chrome on Android shrink only the visual viewport. */
+ *  Fixed elements use it as `bottom` to sit right above the keyboard. iOS
+ *  Safari shrinks only the visual viewport; Android Chrome resizes the page
+ *  (see `viewport` in app/layout.tsx), which makes this 0. Measured against
+ *  clientHeight: Chrome's innerHeight follows the visual viewport, which hid
+ *  the toolbar behind the keyboard. */
 export function useKeyboardInset() {
   const [inset, setInset] = useState(0)
   useEffect(() => {
     const vv = window.visualViewport
     if (!vv) return
-    const update = () => setInset(Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop)))
+    const update = () => setInset(Math.max(0, Math.round(document.documentElement.clientHeight - vv.height - vv.offsetTop)))
     update()
     vv.addEventListener('resize', update)
     vv.addEventListener('scroll', update)

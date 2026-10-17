@@ -10,7 +10,7 @@ Two people voting on the same poll in the same instant can overwrite each other'
 
 The "manually renamed" flag is kept per browser, so typing in a renamed note on another device can put the first line back as its title. Keeping it would need a column on the note.
 
-A collaborator moved to view only keeps an editable-looking editor for up to 10 seconds (the shared list poll), though the room already drops their writes.
+A collaborator moved to view only keeps an editable-looking editor for up to 10 seconds (the shared list poll), though the room already drops their writes at once.
 
 Signed-in users can only edit notes offline that they opened on that device while online, because those are the notes whose Yjs doc is kept in IndexedDB. New notes cannot be created offline when signed in, and shared notes are not available offline. If the room grants a seed because the database was changed outside the room while a note had offline edits, the offline copy wins and that outside change is overwritten. The kept docs stay in IndexedDB after sign-out, and if someone signs out and goes offline before the next page load, the saved offline page still holds their notes.
 
@@ -19,3 +19,9 @@ The first document request of a cold session spends about 0.4 seconds in Clerk's
 DM Mono has no bold weight (Google Fonts serves 300, 400 and 500), so bold text and headings in the default font are thickened by the browser. Switching the body font or the heading font would fix it and is a brand decision.
 
 Highlights made before 2026-10-17 with a dark color (the old picker offered black and saturated colors) are hard to read, because highlighted text is now always drawn dark.
+
+Clicking a presence avatar does nothing until that person has a caret in the note, which only happens once they click into it.
+
+The phone toolbar is pinned above the on-screen keyboard, but the e2e phone test cannot open a real keyboard, so the offset still needs a check on a real iPhone.
+
+Google sign-in is disabled until a Google Cloud OAuth client exists (see [action-list.md](action-list.md)).

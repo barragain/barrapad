@@ -247,7 +247,7 @@ export default function SharedNoteView({ token, noteId, initialContent, initialT
           padding: '10px 10px 10px 18px', borderRadius: 999,
           boxShadow: '0 4px 24px rgba(0,0,0,0.18)', whiteSpace: 'nowrap',
         }}>
-          <span style={{ fontSize: 13, fontWeight: 500 }}>Create your own notes — free, forever</span>
+          <span style={{ fontSize: 13, fontWeight: 500 }}>Create your own notes, free forever</span>
           <a href="/sign-up" style={{ textDecoration: 'none' }}>
             <button style={{
               fontSize: 13, fontWeight: 700, padding: '7px 16px', borderRadius: 999,

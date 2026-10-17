@@ -37,7 +37,9 @@ export async function GET() {
       const client = await clerkClient()
       await Promise.all(
         ownerUserIds.map(async (uid) => {
-          const u = await client.users.getUser(uid)
+          // One missing user (deleted in Clerk) must not blank every other name.
+          const u = await client.users.getUser(uid).catch(() => null)
+          if (!u) return
           const name =
             [u.firstName, u.lastName].filter(Boolean).join(' ') ||
             u.username ||

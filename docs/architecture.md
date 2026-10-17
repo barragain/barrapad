@@ -8,17 +8,13 @@ Every keystroke writes the note to localStorage and goes to the note's room thro
 
 New notes appear at once with a `temp-` id and take the real id when the server answers. If the user has moved to another note by then, the app stays where they are. Guest notes (no account) use `local-` ids, live only in localStorage under `bpad_guest_notes`, never touch the API or the rooms, and move into the account on sign-in. The import sends each guest note's local id along, and the server gives the imported note an id derived from the account and that local id, so a reload in the middle of an import cannot create a second copy.
 
+The notes are rendered on the server, so the editor can be typed into at first paint. If that server render failed, the cached copy stays read-only until the first `/api/notes` answer, and a tab hidden for more than 60 seconds is locked again until its refetch lands. The app refetches on window focus, on reconnect and when the tab becomes visible, and `fetchNotes` merges by `updatedAt`. That value must always come from the server; a client clock would make the merge pick the wrong copy.
+
+Polling covers what the rooms do not: the open note every 5 seconds (three 404s in a row means it was deleted), the shared notes list and "who opened my note" events every 10 seconds, and the access-denied screen every 3 seconds.
+
 ## Offline
 
 `public/sw.js` is a service worker registered by AppShell. Page loads are network-first, and the last good copy of each path is kept. Hashed build files under `/_next/static` are cache-first. Icons and the Clerk script are network-first with a cached fallback. API calls, room sockets and uploads are never cached. A guest can open and edit bpad with no network, since their notes live in the browser anyway. Signed-in notes are edited offline through their Yjs docs. The Editor keeps every note's doc in IndexedDB with y-indexeddb (`persistDoc` in `lib/offlineNotes.ts`), so the doc of a note opened on this device before loads without the room. Offline, such a doc goes live at once (`offlineLive`) and skips the seed claim; a note without a kept doc stays a read-only preview, because a doc built from cached HTML would duplicate its content when merged with the room's. A failed PATCH, or any edit made while `navigator.onLine` is false, adds the note to `bpad_offline_dirty` in localStorage, and a successful save removes it. A page opened offline reloads when the network returns. Once a room syncs again (a reconnect, or that reload), the Editor saves the open note from its editor if it is listed, and merges each other listed note in the background: a headless Y.Doc loads it from IndexedDB, syncs with the room, renders HTML with the live editor's schema and saves it. Because the kept doc shares its history with the room, the merge keeps edits made elsewhere while this device was offline. A seed grant on a note that is still listed does not load the database HTML, so offline edits are never replaced by an older database copy.
-
-## Polls
-
-A poll is a Tiptap node whose attributes hold the question, the options with their vote counts, and `voters`, a JSON map from user id to the chosen option. A signed-in user votes once per account, on any device. A guest votes once per browser (localStorage). Only people who can edit the note can vote, since a view-only reader's change would never be saved.
-
-The editor stays read-only until the first `/api/notes` answer of the session. The app refetches on window focus, on reconnect and when the tab becomes visible, and `fetchNotes` merges by `updatedAt`. That value must always come from the server; a client clock would make the merge pick the wrong copy.
-
-Polling covers what the rooms do not: the open note every 5 seconds (three 404s in a row means it was deleted), the shared notes list and "who opened my note" events every 10 seconds, and the access-denied screen every 3 seconds.
 
 ## Realtime rooms
 
@@ -49,6 +45,10 @@ A browser cannot open a room socket on its own. It first asks `/api/realtime/tic
 Revoking or replacing a share link, removing a collaborator or changing a collaborator's permission sends `kick` to the note's room (`kickRoom` in `lib/realtime.ts`). The room closes every open socket with code 4001. Clients reconnect at once with a fresh ticket, so whoever lost access gets a 403 and stays out, and a downgraded editor comes back read-only. Everyone else only sees a short reconnect.
 
 Without `REALTIME_SECRET` (local `wrangler dev`) neither side checks tickets.
+
+## Polls
+
+A poll is a Tiptap node whose attributes hold the question, the options with their vote counts, and `voters`, a JSON map from user id to the chosen option. A signed-in user votes once per account, on any device. A guest votes once per browser (localStorage). Only people who can edit the note can vote, since a view-only reader's change would never be saved.
 
 ## Files
 

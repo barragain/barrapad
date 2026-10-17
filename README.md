@@ -15,7 +15,7 @@ npm run dev                # http://localhost:3000
 npm run dev:realtime       # Worker on http://localhost:8787
 ```
 
-Set `NEXT_PUBLIC_REALTIME_HOST=localhost:8787` in `.env.local` to use the local Worker. Clerk runs a production instance, so sign-in needs the deployed site or a Clerk dev instance of your own.
+Set `NEXT_PUBLIC_REALTIME_HOST=localhost:8787` in `.env.local` to use the local Worker. Production uses a Clerk production instance that only works on bpad.cc. `npm run dev` reads `.env.development.local` (gitignored), which points at the Clerk development instance and a Neon `dev` branch, so local sign-in works without touching production data (see `CLAUDE.md`).
 
 ## Deploy
 
@@ -23,6 +23,6 @@ Vercel builds from `main`. The Worker deploys with `npm run deploy:realtime`. `R
 
 `docs/spec.md` is the full product and behavior spec: every feature, the permission matrix, data model, API reference, realtime protocol and test coverage.
 
-`docs/design-audit.md` is the 2026-10-17 audit of the editor's formatting, spacing and UI, with the research behind it and the proposed order of work.
+`docs/design-audit.md` is the 2026-10-17 audit of the editor's formatting, spacing and UI and the plan that followed, and `docs/design-research.md` holds the research behind it and the progress of each step.
 
-`docs/architecture.md` explains saving, sync and who can join a realtime room. `docs/known-gaps.md` lists what is still missing, and `docs/action-list.md` is the cleanup plan with its progress notes.
+`docs/architecture.md` explains saving, sync and who can join a realtime room. `docs/known-gaps.md` lists what is still missing or limited, `docs/action-list.md` lists the open work, and `docs/partykit-migration.md` records the move from PartyKit to the Worker.

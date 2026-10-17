@@ -359,7 +359,7 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
 
   return (
     <MotionConfig reducedMotion="user">
-    <div className="flex h-screen overflow-hidden" data-focus-mode={focusMode || undefined} style={{ background: 'var(--editor-bg)' }}>
+    <div className="flex h-dvh overflow-hidden" data-focus-mode={focusMode || undefined} style={{ background: 'var(--editor-bg)' }}>
 
       {/* Mobile backdrop */}
       <AnimatePresence>
