@@ -5,7 +5,7 @@ import { useEditor, EditorContent } from '@tiptap/react'
 import DragHandle from '@tiptap/extension-drag-handle-react'
 import type { Editor } from '@tiptap/react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useKeyboardInset } from './toolbar/helpers'
+import { useKeyboardInset, useIsMobile } from './toolbar/helpers'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
 import Link from '@tiptap/extension-link'
@@ -195,14 +195,8 @@ export default function NoteEditorCore({
     return () => document.removeEventListener('pointerdown', onPointer)
   }, [])
 
-  // Mobile detection for toolbar collapse
-  const [isMobileView, setIsMobileView] = useState(false)
-  useEffect(() => {
-    const check = () => setIsMobileView(window.innerWidth < 768)
-    check()
-    window.addEventListener('resize', check)
-    return () => window.removeEventListener('resize', check)
-  }, [])
+  // Touch screens pin the toolbar above the keyboard (see useIsMobile).
+  const isMobileView = useIsMobile()
 
   // UI state
   const editorAreaRef = useRef<HTMLDivElement>(null)

@@ -507,7 +507,10 @@ export default function ColorPicker({ value, onChange, mode = 'color', onModeCha
                     key={c}
                     onPointerDown={(e) => {
                       e.preventDefault()
-                      ;(document.activeElement as HTMLElement)?.blur()
+                      // Leave the hex box if it has focus, but never blur the
+                      // editor: the toolbar hides when the editor loses focus.
+                      const active = document.activeElement as HTMLElement | null
+                      if (active?.tagName === 'INPUT') active.blur()
                       onChange(c)
                     }}
                     title={c}

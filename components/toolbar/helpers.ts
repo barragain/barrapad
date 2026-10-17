@@ -54,13 +54,17 @@ export function useIsMac() {
   return isMac
 }
 
+/** Touch screen: the toolbar pins above the on-screen keyboard and its
+ *  dropdowns open as bottom sheets. Keyed on the pointer, not the width, so
+ *  a narrow desktop window keeps the desktop toolbar and dropdowns. */
 export function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false)
   useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 768)
+    const mq = window.matchMedia('(pointer: coarse)')
+    const check = () => setIsMobile(mq.matches)
     check()
-    window.addEventListener('resize', check)
-    return () => window.removeEventListener('resize', check)
+    mq.addEventListener('change', check)
+    return () => mq.removeEventListener('change', check)
   }, [])
   return isMobile
 }

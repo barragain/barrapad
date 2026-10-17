@@ -115,6 +115,37 @@ try {
   await page.waitForTimeout(300)
   const blue = await page.evaluate(() => document.querySelector('.ProseMirror p').innerHTML.includes('#3b82f6') || document.querySelector('.ProseMirror p').innerHTML.includes('59, 130, 246'))
   check(morePicker && blue, `color row expands to the full picker and applies a color (${morePicker}, ${blue})`)
+  // A narrow desktop window (mouse, 700 px) keeps the desktop toolbar: not
+  // pinned, dropdowns not bottom sheets, a swatch keeps the toolbar, and a
+  // click away deselects.
+  {
+    const nc = await browser.newContext({ viewport: { width: 700, height: 900 } })
+    const np = await nc.newPage()
+    await np.goto(BASE + '/', { waitUntil: 'domcontentloaded' })
+    await np.waitForSelector('.ProseMirror[contenteditable="true"]', { timeout: 30_000 })
+    await np.waitForTimeout(3_000)
+    await np.click('.ProseMirror'); await np.keyboard.press('Control+a'); await np.keyboard.press('Delete')
+    await np.keyboard.type('narrow window')
+    const pinned = await np.locator('.toolbar-pinned').count()
+    await np.keyboard.press('Shift+Home')
+    await np.locator('.toolbar .tbtn-wrapper', { hasText: 'Text color' }).locator('button').first().click()
+    await np.waitForTimeout(300)
+    const sheet = await np.locator('.fixed.inset-0').count()
+    await np.locator('div:has(> [data-custom-color]) button[title="#16a34a"]').first().click()
+    await np.waitForTimeout(400)
+    const green = await np.evaluate(() => /16a34a|22, 163, 74/.test(document.querySelector('.ProseMirror p').innerHTML))
+    const toolbarShown = await np.evaluate(() => {
+      const t = document.querySelector('.toolbar')?.closest('[data-chrome]')
+      return !!t && getComputedStyle(t).opacity === '1'
+    })
+    await np.mouse.click(350, 700)
+    await np.waitForTimeout(400)
+    const collapsed = await np.evaluate(() => window.getSelection()?.isCollapsed ?? true)
+    const barGone = await np.locator('[data-selection-bar]').evaluate((e) => getComputedStyle(e).opacity === '0' || getComputedStyle(e).visibility === 'hidden').catch(() => true)
+    check(pinned === 0 && sheet === 0 && green && toolbarShown && collapsed && barGone,
+      `narrow desktop window keeps the desktop toolbar (pinned ${pinned}, sheet ${sheet}, green ${green}, toolbar after swatch ${toolbarShown}, deselected ${collapsed}, bar gone ${barGone})`)
+    await nc.close()
+  }
   // Toolbar color dropdown: swatches only until "Custom color" opens the board and hex box.
   {
     await page.locator('.toolbar .tbtn-wrapper', { hasText: 'Text color' }).locator('button').first().click()
