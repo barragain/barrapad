@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react'
 import { useEditorState } from '@tiptap/react'
 import type { Editor } from '@tiptap/react'
 import { motion } from 'framer-motion'
-import { Bold, Italic, Underline, Link2, Palette, Highlighter, MessageSquare, Ban } from 'lucide-react'
-import { PRESET_SWATCHES, HIGHLIGHT_SWATCHES } from './ColorPicker'
+import { Bold, Italic, Underline, Link2, Palette, Highlighter, MessageSquare, Ban, ChevronDown } from 'lucide-react'
+import ColorPicker, { PRESET_SWATCHES, HIGHLIGHT_SWATCHES } from './ColorPicker'
 import { TBtn } from './toolbar/parts'
 
 interface SelectionBarProps {
@@ -20,6 +20,8 @@ interface SelectionBarProps {
  *  A selected block (image, poll) only gets the Comment button. */
 export default function SelectionBar({ editor, pos, commentsEnabled, onLink, onComment }: SelectionBarProps) {
   const [swatches, setSwatches] = useState<'color' | 'highlight' | null>(null)
+  const [more, setMore] = useState(false)
+  useEffect(() => setMore(false), [swatches])
   const s = useEditorState({
     editor,
     selector: (ctx) => ({
@@ -44,12 +46,15 @@ export default function SelectionBar({ editor, pos, commentsEnabled, onLink, onC
 
   if (s.isBlock && !commentsEnabled) return null
 
-  const pick = (value: string | null) => {
+  const apply = (value: string | null) => {
     const chain = editor.chain().focus()
     if (swatches === 'highlight') (value ? chain.setHighlight({ color: value }) : chain.unsetHighlight()).run()
-    else (value ? chain.unsetGradientText().setColor(value) : chain.unsetColor().unsetGradientText()).run()
-    setSwatches(null)
+    else if (!value) chain.unsetColor().unsetGradientText().run()
+    // CSS color can't hold a gradient, so a gradient becomes the gradient mark.
+    else if (value.includes('gradient')) chain.unsetColor().setGradientText(value).run()
+    else chain.unsetGradientText().setColor(value).run()
   }
+  const pick = (value: string | null) => { apply(value); setSwatches(null) }
 
   return (
     <motion.div
@@ -60,7 +65,8 @@ export default function SelectionBar({ editor, pos, commentsEnabled, onLink, onC
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.15 }}
-      onMouseDown={(e) => e.preventDefault()}  // keep the editor selection
+      // Keep the editor selection, except in the full picker's text fields.
+      onMouseDown={(e) => { if (!(e.target instanceof HTMLInputElement)) e.preventDefault() }}
       style={{
         position: 'fixed',
         left: pos.x,
@@ -107,6 +113,25 @@ export default function SelectionBar({ editor, pos, commentsEnabled, onLink, onC
           >
             <Ban size={12} />
           </button>
+          <button
+            aria-label="More colors"
+            title="More colors"
+            aria-expanded={more}
+            onClick={() => setMore((v) => !v)}
+            style={{ width: 18, height: 18, borderRadius: 5, display: 'grid', placeItems: 'center', color: 'var(--muted)', border: '1px solid var(--border)', cursor: 'pointer', background: more ? 'var(--hover)' : 'none' }}
+          >
+            <ChevronDown size={12} style={{ transform: more ? 'rotate(180deg)' : 'none', transition: 'transform 150ms ease' }} />
+          </button>
+        </div>
+      )}
+      {swatches && more && (
+        <div data-color-more style={{ padding: '4px 6px 6px', borderTop: '1px solid var(--border)' }}>
+          <ColorPicker
+            value={(swatches === 'highlight' ? editor.getAttributes('highlight').color : editor.getAttributes('textStyle').color) as string ?? (swatches === 'highlight' ? '#fef08a' : '#000000')}
+            swatches={swatches === 'highlight' ? HIGHLIGHT_SWATCHES : PRESET_SWATCHES}
+            onChange={apply}
+            mode="color"
+          />
         </div>
       )}
     </motion.div>

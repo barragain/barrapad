@@ -506,7 +506,11 @@ export default function NoteEditorCore({
 
       onUpdateRef.current?.(html, text, title, !!transaction.getMeta(ySyncPluginKey)?.isChangeOrigin)
     },
-    onBlur: () => { onBlurRef.current?.(); setSelectionBar(null) },
+    onBlur: ({ event }) => {
+      onBlurRef.current?.()
+      // Typing a hex code in the bar's full color picker moves focus into the bar; keep it open.
+      if (!(event.relatedTarget as Element | null)?.closest?.('[data-selection-bar]')) setSelectionBar(null)
+    },
     // Focus coming back (e.g. the link box's X) keeps the old selection, so show the bar again.
     onFocus: ({ editor: ed }) => showSelectionBar(ed),
     onSelectionUpdate: ({ editor: ed }) => showSelectionBar(ed),
