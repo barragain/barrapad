@@ -20,6 +20,13 @@ export const NoteMention = Mention.extend({ name: 'noteMention' }).configure({
     allowSpaces: true,
     // @ts-expect-error — TipTap types don't include null but the runtime supports it for start-of-line
     allowedPrefixes: [' ', '\n', null],
+    // At the start of a line "#" is also the heading shortcut ("# "), so the
+    // picker waits for a letter there instead of opening on the bare "#".
+    allow: ({ state, range }) => {
+      if (state.doc.resolve(range.from).parentOffset > 0) return true
+      const q = state.doc.textBetween(range.from + 1, range.to)
+      return q.length > 0 && !q.startsWith(' ')
+    },
     items: async ({ query }: { query: string }): Promise<MentionableNote[]> => {
       fetchController?.abort()
       fetchController = new AbortController()

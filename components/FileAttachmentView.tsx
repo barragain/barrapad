@@ -144,8 +144,8 @@ function AudioPlayer({ name, size, dataUrl, onRename, selected }: { name: string
         border: selected ? '1px solid #D4550A' : '1px solid var(--border)',
         borderRadius: 14,
         boxShadow: selected ? '0 0 0 3px rgba(212,85,10,0.15)' : '0 1px 3px rgba(0,0,0,0.06)',
-        minWidth: 260,
-        maxWidth: 340,
+        width: 'min(340px, 100%)',
+        boxSizing: 'border-box',
         transition: 'border-color 0.15s, box-shadow 0.15s',
       }}
     >

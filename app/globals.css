@@ -316,9 +316,9 @@ body {
   padding: 1px 4px;
   cursor: pointer;
   user-select: none;
-  line-height: 1;
+  /* Inside a <sup>, which already raises it; line-height 0 keeps the line even. */
+  line-height: 0;
   transition: background 150ms ease;
-  vertical-align: super;
 }
 .barrapad-fn-marker:hover { background: rgba(212, 85, 10, 0.22); }
 

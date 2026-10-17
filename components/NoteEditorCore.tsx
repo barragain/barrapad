@@ -278,7 +278,7 @@ export default function NoteEditorCore({
     // The shell is server-rendered; create the editor after hydration (dev throws otherwise).
     immediatelyRender: false,
     extensions: [
-      StarterKit.configure({ codeBlock: false, dropcursor: { color: '#D4550A', width: 4 }, ...(collab ? { undoRedo: false } : {}) }),
+      StarterKit.configure({ codeBlock: false, underline: false, link: false, dropcursor: { color: '#D4550A', width: 4 }, ...(collab ? { undoRedo: false } : {}) }),
       ...(collab ? [
         Collaboration.configure({ document: collab.doc }),
         CollaborationCaret.configure({
@@ -289,8 +289,10 @@ export default function NoteEditorCore({
           selectionRender: (u: { color: string }) => ({ nodeName: 'span', style: `background:${u.color}33;` }),
         }),
       ] : []),
+      // StarterKit 3 bundles these two; they are turned off there and set up
+      // here once (a second registration warned and dropped this config).
       Underline,
-      Link.configure({ openOnClick: false, autolink: true }),
+      Link.configure({ openOnClick: true, autolink: true }),
       TextStyle,
       Color,
       Highlight.configure({ multicolor: true }),
@@ -376,8 +378,12 @@ export default function NoteEditorCore({
         if (!ed) return true
         navigator.clipboard.readText().then(text => {
           if (!text) return
-          // insertContent with a string inserts plain text, dropping any HTML/marks
-          ed.chain().focus().insertContent(text).run()
+          // Text nodes, never an HTML string (that would parse "<b>" as
+          // markup); one paragraph per line so line breaks survive.
+          const lines = text.replace(/\r\n?/g, '\n').split('\n')
+          ed.chain().focus().insertContent(lines.length === 1
+            ? { type: 'text', text }
+            : lines.map((l) => ({ type: 'paragraph', content: l ? [{ type: 'text', text: l }] : [] }))).run()
         }).catch(() => {})
         return true
       },
@@ -422,9 +428,10 @@ export default function NoteEditorCore({
           const doc = parser.parseFromString(html, 'text/html')
           const imgs = doc.querySelectorAll('img')
           if (imgs.length > 0) {
-            // Check if the HTML is JUST images (no meaningful text content)
+            // Only take over when the HTML is just images. With text around
+            // them the normal paste keeps both (it used to drop the text).
             const textContent = doc.body?.textContent?.trim() ?? ''
-            if (textContent.length === 0 || imgs.length > 0) {
+            if (textContent.length === 0) {
               let handled = false
               for (const img of Array.from(imgs)) {
                 const src = img.getAttribute('src')
