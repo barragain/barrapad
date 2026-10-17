@@ -29,13 +29,15 @@ export function sendRoomMessage(provider: YProvider | null | undefined, msg: Rec
  * Seed claim (see NoteYParty): ask the room whether this tab should load the
  * database HTML into the doc. Calls `done` once answered. Returns the cleanup.
  */
-export function claimSeed(provider: YProvider, editor: Editor, db: () => { html: string; updatedAt: string }, done: () => void) {
+export function claimSeed(provider: YProvider, editor: Editor, db: () => { html: string; updatedAt: string }, done: () => void, keepLocal: () => boolean) {
   let answered = false
   const off = onRoomMessage(provider, (msg) => {
     if (msg.type !== 'seed' || answered) return
     answered = true
     if (msg.grant) {
-      editor.commands.setContent(db().html || '', { emitUpdate: false })
+      // Edits made offline are in the doc but not yet in the database: keep
+      // them, the next save brings the database up to date.
+      if (!keepLocal()) editor.commands.setContent(db().html || '', { emitUpdate: false })
       sendRoomMessage(provider, { type: 'seeded', dbUpdatedAt: db().updatedAt })
     }
     done()

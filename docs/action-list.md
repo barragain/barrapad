@@ -143,3 +143,9 @@ Update, later on 2026-10-17: the trial was skipped. Yjs is now the only path for
 Revoking a share link or a collaborator now cuts off their open tab at once instead of at the next reconnect. Switching to another note while a new one is still being created no longer jumps back to the new note, and a reload in the middle of a guest import no longer makes a second copy of a note. Poll votes now belong to the account, so a vote follows the user to every device; guests still vote once per browser. bpad also opens offline through a service worker: guests can keep writing, and signed-in users can read their notes until the network is back. The suite gained `e2e/opened.mjs` (the "opened your note" notification) and `e2e/offline.mjs`, plus new checks in `realtime`, `tags`, `guest` and `poll`. `docs/spec.md` now describes everything the site does.
 
 Still open: Google sign-in needs a Google Cloud OAuth client from you, and offline editing for signed-in users (see `docs/known-gaps.md`).
+
+## Round 7 (2026-10-17, night)
+
+Ctrl+/ opens a command palette (the user's pick over Ctrl+P, which would replace printing). It searches notes by title, tag or text, shared notes, and actions such as New note, Focus mode, Share and the exports. Signed-in users can now edit offline: each note's Yjs doc is kept in IndexedDB, so a note opened on the device before can be edited with no network, and the edits merge into the room and reach the database on reconnect, including notes that are not open at that moment. `e2e/offline.mjs` covers an offline reload and an offline switch between two notes.
+
+Still open: Google sign-in needs a Google Cloud OAuth client from you.

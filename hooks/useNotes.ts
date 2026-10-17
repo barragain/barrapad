@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import type { Note } from '@/types'
+import { markOfflineDirty, clearOfflineDirty } from '@/lib/offlineNotes'
 
 // Notes list, local cache, guest store and the save pipeline. See
 // docs/architecture.md for how local edits, autosave and fetches fit together.
@@ -226,6 +227,8 @@ export function useNotes({ initialNotes, guest, isGuest, isSignedIn }: {
    *  closure-captured activeNoteId, which can lag behind during note switches. */
   const handleLocalChange = useCallback((noteId: string, title: string, content: string) => {
     if (!noteId) return
+    // The database save will fail: remember the note for the reconnect.
+    if (!navigator.onLine) markOfflineDirty(noteId)
     // Bump the dirty version so any in-flight save can detect that new edits
     // happened while it was running and refuse to clear the dirty flag.
     const cur = dirtyVersionsRef.current.get(noteId) ?? 0
@@ -274,7 +277,7 @@ export function useNotes({ initialNotes, guest, isGuest, isSignedIn }: {
   const saveNote = useCallback(async (noteId: string, contentTitle: string, content: string, setSaving: (v: boolean) => void, deriveTitle: boolean) => {
     if (!noteId || noteId.startsWith('temp-') || isLocalId(noteId)) return
     const targetNote = notesRef.current.find(n => n.id === noteId)
-    if (!targetNote) return
+    if (!targetNote) { clearOfflineDirty(noteId); return }
 
     // Autosave: for shared notes, always use the note's existing title — never
     // the content-derived one; for owned notes, respect manualTitlesRef.
@@ -284,12 +287,21 @@ export function useNotes({ initialNotes, guest, isGuest, isSignedIn }: {
 
     const versionAtSaveStart = dirtyVersionsRef.current.get(noteId) ?? 0
     const patch = async (url: string) => {
-      const res = await fetch(url, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, content }),
-      })
+      let res: Response
+      try {
+        res = await fetch(url, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title, content }),
+        })
+      } catch {
+        // Offline: the doc keeps the edit (lib/offlineNotes) and the reconnect saves it.
+        markOfflineDirty(noteId)
+        return
+      }
+      if (res.status === 404) clearOfflineDirty(noteId)
       if (!res.ok) return
+      clearOfflineDirty(noteId)
       if (dirtyVersionsRef.current.get(noteId) === versionAtSaveStart) dirtyVersionsRef.current.delete(noteId)
       const { updatedAt } = (await res.json()) as { updatedAt?: string }
       applyServerUpdatedAt(noteId, updatedAt)

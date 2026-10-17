@@ -55,6 +55,7 @@
     "tailwindcss": "^4.2.2",
     "tippy.js": "^6.3.7",
     "turndown": "^7.2.3",
+    "y-indexeddb": "^9.0.12",
     "y-partyserver": "^2.2.0",
     "y-protocols": "^1.0.7",
     "yjs": "^13.6.33"

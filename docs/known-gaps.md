@@ -12,7 +12,7 @@ The "manually renamed" flag is kept per browser, so typing in a renamed note on 
 
 A collaborator moved to view only keeps an editable-looking editor for up to 10 seconds (the shared list poll), though the room already drops their writes.
 
-Signed-in users can read their notes offline but not edit them. Offline editing for accounts would need the local Yjs doc to be kept (y-indexeddb) and merged on reconnect. If someone signs out and goes offline before the next page load, the saved offline page still holds their notes.
+Signed-in users can only edit notes offline that they opened on that device while online, because those are the notes whose Yjs doc is kept in IndexedDB. New notes cannot be created offline when signed in, and shared notes are not available offline. If the room grants a seed because the database was changed outside the room while a note had offline edits, the offline copy wins and that outside change is overwritten. The kept docs stay in IndexedDB after sign-out, and if someone signs out and goes offline before the next page load, the saved offline page still holds their notes.
 
 The first document request of a cold session spends about 0.4 seconds in Clerk's handshake redirect, and the app ships about 370 KB of script.
 

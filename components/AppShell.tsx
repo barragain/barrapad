@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Info, Focus, Share2, X, Cloud, CloudCheck, RefreshCw, HardDrive, Download, ChevronDown, Menu, Plus, Palette, MessageSquare, Save } from 'lucide-react'
+import { Info, Focus, Share2, X, Cloud, CloudCheck, RefreshCw, HardDrive, Download, ChevronDown, Menu, CloudOff, Plus, Palette, MessageSquare, Save } from 'lucide-react'
 import Link from 'next/link'
 import { useAuth, useUser } from '@clerk/nextjs'
 import { AnimatePresence, MotionConfig, motion } from 'framer-motion'
@@ -161,9 +161,19 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
   useEffect(() => { if (guest) fetchNotes() }, [])
 
   // Offline support (public/sw.js). A signed-in page opened without network is
-  // the worker's saved copy, so its notes may be stale: stay read-only and
-  // reload once the network is back. Guests keep everything in this browser
-  // and work offline as usual.
+  // the worker's saved copy, so its notes may be stale: the list stays locked,
+  // and only notes whose Yjs doc is kept on this device open for editing
+  // (Editor, lib/offlineNotes). The page reloads once the network is back,
+  // which merges and saves those edits. Guests keep everything in this
+  // browser and work offline as usual.
+  const [online, setOnline] = useState(true)
+  useEffect(() => {
+    const update = () => setOnline(navigator.onLine)
+    update()
+    window.addEventListener('online', update)
+    window.addEventListener('offline', update)
+    return () => { window.removeEventListener('online', update); window.removeEventListener('offline', update) }
+  }, [])
   useEffect(() => {
     if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('/sw.js').catch(() => {})
     if (guest || navigator.onLine) return
@@ -458,7 +468,17 @@ export default function AppShell({ initialNotes, guest = false }: { initialNotes
 
           {/* Sync indicator: spinning cloud while loading or saving, then a short "Saved" tick */}
           <AnimatePresence mode="wait">
-            {!isGuest && (autoSaving || manualSaving || !notesLoaded) ? (
+            {!isGuest && !online ? (
+              <span
+                key="offline"
+                className="flex items-center gap-1 text-[11px]"
+                style={{ color: 'var(--muted)' }}
+                title="Offline. Notes opened on this device before can still be edited, and they sync when you are back online."
+              >
+                <CloudOff size={14} />
+                Offline
+              </span>
+            ) : !isGuest && (autoSaving || manualSaving || !notesLoaded) ? (
               <motion.span
                 key="sync-busy"
                 initial={{ opacity: 0, y: 4 }}

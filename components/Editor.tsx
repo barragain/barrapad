@@ -15,6 +15,7 @@ import { claimSeed, onRoomMessage, sendRoomMessage } from '@/lib/noteRoom'
 import * as Y from 'yjs'
 import { Awareness } from 'y-protocols/awareness'
 import YProvider from 'y-partyserver/provider'
+import { persistDoc, loadOfflineDirty, clearOfflineDirty, syncOfflineNote } from '@/lib/offlineNotes'
 
 function formatDate(dateStr: string) {
   const d = new Date(dateStr)
@@ -134,10 +135,15 @@ export default function EditorComponent({
   // may be neither owner nor collaborator.
   const shareTokenRef = useRef(note.sharedToken)
   shareTokenRef.current = note.sharedToken
-  type Collab = { key: string; room: string; doc: Y.Doc; awareness: Awareness; provider: YProvider | null; local: boolean }
+  // The doc is also kept in IndexedDB (idb), so a note opened here before can
+  // be edited offline (offlineLive) and merges into the room on reconnect.
+  type Collab = { key: string; room: string; doc: Y.Doc; awareness: Awareness; provider: YProvider | null; idb: ReturnType<typeof persistDoc> | null; local: boolean }
   const [collab, setCollab] = useState<Collab | null>(null)
   const collabRef = useRef<Collab | null>(null)
   const [ySynced, setYSynced] = useState(false)
+  // Bumped on every sync with the room, including reconnects.
+  const [syncTick, setSyncTick] = useState(0)
+  const [offlineLive, setOfflineLive] = useState(false)
   const [yEditor, setYEditor] = useState<Editor | null>(null)
   const [seedDone, setSeedDone] = useState(false)
   const seedDoneRef = useRef(false)
@@ -167,31 +173,44 @@ export default function EditorComponent({
   useEffect(() => {
     const connect = (c: Collab, r: string) => {
       const p = new YProvider(REALTIME_HOST, r, c.doc, { party: 'note-y', params: roomQuery(r, shareTokenRef.current), awareness: c.awareness })
-      p.on('synced', (s: boolean) => { if (s && collabRef.current?.provider === p) setYSynced(true) })
+      p.on('synced', (s: boolean) => {
+        if (s && collabRef.current?.provider === p) { setYSynced(true); setSyncTick((t) => t + 1) }
+      })
       return p
     }
+    // Offline, a doc kept from an earlier visit is good enough to edit.
+    const keep = (c: Collab) => {
+      c.idb = persistDoc(c.room, c.doc)
+      c.idb.whenSynced.then(() => {
+        if (collabRef.current !== c || navigator.onLine || c.doc.getXmlFragment('default').length === 0) return
+        setOfflineLive(true)
+        setSeedDone(true)
+      })
+    }
+    const destroy = (c: Collab) => { c.provider?.destroy(); c.idb?.destroy(); c.awareness.destroy(); c.doc.destroy() }
     const cur = collabRef.current
     const isTemp = room.startsWith('temp-')
     if (yMode && cur?.local && cur.room === promotedFromRef.current && !isTemp) {
       const next = { ...cur, room }
       next.provider = connect(next, room)
+      keep(next)
       collabRef.current = next
       setCollab(next)
       return
     }
-    if (cur) { cur.provider?.destroy(); cur.awareness.destroy(); cur.doc.destroy() }
+    if (cur) destroy(cur)
     collabRef.current = null
-    setYSynced(false); setYEditor(null); setSeedDone(isTemp)
+    setYSynced(false); setYEditor(null); setSeedDone(isTemp); setOfflineLive(false)
     if (!yMode) { setCollab(null); return }
     const doc = new Y.Doc()
-    const c: Collab = { key: doc.guid, room, doc, awareness: new Awareness(doc), provider: null, local: isTemp }
-    if (!isTemp) c.provider = connect(c, room)
+    const c: Collab = { key: doc.guid, room, doc, awareness: new Awareness(doc), provider: null, idb: null, local: isTemp }
     collabRef.current = c
+    if (!isTemp) { c.provider = connect(c, room); keep(c) }
     setCollab(c)
   }, [yMode, room])
   useEffect(() => () => {
     const c = collabRef.current
-    if (c) { c.provider?.destroy(); c.awareness.destroy(); c.doc.destroy() }
+    if (c) { c.provider?.destroy(); c.idb?.destroy(); c.awareness.destroy(); c.doc.destroy() }
   }, [])
 
   // Once the doc and the database copy are both known, ask the room whether
@@ -201,7 +220,8 @@ export default function EditorComponent({
     if (!collab?.provider || collab.local || !yEditor || !serverReady) return
     return claimSeed(collab.provider, yEditor,
       () => ({ html: noteContentRef.current, updatedAt: noteUpdatedAtRef.current }),
-      () => setSeedDone(true))
+      () => setSeedDone(true),
+      () => loadOfflineDirty().includes(liveNoteIdRef.current))
   }, [collab, yEditor, serverReady])
 
   // Tags, renames, deletes and comment signals from the room.
@@ -498,8 +518,37 @@ export default function EditorComponent({
     sendToRoom({ type: 'tags', tags })
   }, [onTagsChange, sendToRoom])
 
+  // ── Offline edits ─────────────────────────────────────────────────────────
+  // Notes edited offline (lib/offlineNotes) owe the database a save. Once the
+  // room is reachable, save this note from the editor and merge the others
+  // in the background, then save them too.
+  const offlineSyncingRef = useRef(false)
+  useEffect(() => {
+    if (!yEditor || !ySynced || !navigator.onLine || offlineSyncingRef.current) return
+    const ids = loadOfflineDirty()
+    if (!ids.length) return
+    offlineSyncingRef.current = true
+    const schema = yEditor.schema
+    ;(async () => {
+      for (const id of ids) {
+        if (id === liveNoteIdRef.current) {
+          if (!seedDoneRef.current || yEditor.isDestroyed) continue
+          pendingRef.current = { title: noteTitleRef.current || 'Untitled', html: yEditor.getHTML(), noteId: id }
+          flushAutoSave()
+          continue
+        }
+        try {
+          const res = await syncOfflineNote(id, schema)
+          if (!res) { clearOfflineDirty(id); continue }
+          onRemoteContentRef.current(id, undefined, res.html)
+          onAutoSaveRef.current(id, res.title, res.html)
+        } catch { /* room unreachable: the next sync retries */ }
+      }
+    })().finally(() => { offlineSyncingRef.current = false })
+  }, [syncTick, seedDone, yEditor, ySynced, flushAutoSave])
+
   // ── Render ────────────────────────────────────────────────────────────────
-  const editable = (!note.sharedToken || note.sharedPermission === 'EDIT') && serverReady
+  const editable = (!note.sharedToken || note.sharedPermission === 'EDIT') && (serverReady || offlineLive)
 
   if (deleted) {
     return (
@@ -533,7 +582,7 @@ export default function EditorComponent({
   // flashes blank, then mount an editor bound to this note's doc.
   // A promoted temp- note keeps its doc: the effect re-labels it after render.
   const ownDoc = !!collab && (collab.room === room || (collab.local && collab.room === promotedFromRef.current))
-  const yLive = yMode && ownDoc && (collab!.local || ySynced)
+  const yLive = yMode && ownDoc && (collab!.local || ySynced || offlineLive)
   const yPreview = yMode && !yLive
   return (
     <>
